@@ -1,0 +1,4 @@
+voyager
+=======
+
+A generated world
