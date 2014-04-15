@@ -1,0 +1,6 @@
+[submodule "gl"]
+	path = gl
+	url = git@github.com:bjz/gl-rs.git
+[submodule "glfw"]
+	path = glfw
+	url = git@github.com:bjz/glfw-rs.git
