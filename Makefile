@@ -8,7 +8,7 @@ MAIN								= src/voyager/main.rs
 ROOT_DIR						= build
 ASSETS_DIR					= $(ROOT_DIR)/assets
 
-GL_VERSION					?= 3.1
+GL_VERSION					?= 3.3
 
 DEPS								= -L$(DEPS_DIR)/glfw-rs/lib \
 											-L$(DEPS_DIR)/gl-rs/lib
@@ -30,7 +30,7 @@ clean:
 assets:
 	@mkdir -p $(ASSETS_DIR)
 
-voyager: assets $(MAIN)
+voyager: assets
 	$(RUSTC) $(DEPS) -Llib -O -o $(ROOT_DIR)/voyager $(MAIN)
 
 test: voyager

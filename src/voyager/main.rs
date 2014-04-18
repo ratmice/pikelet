@@ -14,7 +14,7 @@ fn main() {
   let glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
   // Choose a GL profile that is compatible with OS X 10.7+
-  glfw.window_hint(glfw::ContextVersion(3, 2));
+  glfw.window_hint(glfw::ContextVersion(3, 3));
   glfw.window_hint(glfw::OpenglForwardCompat(true));
   glfw.window_hint(glfw::OpenglProfile(glfw::OpenGlCoreProfile));
 
