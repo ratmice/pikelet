@@ -1,12 +1,14 @@
 extern crate gl;
-// TODO: Why can't I isolate this in platform_glfw.rs?
-extern crate glfw;
 extern crate native;
 
-mod platform_glfw;
+use platform::Platform;
+
+mod platform;
 
 fn main() {
-    let platform = platform_glfw::init();
+    let platform = platform::glfw::init();
+
+    platform.load_gl(gl::load_with);
 
     while !platform.exit_requested() {
         platform.process_events();

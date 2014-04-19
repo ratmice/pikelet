@@ -1,27 +1,31 @@
-extern crate gl;
 extern crate glfw;
 
-use glfw::Context;
-use glfw::Window;
-use glfw::Glfw;
+use self::glfw::Context;
+use self::glfw::Window;
+use self::glfw::Glfw;
+
+use platform::Platform;
 
 pub struct GlfwPlatform {
     glfw: Glfw,
     window: Window
 }
 
-// TODO: This should be implementing the Platform trait... 
-impl GlfwPlatform {
-    pub fn exit_requested(&self) -> bool {
+impl Platform for GlfwPlatform {
+    fn exit_requested(&self) -> bool {
         self.window.should_close()
     }
 
-    pub fn process_events(&self) {
+    fn process_events(&self) {
         self.glfw.poll_events();
     }
 
-    pub fn swap(&self) {
+    fn swap(&self) {
         self.window.swap_buffers();
+    }
+
+    fn load_gl(&self, f: fn(|&str| -> Option<extern "system" fn()>)) {
+        f(|s| self.glfw.get_proc_address(s));
     }
 }
 
@@ -36,8 +40,6 @@ pub fn init() -> GlfwPlatform {
         .expect("Failed to create GLFW window.");
 
     window.make_current();
-
-    gl::load_with(|s| glfw.get_proc_address(s));
 
     GlfwPlatform {
         glfw: glfw,
