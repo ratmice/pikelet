@@ -19,6 +19,8 @@ fn main() {
 
         platform.swap();
     }
+
+    platform.shutdown();
 }
 
 #[start]
