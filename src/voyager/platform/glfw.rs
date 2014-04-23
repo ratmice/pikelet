@@ -12,8 +12,8 @@ pub struct GlfwPlatform {
 }
 
 impl Platform for GlfwPlatform {
-    fn signal_shutdown(&self) {
-        self.window.set_should_close(true);
+    fn get_time(&self) -> f64 {
+        self.glfw.get_time()
     }
     
     fn exit_requested(&self) -> bool {
@@ -30,6 +30,10 @@ impl Platform for GlfwPlatform {
 
     fn load_gl(&self, f: fn(|&str| -> Option<extern "system" fn()>)) {
         f(|s| self.glfw.get_proc_address(s));
+    }
+
+    fn signal_shutdown(&self) {
+        self.window.set_should_close(true);
     }
 
     fn shutdown(&self) {
