@@ -5,7 +5,7 @@ DEPS_DIR            = deps
 
 MAIN								= src/voyager/main.rs
 
-BUILD_DIR						= build
+BUILD_DIR						= $(PWD)/build
 ASSETS_DIR					= $(BUILD_DIR)/assets
 
 GL_VERSION					?= 3.3
@@ -30,6 +30,7 @@ clean:
 
 assets:
 	@mkdir -p $(ASSETS_DIR)
+	make -C src/assets ASSETS_DIR=$(ASSETS_DIR)
 
 voyager: assets
 	$(RUSTC) $(DEPS) -Llib -O -o $(BUILD_DIR)/voyager $(MAIN)
