@@ -3,33 +3,36 @@
 extern crate native;
 
 use platform::Platform;
+use resources::ResourceManager;
 use graphics::GraphicsManager;
 use game::Game;
 
 mod platform;
+mod resources;
 mod graphics;
 mod game;
 
 struct Application {
     target_delta: f64,
     pub game_time: f64,
+    pub resources: ResourceManager,
     pub platform: platform::glfw::GlfwPlatform,
-    // resources: ResourceManager,
     graphics: GraphicsManager,
     // animations: AnimationManager,
     // physics: PhysicsManager,
+    // fx: EffectsManager,
     // audio: AudioManager,
     // game: VoyagerGame,
 }
 
 impl Application {
     fn init() -> Application {
+        let resource_manager = ResourceManager::init();
         let platform = platform::glfw::init();
-        
-        //ResourceManager::init()
         let graphics_manager = GraphicsManager::init(&platform);
         //AnimationManager::init()
         //PhysicsManager::init()
+        //EffectsManager::init()
         //AudioManager::init()
         //let game = game::voyager_game::init();
 
@@ -38,18 +41,23 @@ impl Application {
             target_delta: 1.0 / 120.0,
             game_time: 0.0,
             platform: platform,
+            resources: resource_manager,
             graphics: graphics_manager
         }
     }
     
     fn render(&self) {
         self.graphics.clear();
+
+        self.platform.swap();
     }
 
     fn update(&self, delta:f64) {
         // update animation
 
         // update physics
+
+        // update fx
 
         // update game
 
@@ -79,16 +87,16 @@ impl Application {
 
             // Draw the world
             self.render();
-            self.platform.swap();
         }
 
         //self.game.shutdown();
-        //self.audio_manager.shutdown();
-        //self.physics_manager.shutdown();
-        //self.animation_manager.shutdown();
-        //self.graphics_manager.shutdown();
-        //self.resource_manager.shutdown();
+        //self.audio.shutdown();
+        //self.animation.shutdown();
+        //self.fx.shutdown();
+        //self.physics.shutdown();
+        //self.graphics.shutdown();
         self.platform.shutdown();
+        self.resources.shutdown();
     }
 }
 
