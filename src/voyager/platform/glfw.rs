@@ -5,6 +5,7 @@ use self::glfw::Window;
 use self::glfw::Glfw;
 
 use platform::Platform;
+use resources::ResourceManager;
 
 pub struct GlfwPlatform {
     glfw: Glfw,
@@ -41,15 +42,41 @@ impl Platform for GlfwPlatform {
     }
 }
 
-pub fn init() -> GlfwPlatform {
+pub fn init(resources: &ResourceManager) -> GlfwPlatform {
     let glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
+
+    println!("DEBUG: Initializing Voyager platform with GLFW v{}", glfw::get_version_string());
 
     glfw.window_hint(glfw::ContextVersion(3, 3));
     glfw.window_hint(glfw::OpenglForwardCompat(true));
     glfw.window_hint(glfw::OpenglProfile(glfw::OpenGlCoreProfile));
 
-    let (window, _) = glfw.create_window(800, 600, "OpenGL", glfw::Windowed)
-        .expect("Failed to create GLFW window.");
+    // Load platform configuration
+    let config = resources.open_config("platform.json")
+        .expect("Failed to load platform configuration!");
+    println!("DEBUG: platform configuration: {}", config.to_pretty_str());
+
+    let title = "Voyager";
+    let (window, events) = match config.find(&"video".to_owned()) {
+        Some(video) => {
+            let width = video.find(&"width".to_owned())
+                .and_then(|w| w.as_number())
+                .and_then(|w| w.to_u32())
+                .unwrap_or(800);
+            let height = video.find(&"height".to_owned())
+                .and_then(|h| h.as_number())
+                .and_then(|h| h.to_u32())
+                .unwrap_or(600);
+
+            glfw.create_window(width, height, title, glfw::Windowed)
+                .expect("Failed to create GLFW window with the provided platform configuration.")
+        }
+        None => {
+            glfw.create_window(800, 600, title, glfw::Windowed)
+                .expect("Failed to create GLFW window.")
+        }
+    };
+
 
     window.make_current();
 

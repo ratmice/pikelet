@@ -28,7 +28,7 @@ struct Application {
 impl Application {
     fn init() -> Application {
         let resource_manager = ResourceManager::init();
-        let platform = platform::glfw::init();
+        let platform = platform::glfw::init(&resource_manager);
         let graphics_manager = GraphicsManager::init(&platform);
         //AnimationManager::init()
         //PhysicsManager::init()
