@@ -65,6 +65,7 @@ pub fn init(resources: &ResourceManager) -> GlfwPlatform {
     glfw.window_hint(glfw::ContextVersion(3, 3));
     glfw.window_hint(glfw::OpenglForwardCompat(true));
     glfw.window_hint(glfw::OpenglProfile(glfw::OpenGlCoreProfile));
+    glfw.window_hint(glfw::Resizable(false));
 
     // Load platform configuration
     let config = resources.open_config("platform.json")
