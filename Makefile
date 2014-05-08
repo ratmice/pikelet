@@ -36,7 +36,7 @@ voyager: assets
 	$(RUSTC) $(DEPS) -Llib -O -o $(BUILD_DIR)/voyager $(MAIN)
 
 test: voyager
-	@$(BUILD_DIR)/voyager
+	@cd $(BUILD_DIR) && ./voyager
 
 .PHONY: \
 	all \
