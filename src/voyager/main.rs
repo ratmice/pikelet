@@ -38,7 +38,7 @@ impl Application {
 
 
         Application {
-            target_delta: 1.0 / 120.0,
+            target_delta: 1.0 / 60.0, // TODO: perhaps this is set based on capabilities?
             game_time: 0.0,
             platform: platform,
             resources: resource_manager,
