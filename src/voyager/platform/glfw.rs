@@ -1,15 +1,19 @@
+
 extern crate glfw;
 
+use std::comm::{channel, Receiver, Sender};
 use self::glfw::Context;
 use self::glfw::Window;
 use self::glfw::Glfw;
+use self::glfw::WindowEvent;
 
 use platform::Platform;
 use resources::ResourceManager;
 
 pub struct GlfwPlatform {
     glfw: Glfw,
-    window: Window
+    window: Window,
+    events: Receiver<(f64, WindowEvent)>
 }
 
 impl Platform for GlfwPlatform {
@@ -23,6 +27,17 @@ impl Platform for GlfwPlatform {
 
     fn process_events(&self) {
         self.glfw.poll_events();
+        for (time, event) in glfw::flush_messages(&self.events) {
+            match event {
+                glfw::KeyEvent(key, scancode, action, mods) => {
+                    match (key, action) {
+                        (glfw::KeyEscape, glfw::Press) => self.signal_shutdown(),
+                        _ => ()
+                    }
+                }
+                _ => ()
+            }
+        }
     }
 
     fn swap(&self) {
@@ -77,11 +92,13 @@ pub fn init(resources: &ResourceManager) -> GlfwPlatform {
         }
     };
 
+    window.set_key_polling(true);
 
     window.make_current();
 
     GlfwPlatform {
         glfw: glfw,
-        window: window
+        window: window,
+        events: events
     }
 }
