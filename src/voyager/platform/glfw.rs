@@ -82,9 +82,19 @@ pub fn init(resources: &ResourceManager) -> GlfwPlatform {
                 .and_then(|h| h.as_number())
                 .and_then(|h| h.to_u32())
                 .unwrap_or(600);
+            let is_fullscreen = video.find(&"fullscreen".to_owned())
+                .and_then(|w| w.as_boolean())
+                .unwrap_or(false);
 
-            glfw.create_window(width, height, title, glfw::Windowed)
-                .expect("Failed to create GLFW window with the provided platform configuration.")
+            if is_fullscreen {
+                glfw.with_primary_monitor(|m| {
+                    glfw.create_window(width, height, title, glfw::FullScreen(
+                        m.expect("Failed to detect primary monitor.")
+                    ))
+                })
+            } else {
+                glfw.create_window(width, height, title, glfw::Windowed)
+            }.expect("Failed to create GLFW window with the provided platform configuration.")
         }
         None => {
             glfw.create_window(800, 600, title, glfw::Windowed)
