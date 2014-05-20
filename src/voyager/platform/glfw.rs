@@ -20,7 +20,7 @@ impl Platform for GlfwPlatform {
     fn get_time(&self) -> f64 {
         self.glfw.get_time()
     }
-    
+
     fn exit_requested(&self) -> bool {
         self.window.should_close()
     }
@@ -72,17 +72,17 @@ pub fn init(resources: &ResourceManager) -> GlfwPlatform {
     println!("DEBUG: platform configuration: {}", config.to_pretty_str());
 
     let title = "Voyager";
-    let (window, events) = match config.find(&"video".to_owned()) {
+    let (window, events) = match config.find(&StrBuf::from_str("video")) {
         Some(video) => {
-            let width = video.find(&"width".to_owned())
+            let width = video.find(&StrBuf::from_str("width"))
                 .and_then(|w| w.as_number())
                 .and_then(|w| w.to_u32())
                 .unwrap_or(800);
-            let height = video.find(&"height".to_owned())
+            let height = video.find(&StrBuf::from_str("height"))
                 .and_then(|h| h.as_number())
                 .and_then(|h| h.to_u32())
                 .unwrap_or(600);
-            let is_fullscreen = video.find(&"fullscreen".to_owned())
+            let is_fullscreen = video.find(&StrBuf::from_str("fullscreen"))
                 .and_then(|w| w.as_boolean())
                 .unwrap_or(false);
 
