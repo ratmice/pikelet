@@ -1,4 +1,5 @@
 #![feature(globs)]
+#![feature(macro_rules)]
 
 extern crate native;
 
@@ -45,7 +46,7 @@ impl Application {
             graphics: graphics_manager
         }
     }
-    
+
     fn render(&self) {
         self.graphics.clear();
 
