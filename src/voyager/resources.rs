@@ -4,7 +4,7 @@ extern crate serialize;
 use self::serialize::json;
 
 use std::io::{File, FileMode, FileAccess, IoResult};
-use std::io::{Open, Truncate, Read, Write};
+use std::io::{Open, Read};
 use std::os;
 
 pub enum ResourceType {
@@ -27,7 +27,7 @@ impl ResourceManager {
     pub fn init() -> ResourceManager {
         let root_dir = os::self_exe_path().unwrap_or(Path::new("."));
         println!("INFO: Application root directory: {}", root_dir.display());
-        
+
         ResourceManager {
             image_root: root_dir.join("assets/images"),
             model_root: root_dir.join("assets/models"),

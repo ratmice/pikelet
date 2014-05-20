@@ -1,7 +1,6 @@
 
 extern crate glfw;
 
-use std::comm::{channel, Receiver, Sender};
 use self::glfw::Context;
 use self::glfw::Window;
 use self::glfw::Glfw;
@@ -27,9 +26,9 @@ impl Platform for GlfwPlatform {
 
     fn process_events(&self) {
         self.glfw.poll_events();
-        for (time, event) in glfw::flush_messages(&self.events) {
+        for (_, event) in glfw::flush_messages(&self.events) {
             match event {
-                glfw::KeyEvent(key, scancode, action, mods) => {
+                glfw::KeyEvent(key, _, action, _) => {
                     match (key, action) {
                         (glfw::KeyEscape, glfw::Press) => self.signal_shutdown(),
                         _ => ()
