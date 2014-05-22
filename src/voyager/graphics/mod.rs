@@ -21,16 +21,9 @@ struct VertexBuffer {
     id: GLuint
 }
 
-struct UniformBuffer {
-    id: GLuint
-}
-
 struct ShaderProgram {
     vertex_shader: GLuint,
-    fragment_shader: GLuint,
-    geometry_shader: Option<GLuint>,
-    tesselation_shader: Option<GLuint>,
-    compute_shader: Option<GLuint>
+    fragment_shader: GLuint
 }
 
 #[deriving(Clone, Eq)]
@@ -43,7 +36,6 @@ pub struct Handle {
 pub struct GraphicsManager {
     index_buffers: Vec<IndexBuffer>,
     vertex_buffers: Vec<VertexBuffer>,
-    uniform_buffers: Vec<UniformBuffer>,
     shader_programs: Vec<ShaderProgram>,
 }
 
@@ -57,7 +49,6 @@ impl GraphicsManager {
         GraphicsManager {
             index_buffers: Vec::with_capacity(u16::MAX as uint),
             vertex_buffers: Vec::with_capacity(u16::MAX as uint),
-            uniform_buffers: Vec::with_capacity(u16::MAX as uint),
             shader_programs: Vec::with_capacity(u16::MAX as uint),
         }
     }
@@ -81,14 +72,6 @@ impl GraphicsManager {
     }
 
     pub fn destroy_index_buffer(&mut self, _handle: Handle) {
-        fail!("Not yet implemented.");
-    }
-
-    pub fn add_uniform_buffer(&mut self/*, ...*/) -> Handle {
-        fail!("Not yet implemented.");
-    }
-
-    pub fn destroy_uniform_buffer(&mut self, _handle: Handle) {
         fail!("Not yet implemented.");
     }
 
