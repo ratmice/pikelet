@@ -260,15 +260,24 @@ pub fn init(resources: &ResourceManager) -> GlfwPlatform {
                 .and_then(|w| w.as_boolean())
                 .unwrap_or(false);
 
-            if is_fullscreen {
-                glfw.with_primary_monitor(|m| {
-                    glfw.create_window(width, height, title, glfw::FullScreen(
-                        m.expect("Failed to detect primary monitor.")
-                    ))
-                })
-            } else {
-                glfw.create_window(width, height, title, glfw::Windowed)
-            }.expect("Failed to create GLFW window with the provided platform configuration.")
+            glfw.with_primary_monitor(|m| {
+                let monitor = m.expect("Failed to detect primary monitor.");
+                    
+                let (win, events) = if is_fullscreen {
+                    glfw.create_window(width, height, title, glfw::FullScreen(monitor))
+                } else {
+                    glfw.create_window(width, height, title, glfw::Windowed)
+                }.expect("Failed to create GLFW window with the provided platform configuration.");
+
+                let video_mode = monitor.get_video_mode().expect("Unable to determine video mode for primary monitor.");
+                let center_x = video_mode.width / 2;
+                let center_y = video_mode.height / 2;
+                let x = (center_x - width/2) as i32;
+                let y = (center_y - height/2) as i32;
+                win.set_pos(x, y);
+                
+                (win, events)
+            })
         }
         None => {
             glfw.create_window(800, 600, title, glfw::Windowed)
