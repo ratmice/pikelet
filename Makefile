@@ -19,7 +19,7 @@ submodule-update:
 	@git submodule init
 	@git submodule update
 
-deps: submodule-update
+deps:
 	make lib -C $(DEPS_DIR)/gl-rs GL_VERSION=$(GL_VERSION)
 	make lib -C $(DEPS_DIR)/glfw-rs
 

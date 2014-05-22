@@ -9,3 +9,16 @@ pub trait Platform {
     fn signal_shutdown(&self);
     fn shutdown(&self);
 }
+
+pub trait Command<T> {
+    fn call(&self, data: T);
+}
+
+pub enum SwitchState {
+    SwitchOn,
+    SwitchOff,
+}
+
+pub trait InputManager {
+    fn set_switch_command(&mut self, name: &str, switch: Option<Box<Command<SwitchState>>>) -> bool;
+}
