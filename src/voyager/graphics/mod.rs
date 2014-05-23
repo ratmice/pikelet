@@ -1,5 +1,6 @@
 extern crate gl;
 extern crate native;
+extern crate cgmath;
 
 use self::gl::types::*;
 use std::u16;
@@ -8,17 +9,15 @@ use std::mem;
 use std::ptr;
 use std::str;
 
+use cgmath::vector::Vector3;
+
 use platform::Platform;
 
-trait GLBuffer {
-    fn gen() -> GLuint;
-    fn delete();
-    fn bind();
-    fn data<T>(buf: Vec<T>);
-}
+use super::data::Handle;
+use super::data::EngineData;
 
-struct IndexBuffer {
-    id: GLuint
+trait GLObject {
+    fn bind();
 }
 
 struct VertexBuffer {
@@ -26,7 +25,7 @@ struct VertexBuffer {
 }
 
 struct ShaderProgram {
-    _id: GLuint,
+    id: GLuint,
     vertex_shader: GLuint,
     fragment_shader: GLuint
 }
@@ -56,24 +55,24 @@ impl ShaderProgram {
         if vs.is_none() || fs.is_none() {
             None
         } else {
-            let program_id = gl::CreateProgram();
-            gl::AttachShader(program_id, vs.unwrap());
-            gl::AttachShader(program_id, fs.unwrap());
-            gl::LinkProgram(program_id);
+            let id = gl::CreateProgram();
+            gl::AttachShader(id, vs.unwrap());
+            gl::AttachShader(id, fs.unwrap());
+            gl::LinkProgram(id);
             unsafe {
                 let mut status = gl::FALSE as GLint;
 
                 if status == (gl::TRUE as GLint) {
                     Some(ShaderProgram{
-                        _id: program_id,
+                        id: id,
                         vertex_shader: vs.unwrap(),
                         fragment_shader: fs.unwrap()
                     })
                 } else {
                     let mut len: GLint = 0;
-                    gl::GetProgramiv(program_id, gl::INFO_LOG_LENGTH, &mut len);
+                    gl::GetProgramiv(id, gl::INFO_LOG_LENGTH, &mut len);
                     let mut buf = Vec::from_elem(len as uint - 1, 0u8);
-                    gl::GetProgramInfoLog(program_id, len, ptr::mut_null(), buf.as_mut_ptr() as *mut GLchar);
+                    gl::GetProgramInfoLog(id, len, ptr::mut_null(), buf.as_mut_ptr() as *mut GLchar);
                     println!("{}", str::from_utf8(buf.as_slice()).expect("ProgramInfoLog invalid."));
                     None
                 }
@@ -87,23 +86,19 @@ impl ShaderProgram {
 
 impl Drop for ShaderProgram {
     fn drop(&mut self) {
-        gl::DeleteProgram(self._id);
+        gl::DeleteProgram(self.id);
         gl::DeleteShader(self.vertex_shader);
         gl::DeleteShader(self.fragment_shader);
     }
 }
 
-#[deriving(Clone, Eq)]
-pub struct Handle {
-    ref_index: u16,
-    generation: u16
-}
+pub type ShaderProgramHandle = Handle;
+pub type VertexBufferHandle = Handle;
 
 /// A graphics device manager
 pub struct GraphicsManager {
-    current_generation: uint,
-    vertex_buffers: Vec<VertexBuffer>,
-    shader_programs: Vec<ShaderProgram>,
+    vertex_buffers: EngineData<VertexBuffer>,
+    shader_programs: EngineData<ShaderProgram>,
 }
 
 impl GraphicsManager {
@@ -114,9 +109,8 @@ impl GraphicsManager {
         gl::ClearColor(0.3,0.3,0.3,1.0);
         
         GraphicsManager {
-            current_generation: 0,
-            vertex_buffers: Vec::with_capacity(u16::MAX as uint),
-            shader_programs: Vec::with_capacity(u16::MAX as uint),
+            vertex_buffers: EngineData::new(),
+            shader_programs: EngineData::new()
         }
     }
 
@@ -129,7 +123,7 @@ impl GraphicsManager {
         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
     }
 
-    pub fn add_vertex_buffer<T>(&mut self, data: ~[T], stride: u32) -> Option<Handle> {
+    pub fn add_vertex_buffer<T>(&mut self, data: ~[T], stride: u32) -> Option<VertexBufferHandle> {
         fail!("Not yet implemented.");
     }
 
@@ -137,23 +131,23 @@ impl GraphicsManager {
         fail!("Not yet implemented.");
     }
 
-    pub fn add_shader_program(&mut self, vert_src: &str, frag_src: &str) -> Option<Handle> {
+    pub fn add_shader_program(&mut self, vert_src: &str, frag_src: &str) -> Option<ShaderProgramHandle> {
         ShaderProgram::new(vert_src, frag_src)
             .and_then(|program| {
-                self.shader_programs.push(program);
-                Some(Handle {
-                    ref_index: (self.shader_programs.len() - 1) as u16,
-                    generation: self.current_generation as u16 // I haven't worked out the details of this yet
-                })
+                Some(self.shader_programs.add(program))
             })
     }
 
     pub fn destroy_shader_program(&mut self, handle: Handle) {
-        let next_gen = self.shader_programs.swap_remove(handle.ref_index as uint)
-            .and_then(|program| {
-                Some(self.current_generation + 1)
-            }).unwrap_or(self.current_generation);
-        self.current_generation = next_gen;
+        self.shader_programs.remove(handle);
+    }
+
+    pub fn cube(width: uint, height: uint, depth: uint) -> Option<VertexBufferHandle> {
+        None
+    }
+
+    pub fn patch(width: uint, height: uint) -> Option<VertexBufferHandle> {
+        None
     }
 }
 

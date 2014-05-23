@@ -9,6 +9,7 @@ use resources::ResourceManager;
 use graphics::GraphicsManager;
 use game::Game;
 
+mod data;
 mod platform;
 mod resources;
 mod graphics;
