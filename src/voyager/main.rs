@@ -2,6 +2,7 @@
 #![feature(macro_rules)]
 
 extern crate native;
+extern crate cgmath;
 
 use platform::Platform;
 use resources::ResourceManager;
