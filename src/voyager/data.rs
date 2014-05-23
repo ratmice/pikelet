@@ -1,8 +1,5 @@
 use std::u16;
 use std::vec::Vec;
-use std::mem;
-use std::ptr;
-use std::str;
 
 #[deriving(Clone, Eq)]
 pub struct Handle {
@@ -16,6 +13,10 @@ pub struct EngineData<T> {
 }
 
 impl<T> EngineData<T> {
+    fn is_valid_handle(&self, handle: Handle) -> bool {
+        handle.generation == *self.generation.get(handle.index as uint)
+    }
+    
     pub fn new() -> EngineData<T> {
         EngineData {
             data: Vec::with_capacity(u16::MAX as uint),
@@ -42,12 +43,14 @@ impl<T> EngineData<T> {
     }
 
     pub fn remove(&mut self, handle: Handle) {
-        self.data.swap_remove(handle.index as uint);
-        *self.generation.get_mut(handle.index as uint) += 1;
+        if self.is_valid_handle(handle) {
+            self.data.swap_remove(handle.index as uint);
+            *self.generation.get_mut(handle.index as uint) += 1;
+        }
     }
 
     pub fn get<'a>(&'a self, handle: Handle) -> Option<&'a T> {
-        if handle.generation == *self.generation.get(handle.index as uint) {
+        if self.is_valid_handle(handle) {
             Some(self.data.get(handle.index as uint))
         } else {
             None
