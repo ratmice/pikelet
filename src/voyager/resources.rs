@@ -12,7 +12,8 @@ pub enum ResourceType {
     Script,
     Image,
     Model,
-    Audio
+    Audio,
+    Shader
 }
 
 pub struct ResourceManager {
@@ -20,7 +21,8 @@ pub struct ResourceManager {
     model_root:  Path,
     audio_root:  Path,
     config_root: Path,
-    script_root: Path
+    script_root: Path,
+    shader_root: Path
 }
 
 impl ResourceManager {
@@ -33,7 +35,8 @@ impl ResourceManager {
             model_root: root_dir.join("assets/models"),
             audio_root: root_dir.join("assets/audio"),
             config_root: root_dir.join("assets/conf"),
-            script_root: root_dir.join("assets/scripts")
+            script_root: root_dir.join("assets/scripts"),
+            shader_root: root_dir.join("assets/shaders")
         }
     }
 
@@ -47,7 +50,8 @@ impl ResourceManager {
             Script => &self.script_root,
             Image => &self.image_root,
             Model => &self.model_root,
-            Audio => &self.audio_root
+            Audio => &self.audio_root,
+            Shader => &self.shader_root
         };
         resource_root.join(name)
     }
@@ -70,6 +74,17 @@ impl ResourceManager {
                 },
                 Err(err) => {
                     println!("ERROR: While reading configuration: {}", err);
+                    None
+                }
+            }
+    }
+
+    pub fn open_shader(&self, name: &str) -> Option<~str> {
+        match self.open(name, Shader, Open, Read)
+            .and_then(|mut f| f.read_to_str()) {
+                Ok(s) => Some(s),
+                Err(err) => {
+                    println!("ERROR: While reading shader: {}", err);
                     None
                 }
             }
