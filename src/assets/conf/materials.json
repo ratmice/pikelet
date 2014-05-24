@@ -1,8 +1,8 @@
 {
   "programs": {
     "default": {
-      "vertex": "shaders/default.vert.glsl",
-      "fragment": "shaders/default.frag.glsl"
+      "vertex": "default.vert.glsl",
+      "fragment": "default.frag.glsl"
     }
   },
 
