@@ -7,7 +7,7 @@ use std::vec::Vec;
 use std::ptr;
 use std::str;
 
-use graphics::GLObject;
+use graphics::Bind;
 
 
 pub struct ShaderProgram {
@@ -71,7 +71,7 @@ impl ShaderProgram {
     // TODO: uniform access, attributes, parameters, etc etc
 }
 
-impl GLObject for ShaderProgram {
+impl Bind for ShaderProgram {
     fn bind() {}
 }
 

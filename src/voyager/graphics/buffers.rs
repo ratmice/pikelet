@@ -5,7 +5,7 @@ extern crate cgmath;
 use self::gl::types::*;
 use std::mem;
 
-use graphics::GLObject;
+use graphics::Bind;
 
 
 pub struct VertexBuffer {
@@ -36,7 +36,7 @@ impl VertexBuffer {
     }
 }
 
-impl GLObject for VertexBuffer {
+impl Bind for VertexBuffer {
     fn bind() {}
 }
 

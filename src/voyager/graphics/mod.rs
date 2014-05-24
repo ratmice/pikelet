@@ -13,7 +13,7 @@ use self::buffers::VertexBuffer;
 mod shader_program;
 mod buffers;
 
-trait GLObject {
+trait Bind {
     fn bind();
 }
 
