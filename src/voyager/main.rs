@@ -20,7 +20,7 @@ struct Application {
     pub game_time: f64,
     pub resources: ResourceManager,
     pub platform: platform::glfw::GlfwPlatform,
-    graphics: GraphicsManager,
+    pub graphics: GraphicsManager,
     // animations: AnimationManager,
     // physics: PhysicsManager,
     // fx: EffectsManager,
