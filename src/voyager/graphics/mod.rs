@@ -93,7 +93,7 @@ impl GraphicsManager {
         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
     }
 
-    pub fn add_vertex_buffer<T>(&mut self, data: ~[f32], stride: u32) -> Option<VertexBufferHandle> {
+    pub fn add_vertex_buffer<T>(&mut self, data: Vec<f32>, stride: u32) -> Option<VertexBufferHandle> {
         VertexBuffer::new(data, stride)
             .and_then(|buffer| {
                 Some(self.vertex_buffers.add(buffer))
