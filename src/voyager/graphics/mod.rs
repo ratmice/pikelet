@@ -37,11 +37,11 @@ impl GraphicsManager {
         let vertex_buffers = EngineData::new();
         let shader_programs = EngineData::new();
         let materials = EngineData::new();
-        
+
         platform.load_gl(gl::load_with);
-        
+
         gl::ClearColor(0.3,0.3,0.3,1.0);
-        
+
         let mut manager = GraphicsManager {
             vertex_buffers: vertex_buffers,
             shader_programs: shader_programs,
@@ -54,31 +54,31 @@ impl GraphicsManager {
 
         //// load shader programs
 
-        let shader_program_defs = material_config.find(&StrBuf::from_str("programs"))
+        let shader_program_defs = material_config.find(&String::from_str("programs"))
             .and_then(|c| c.as_object())
             .expect("ERROR: Unable to find programs section in materials config.");
-        
+
         for (program_name, program_config) in shader_program_defs.iter() {
-            let vertex_src = program_config.find(&StrBuf::from_str("vertex"))
+            let vertex_src = program_config.find(&String::from_str("vertex"))
                 .and_then(|v| v.as_string())
                 .and_then(|p| {
                     resources.open_shader(p)
                 })
                 .expect("ERROR: Unable to read vertex shader!");
 
-            let fragment_src = program_config.find(&StrBuf::from_str("fragment"))
+            let fragment_src = program_config.find(&String::from_str("fragment"))
                 .and_then(|v| v.as_string())
                 .and_then(|p| {
                     resources.open_shader(p)
                 })
                 .expect("ERROR: Unable to read fragment shader!");
 
-            let handle = manager.add_shader_program(vertex_src, fragment_src);
+            let handle = manager.add_shader_program(vertex_src.as_slice(), fragment_src.as_slice());
         }
 
         //// load materials
 
-        let material_defs = material_config.find(&StrBuf::from_str("materials"))
+        let material_defs = material_config.find(&String::from_str("materials"))
             .expect("ERROR: Unable to find materials section in materials config.");
 
         manager

@@ -246,23 +246,23 @@ pub fn init(resources: &ResourceManager) -> GlfwPlatform {
     println!("DEBUG: platform configuration: {}", config.to_pretty_str());
 
     let title = "Voyager";
-    let (window, events) = match config.find(&StrBuf::from_str("video")) {
+    let (window, events) = match config.find(&String::from_str("video")) {
         Some(video) => {
-            let width = video.find(&StrBuf::from_str("width"))
+            let width = video.find(&String::from_str("width"))
                 .and_then(|w| w.as_number())
                 .and_then(|w| w.to_u32())
                 .unwrap_or(800);
-            let height = video.find(&StrBuf::from_str("height"))
+            let height = video.find(&String::from_str("height"))
                 .and_then(|h| h.as_number())
                 .and_then(|h| h.to_u32())
                 .unwrap_or(600);
-            let is_fullscreen = video.find(&StrBuf::from_str("fullscreen"))
+            let is_fullscreen = video.find(&String::from_str("fullscreen"))
                 .and_then(|w| w.as_boolean())
                 .unwrap_or(false);
 
             glfw.with_primary_monitor(|m| {
                 let monitor = m.expect("Failed to detect primary monitor.");
-                    
+
                 let (win, events) = if is_fullscreen {
                     glfw.create_window(width, height, title, glfw::FullScreen(monitor))
                 } else {
@@ -275,7 +275,7 @@ pub fn init(resources: &ResourceManager) -> GlfwPlatform {
                 let x = (center_x - width/2) as i32;
                 let y = (center_y - height/2) as i32;
                 win.set_pos(x, y);
-                
+
                 (win, events)
             })
         }
