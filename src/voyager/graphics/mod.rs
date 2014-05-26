@@ -89,29 +89,30 @@ impl GraphicsManager {
         self.shader_programs.clear();
     }
 
+    // TODO this might be renamed
     pub fn clear(&self) {
         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
     }
 
-    pub fn add_vertex_buffer<T>(&mut self, data: ~[f32], stride: u32) -> Option<VertexBufferHandle> {
+    fn add_vertex_buffer<T>(&mut self, data: ~[f32], stride: u32) -> Option<VertexBufferHandle> {
         VertexBuffer::new(data, stride)
             .and_then(|buffer| {
                 Some(self.vertex_buffers.add(buffer))
             })
     }
 
-    pub fn destroy_vertex_buffer(&mut self, handle: Handle) {
+    fn destroy_vertex_buffer(&mut self, handle: Handle) {
         self.vertex_buffers.remove(handle);
     }
 
-    pub fn add_shader_program(&mut self, vert_src: &str, frag_src: &str) -> Option<ShaderProgramHandle> {
+    fn add_shader_program(&mut self, vert_src: &str, frag_src: &str) -> Option<ShaderProgramHandle> {
         ShaderProgram::new(vert_src, frag_src)
             .and_then(|program| {
                 Some(self.shader_programs.add(program))
             })
     }
 
-    pub fn destroy_shader_program(&mut self, handle: Handle) {
+    fn destroy_shader_program(&mut self, handle: Handle) {
         self.shader_programs.remove(handle);
     }
 
