@@ -54,31 +54,31 @@ impl GraphicsManager {
 
         //// load shader programs
 
-        let shader_program_defs = material_config.find(&StrBuf::from_str("programs"))
+        let shader_program_defs = material_config.find(&String::from_str("programs"))
             .and_then(|c| c.as_object())
             .expect("ERROR: Unable to find programs section in materials config.");
         
         for (program_name, program_config) in shader_program_defs.iter() {
-            let vertex_src = program_config.find(&StrBuf::from_str("vertex"))
+            let vertex_src = program_config.find(&String::from_str("vertex"))
                 .and_then(|v| v.as_string())
                 .and_then(|p| {
                     resources.open_shader(p)
                 })
                 .expect("ERROR: Unable to read vertex shader!");
 
-            let fragment_src = program_config.find(&StrBuf::from_str("fragment"))
+            let fragment_src = program_config.find(&String::from_str("fragment"))
                 .and_then(|v| v.as_string())
                 .and_then(|p| {
                     resources.open_shader(p)
                 })
                 .expect("ERROR: Unable to read fragment shader!");
 
-            let handle = manager.add_shader_program(vertex_src, fragment_src);
+            let handle = manager.add_shader_program(vertex_src.as_slice(), fragment_src.as_slice());
         }
 
         //// load materials
 
-        let material_defs = material_config.find(&StrBuf::from_str("materials"))
+        let material_defs = material_config.find(&String::from_str("materials"))
             .expect("ERROR: Unable to find materials section in materials config.");
 
         manager
@@ -94,7 +94,7 @@ impl GraphicsManager {
         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
     }
 
-    fn add_vertex_buffer<T>(&mut self, data: ~[f32], stride: u32) -> Option<VertexBufferHandle> {
+    fn add_vertex_buffer<T>(&mut self, data: Vec<f32>, stride: u32) -> Option<VertexBufferHandle> {
         VertexBuffer::new(data, stride)
             .and_then(|buffer| {
                 Some(self.vertex_buffers.add(buffer))

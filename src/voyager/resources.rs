@@ -65,7 +65,7 @@ impl ResourceManager {
     pub fn open_config(&self, name: &str) -> Option<json::Json> {
         match self.open(name, Config, Open, Read)
             .and_then(|mut f| f.read_to_str()) {
-                Ok(s) => match json::from_str(s) {
+                Ok(s) => match json::from_str(s.as_slice()) {
                     Ok(object) => Some(object),
                     Err(err) => {
                         println!("ERROR: While parsing configuration: {}", err);
@@ -79,7 +79,7 @@ impl ResourceManager {
             }
     }
 
-    pub fn open_shader(&self, name: &str) -> Option<~str> {
+    pub fn open_shader(&self, name: &str) -> Option<String> {
         match self.open(name, Shader, Open, Read)
             .and_then(|mut f| f.read_to_str()) {
                 Ok(s) => Some(s),

@@ -13,7 +13,7 @@ pub struct VertexBuffer {
 }
 
 impl VertexBuffer {
-    pub fn new(data: ~[f32], stride: u32) -> Option<VertexBuffer> {
+    pub fn new(data: Vec<f32>, stride: u32) -> Option<VertexBuffer> {
         let buffer_length = (data.len() * mem::size_of::<GLfloat>()) as GLsizeiptr;
         let mut vbo = 0;
 
@@ -22,7 +22,7 @@ impl VertexBuffer {
             if vbo > 0 {
                 gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
                 gl::BufferData(gl::ARRAY_BUFFER, buffer_length,
-                               mem::transmute(&data[0]), gl::STATIC_DRAW);
+                               data.as_ptr() as *GLvoid, gl::STATIC_DRAW);
             }
         }
 
