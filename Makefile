@@ -17,8 +17,9 @@ DEPS								= -L$(DEPS_DIR)/glfw-rs/lib \
 all: voyager
 
 submodule-update:
-	@git submodule init
-	@git submodule update
+	git submodule init
+	git submodule update
+	make submodule-update -C $(DEPS_DIR)/gl-rs
 
 deps:
 	make lib -C $(DEPS_DIR)/gl-rs GL_VERSION=$(GL_VERSION)
