@@ -1,7 +1,7 @@
 use std::u16;
 use std::vec::Vec;
 
-#[deriving(Clone, Eq)]
+#[deriving(Clone, PartialEq)]
 pub struct Handle {
     index: u16,
     generation: u16
@@ -16,7 +16,7 @@ impl<T> EngineData<T> {
     fn is_valid_handle(&self, handle: Handle) -> bool {
         handle.generation == *self.generation.get(handle.index as uint)
     }
-    
+
     pub fn new() -> EngineData<T> {
         EngineData {
             data: Vec::with_capacity(u16::MAX as uint),
