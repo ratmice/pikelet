@@ -12,7 +12,8 @@ GL_VERSION					?= 3.3
 
 DEPS								= -L$(DEPS_DIR)/glfw-rs/lib \
 											-L$(DEPS_DIR)/gl-rs/lib \
-											-L$(DEPS_DIR)/cgmath-rs/lib
+											-L$(DEPS_DIR)/cgmath-rs/lib \
+											-L$(DEPS_DIR)/noise-rs/lib 
 
 all: voyager
 
@@ -25,11 +26,13 @@ deps:
 	make lib -C $(DEPS_DIR)/gl-rs GL_VERSION=$(GL_VERSION)
 	make lib -C $(DEPS_DIR)/cgmath-rs
 	make lib -C $(DEPS_DIR)/glfw-rs
+	make lib -C $(DEPS_DIR)/noise-rs
 
 clean:
 	make clean -C $(DEPS_DIR)/gl-rs
 	make clean -C $(DEPS_DIR)/cgmath-rs
 	make clean -C $(DEPS_DIR)/glfw-rs
+	make clean -C $(DEPS_DIR)/noise-rs
 	@rm -rf $(BUILD_DIR)
 
 assets:
