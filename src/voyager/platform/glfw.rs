@@ -1,6 +1,8 @@
 
 extern crate glfw;
 
+use libc::c_void;
+
 use self::glfw::Context;
 use self::glfw::Window;
 use self::glfw::Glfw;
@@ -217,7 +219,7 @@ impl Platform for GlfwPlatform {
         self.window.swap_buffers();
     }
 
-    fn load_gl(&self, f: fn(|&str| -> Option<extern "system" fn()>)) {
+    fn load_gl(&self, f: fn(|&str| -> *c_void)) {
         f(|s| self.glfw.get_proc_address(s));
     }
 

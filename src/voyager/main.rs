@@ -1,8 +1,9 @@
 #![feature(globs)]
 #![feature(macro_rules)]
 
-extern crate native;
 extern crate cgmath;
+extern crate libc;
+extern crate native;
 
 use platform::Platform;
 use resources::ResourceManager;
@@ -75,10 +76,10 @@ impl Application {
             let current_time: f64 = self.platform.get_time();
             let mut frame_time: f64 = current_time - previous_time;
             previous_time = current_time;
-            
+
             // Gather input and dispatch commands
             self.platform.process_events();
-            
+
             // Update
             while frame_time > 0.0 {
                 let delta: f64 = self.target_delta.min(frame_time);
