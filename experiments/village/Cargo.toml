@@ -1,0 +1,18 @@
+[package]
+
+name = "village"
+version = "0.0.1"
+authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
+
+[dependencies.compile_msg]
+git = "https://github.com/huonw/compile_msg"
+
+[dependencies.gfx]
+git = "https://github.com/gfx-rs/gfx-rs"
+
+[dependencies.glutin]
+git = "https://github.com/tomaka/glutin"
+features = ["window"]
+
+[dependencies.nalgebra]
+git = "https://github.com/sebcrozet/nalgebra"

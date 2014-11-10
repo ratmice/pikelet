@@ -1,0 +1,122 @@
+[root]
+name = "village"
+version = "0.0.1"
+dependencies = [
+ "compile_msg 0.1.0 (git+https://github.com/huonw/compile_msg)",
+ "gfx 0.1.0 (git+https://github.com/gfx-rs/gfx-rs)",
+ "glutin 0.0.1 (git+https://github.com/tomaka/glutin)",
+ "nalgebra 0.1.0 (git+https://github.com/sebcrozet/nalgebra)",
+]
+
+[[package]]
+name = "android_glue"
+version = "0.0.1"
+source = "git+https://github.com/tomaka/android-rs-glue#fe9acb5bd465da1df4561e2bd4ebcc6d305134a4"
+dependencies = [
+ "compile_msg 0.1.0 (git+https://github.com/huonw/compile_msg)",
+]
+
+[[package]]
+name = "cocoa"
+version = "0.1.0"
+source = "git+https://github.com/DavidPartouche/rust-cocoa#a6420c5aaa4633a2f9c76bcd7259cf4e5d4894de"
+
+[[package]]
+name = "compile_msg"
+version = "0.1.0"
+source = "git+https://github.com/huonw/compile_msg#569c6f186a4ec4f6e8970dff4302b524b95ecbeb"
+
+[[package]]
+name = "core_foundation"
+version = "0.1.0"
+source = "git+https://github.com/servo/rust-core-foundation#6fa0b908f3912e20d081193e83bf5a9aa958fb83"
+
+[[package]]
+name = "core_graphics"
+version = "0.1.0"
+source = "git+https://github.com/servo/rust-core-graphics#9434e2bda65d259f825104170b5fa6cc6dbaf5a9"
+dependencies = [
+ "core_foundation 0.1.0 (git+https://github.com/servo/rust-core-foundation)",
+]
+
+[[package]]
+name = "device"
+version = "0.1.0"
+source = "git+https://github.com/gfx-rs/gfx-rs#8c30d07565fcde68a95389ab6baf0e49e0b30c7d"
+dependencies = [
+ "gfx_gl 0.1.0 (git+https://github.com/gfx-rs/gfx_gl.git)",
+]
+
+[[package]]
+name = "gfx"
+version = "0.1.0"
+source = "git+https://github.com/gfx-rs/gfx-rs#8c30d07565fcde68a95389ab6baf0e49e0b30c7d"
+dependencies = [
+ "device 0.1.0 (git+https://github.com/gfx-rs/gfx-rs)",
+ "gfx_macros 0.1.0 (git+https://github.com/gfx-rs/gfx-rs)",
+ "render 0.1.0 (git+https://github.com/gfx-rs/gfx-rs)",
+]
+
+[[package]]
+name = "gfx_gl"
+version = "0.1.0"
+source = "git+https://github.com/gfx-rs/gfx_gl.git#ed681503da2e7ed9343003e78af4767e8e4e33a8"
+dependencies = [
+ "gl_generator 0.0.1 (git+https://github.com/bjz/gl-rs.git)",
+]
+
+[[package]]
+name = "gfx_macros"
+version = "0.1.0"
+source = "git+https://github.com/gfx-rs/gfx-rs#8c30d07565fcde68a95389ab6baf0e49e0b30c7d"
+
+[[package]]
+name = "gl_common"
+version = "0.0.1"
+source = "git+https://github.com/bjz/gl-rs.git#79cd3b3f9f19aa0e39f6af572fc8673a6d9760bc"
+
+[[package]]
+name = "gl_generator"
+version = "0.0.1"
+source = "git+https://github.com/bjz/gl-rs.git#79cd3b3f9f19aa0e39f6af572fc8673a6d9760bc"
+dependencies = [
+ "gl_common 0.0.1 (git+https://github.com/bjz/gl-rs.git)",
+ "khronos_api 0.0.1 (git+https://github.com/bjz/gl-rs.git)",
+ "rust-xml 0.1.0 (git+https://github.com/netvl/rust-xml)",
+]
+
+[[package]]
+name = "glutin"
+version = "0.0.1"
+source = "git+https://github.com/tomaka/glutin#37bdb997cea05064ed6ad56f51fb2194e176a070"
+dependencies = [
+ "android_glue 0.0.1 (git+https://github.com/tomaka/android-rs-glue)",
+ "cocoa 0.1.0 (git+https://github.com/DavidPartouche/rust-cocoa)",
+ "compile_msg 0.1.0 (git+https://github.com/huonw/compile_msg)",
+ "core_graphics 0.1.0 (git+https://github.com/servo/rust-core-graphics)",
+ "gl_generator 0.0.1 (git+https://github.com/bjz/gl-rs.git)",
+]
+
+[[package]]
+name = "khronos_api"
+version = "0.0.1"
+source = "git+https://github.com/bjz/gl-rs.git#79cd3b3f9f19aa0e39f6af572fc8673a6d9760bc"
+
+[[package]]
+name = "nalgebra"
+version = "0.1.0"
+source = "git+https://github.com/sebcrozet/nalgebra#15d1fa0b8b012cc1e5cf365b0eb64c7089e93e32"
+
+[[package]]
+name = "render"
+version = "0.1.0"
+source = "git+https://github.com/gfx-rs/gfx-rs#8c30d07565fcde68a95389ab6baf0e49e0b30c7d"
+dependencies = [
+ "device 0.1.0 (git+https://github.com/gfx-rs/gfx-rs)",
+]
+
+[[package]]
+name = "rust-xml"
+version = "0.1.0"
+source = "git+https://github.com/netvl/rust-xml#d6c57380a300b94f7e7881979dbe5459dbe4ca06"
+
