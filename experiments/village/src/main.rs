@@ -28,6 +28,7 @@ use std::rand::Rng;
 use world::{World, WorldBatch};
 
 mod house;
+mod sky;
 mod world;
 
 #[vertex_format]
@@ -139,7 +140,7 @@ fn main() {
                             .to_slice(gfx::TriangleList);
 
     let clear_data = gfx::ClearData {
-        color: [0.3, 0.3, 0.3, 1.0],
+        color: sky::DAY_COLOR,
         depth: 1.0,
         stencil: 0,
     };
