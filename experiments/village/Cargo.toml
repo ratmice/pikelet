@@ -4,15 +4,25 @@ name = "village"
 version = "0.0.1"
 authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
 
-[dependencies.compile_msg]
-git = "https://github.com/huonw/compile_msg"
+[dependencies.genmesh]
+git = "https://github.com/csherratt/genmesh.git"
 
 [dependencies.gfx]
 git = "https://github.com/gfx-rs/gfx-rs"
 
-[dependencies.glutin]
-git = "https://github.com/tomaka/glutin"
-features = ["window"]
+# [dependencies.glutin]
+# git = "https://github.com/tomaka/glutin"
+# path = "../../../../rust/glutin"
+# features = ["window"]
+
+[dependencies.glfw]
+git = "https://github.com/bjz/glfw-rs"
 
 [dependencies.nalgebra]
 git = "https://github.com/sebcrozet/nalgebra"
+
+[dependencies.noise]
+git = "https://github.com/bjz/noise-rs"
+
+[dependencies.time]
+git = "https://github.com/rust-lang/time"
