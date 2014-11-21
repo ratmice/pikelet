@@ -27,6 +27,7 @@ use std::rand::Rng;
 
 use world::{World, WorldBatch};
 
+mod forest;
 mod house;
 mod sky;
 mod world;
