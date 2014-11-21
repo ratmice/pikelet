@@ -32,6 +32,40 @@ mod house;
 mod sky;
 mod world;
 
+////////////////////////////////////////////////////////////////////////////////
+/*******************************************************************************
+
+TODO:
+
+- first person, freelook camera
+- scattered objects
+    - houses
+        - cubes
+        - gabled
+        - on stilts
+    - trees
+    - antennae
+    - flags
+    - standing stones
+    - fences
+    - hedges
+    - stone walls
+    - roads/paths
+- perlin terrain
+- distant mountain ranges
+- water
+    - intersecting plane (same color as sky)
+- shadow shader based on sun direction
+- sky
+    - sun
+    - day/night
+    - stars
+    - moon
+    - clouds
+
+*******************************************************************************/
+////////////////////////////////////////////////////////////////////////////////
+
 #[vertex_format]
 struct Vertex {
     #[name = "a_Pos"]
