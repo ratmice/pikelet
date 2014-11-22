@@ -18,6 +18,8 @@ use gfx::{Device, DeviceHelper, ToSlice};
 use glfw::Context;
 // use genmesh::{Vertices, Triangulate};
 // use genmesh::generators::{Plane, SharedVertex, IndexedPolygon};
+use nalgebra::*;
+use std::f32;
 use std::fmt;
 use std::rand::Rng;
 // use time::precise_time_s;
@@ -174,9 +176,19 @@ fn main() {
     let device          = gfx::GlDevice::new(|s| window.get_proc_address(s));
     let mut graphics    = gfx::Graphics::new(device);
 
-    let frame           = gfx::Frame::new(w as u16, h as u16);
-    let world           = World::new(w as f32 / h as f32);
-    let program         = graphics.device.link_program(VERTEX_SRC.clone(), FRAGMENT_SRC.clone()).unwrap();
+    let program = graphics.device.link_program(VERTEX_SRC.clone(), FRAGMENT_SRC.clone()).unwrap();
+    let frame = gfx::Frame::new(w as u16, h as u16);
+    let world = World {
+        model: One::one(),
+        view: {
+            let mut rot: Rot3<f32> = One::one();
+            rot.look_at(&Vec3 { x: 0.0, y:  0.0, z: 0.0 }, &Vec3::z());
+            let mut view = to_homogeneous(&rot);
+            view.set_col(3, Vec4 { x: 1.5, y: -5.0, z: 3.0, w: 0.0 });
+            view
+        },
+        proj: PerspMat3::new(w as f32 / h as f32, 60.0 * (f32::consts::PI / 180.0), 1.0, 10.0,),
+    };
 
     // let house_mesh      = graphics.device.create_mesh(house::VERTEX_DATA);
     // let house_slice     = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);

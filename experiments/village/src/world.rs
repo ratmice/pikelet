@@ -2,7 +2,6 @@
 
 use nalgebra::*;
 use std::mem;
-use std::f32;
 
 #[shader_param(WorldBatch)]
 pub struct Params {
@@ -23,14 +22,6 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(aspect: f32) -> World {
-        World {
-            model: One::one(),
-            view: One::one(),
-            proj: PerspMat3::new(aspect, 60.0 * (f32::consts::PI / 180.0), 1.0, 10.0),
-        }
-    }
-
     pub fn as_params(&self) -> &Params {
         unsafe { mem::transmute(self) }
     }
