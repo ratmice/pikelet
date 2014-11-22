@@ -28,6 +28,7 @@ use std::rand::Rng;
 use world::{World, WorldBatch};
 
 mod axis_thingy;
+mod camera;
 mod forest;
 mod house;
 mod sky;
@@ -177,10 +178,10 @@ fn main() {
     let world           = World::new(w as f32 / h as f32);
     let program         = graphics.device.link_program(VERTEX_SRC.clone(), FRAGMENT_SRC.clone()).unwrap();
 
-    let house_mesh      = graphics.device.create_mesh(house::VERTEX_DATA);
-    let house_slice     = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
-    let house_state     = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
-    let house_batch: WorldBatch = graphics.make_batch(&program, &house_mesh, house_slice, &house_state).unwrap();
+    // let house_mesh      = graphics.device.create_mesh(house::VERTEX_DATA);
+    // let house_slice     = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
+    // let house_state     = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    // let house_batch: WorldBatch = graphics.make_batch(&program, &house_mesh, house_slice, &house_state).unwrap();
 
     let axis_mesh       = graphics.device.create_mesh(axis_thingy::VERTEX_DATA);
     let axis_slice      = axis_mesh.to_slice(gfx::Line);
@@ -201,7 +202,7 @@ fn main() {
 
         graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
         graphics.draw(&axis_batch, world.as_params(), &frame);
-        graphics.draw(&house_batch, world.as_params(), &frame);
+        // graphics.draw(&house_batch, world.as_params(), &frame);
         graphics.end_frame();
 
         window.swap_buffers();
