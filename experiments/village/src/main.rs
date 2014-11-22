@@ -161,28 +161,25 @@ fn main() {
         .create_window(640, 480, "Village.", glfw::Windowed)
         .expect("Failed to create GLFW window.");
 
+    let (w, h) = window.get_framebuffer_size();
+
     window.make_current();
     glfw.set_error_callback(glfw::FAIL_ON_ERRORS);
     window.set_key_polling(true);
 
-    let (w, h) = window.get_framebuffer_size();
-    let frame = gfx::Frame::new(w as u16, h as u16);
 
-    let mut device = gfx::GlDevice::new(|s| window.get_proc_address(s));
 
-    let house_mesh = device.create_mesh(house::VERTEX_DATA);
-    let house_slice = device.create_buffer_static(house::INDEX_DATA)
-                            .to_slice(gfx::TriangleList);
+    let device          = gfx::GlDevice::new(|s| window.get_proc_address(s));
+    let mut graphics    = gfx::Graphics::new(device);
 
-    let clear_data = gfx::ClearData {
-        color: sky::DAY_COLOR,
-        depth: 1.0,
-        stencil: 0,
-    };
-
-    let world = World::new(w as f32 / h as f32);
-
-    let mut graphics = gfx::Graphics::new(device);
+    let frame           = gfx::Frame::new(w as u16, h as u16);
+    let world           = World::new(w as f32 / h as f32);
+    let program         = graphics.device.link_program(VERTEX_SRC.clone(), FRAGMENT_SRC.clone()).unwrap();
+    let house_mesh      = graphics.device.create_mesh(house::VERTEX_DATA);
+    let house_slice     = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
+    let house_state     = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let house_batch: WorldBatch = graphics.make_batch(&program, &house_mesh, house_slice, &house_state).unwrap();
+    let clear_data      = gfx::ClearData { color: sky::DAY_COLOR, depth: 1.0, stencil: 0 };
 
     while !window.should_close() {
         glfw.poll_events();
@@ -194,7 +191,8 @@ fn main() {
             }
         }
 
-        graphics.clear(clear_data, gfx::COLOR, &frame);
+        graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
+        graphics.draw(&house_batch, world.as_params(), &frame);
         graphics.end_frame();
 
         window.swap_buffers();
