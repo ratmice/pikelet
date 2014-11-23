@@ -10,7 +10,6 @@ extern crate gfx_macros;
 // extern crate glutin;
 extern crate glfw;
 extern crate nalgebra;
-extern crate native;
 extern crate noise;
 extern crate time;
 
@@ -148,11 +147,6 @@ GLSL_150: b"
     }
 "
 };
-
-#[start]
-fn start(argc: int, argv: *const *const u8) -> int {
-     native::start(argc, argv, main)
-}
 
 fn main() {
     let glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
