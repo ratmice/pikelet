@@ -107,14 +107,14 @@ fn main() {
                              1.0, 10.0),
     };
 
-    // let house_mesh      = graphics.device.create_mesh(house::VERTEX_DATA);
-    // let house_slice     = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
-    // let house_state     = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
-    // let house_batch: WorldBatch = graphics.make_batch(&program, &house_mesh, house_slice, &house_state).unwrap();
+    let house_mesh      = graphics.device.create_mesh(house::VERTEX_DATA);
+    let house_slice     = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
+    let house_state     = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let house_batch: WorldBatch = graphics.make_batch(&program, &house_mesh, house_slice, &house_state).unwrap();
 
     let axis_mesh       = graphics.device.create_mesh(axis_thingy::VERTEX_DATA);
     let axis_slice      = axis_mesh.to_slice(gfx::Line);
-    let axis_state      = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let axis_state      = gfx::DrawState::new();
     let axis_batch: WorldBatch = graphics.make_batch(&program, &axis_mesh, axis_slice, &axis_state).unwrap();
 
     let clear_data      = gfx::ClearData { color: sky::DAY_COLOR, depth: 1.0, stencil: 0 };
@@ -130,8 +130,8 @@ fn main() {
         }
 
         graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
+        graphics.draw(&house_batch, world.as_params(), &frame);
         graphics.draw(&axis_batch, world.as_params(), &frame);
-        // graphics.draw(&house_batch, world.as_params(), &frame);
         graphics.end_frame();
 
         window.swap_buffers();
