@@ -2,6 +2,10 @@
 
 use shader::Vertex;
 
+const X_AXIS_COLOR: [f32, ..3] = [0.1, 0.1, 0.1];
+const Y_AXIS_COLOR: [f32, ..3] = [0.1, 0.1, 0.1];
+const Z_AXIS_COLOR: [f32, ..3] = [0.1, 0.1, 0.1];
+
 /// Points for an axis widget thingy
 ///
 /// ~~~nottrust
@@ -20,12 +24,12 @@ use shader::Vertex;
 /// ~~~~
 pub const VERTEX_DATA: &'static [Vertex] = &[
     // X axis
-    Vertex { pos: [-1.0,  0.0,  0.0], color: [1.0, 0.5, 0.5] },
-    Vertex { pos: [ 1.0,  0.0,  0.0], color: [1.0, 0.5, 0.5] },
+    Vertex { pos: [-1.0,  0.0,  0.0], color: X_AXIS_COLOR },
+    Vertex { pos: [ 1.0,  0.0,  0.0], color: X_AXIS_COLOR },
     // Y axis
-    Vertex { pos: [ 0.0, -1.0,  0.0], color: [0.5, 1.0, 0.5] },
-    Vertex { pos: [ 0.0,  1.0,  0.0], color: [0.5, 1.0, 0.5] },
+    Vertex { pos: [ 0.0, -1.0,  0.0], color: Y_AXIS_COLOR },
+    Vertex { pos: [ 0.0,  1.0,  0.0], color: Y_AXIS_COLOR },
     // Z axis
-    Vertex { pos: [ 0.0,  0.0, -1.0], color: [0.5, 0.5, 1.0] },
-    Vertex { pos: [ 0.0,  0.0,  1.0], color: [0.5, 0.5, 1.0] },
+    Vertex { pos: [ 0.0,  0.0, -1.0], color: Z_AXIS_COLOR },
+    Vertex { pos: [ 0.0,  0.0,  1.0], color: Z_AXIS_COLOR },
 ];

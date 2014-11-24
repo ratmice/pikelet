@@ -96,14 +96,14 @@ fn main() {
     let world = World {
         model: One::one(),
         view: to_homogeneous(&{
-            let mut transform: Iso3<f32> = One::one();
+            let mut transform = one::<Iso3<f32>>();
             transform.look_at_z(&Pnt3::new(1.5, -5.0, 3.0),
                                 &Pnt3::new(0.0,  0.0, 0.0),
                                 &Vec3::z());
-            transform
+            inv(&transform).unwrap()
         }),
         proj: PerspMat3::new(w as f32 / h as f32,
-                             60.0 * (f32::consts::PI / 180.0),
+                             45.0 * (f32::consts::PI / 180.0),
                              1.0, 10.0),
     };
 
