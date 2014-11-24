@@ -32,6 +32,7 @@ mod axis_thingy;
 mod camera;
 mod forest;
 mod house;
+mod shader;
 mod sky;
 mod world;
 
@@ -69,85 +70,6 @@ TODO:
 *******************************************************************************/
 ////////////////////////////////////////////////////////////////////////////////
 
-#[vertex_format]
-struct Vertex {
-    #[name = "a_Pos"]
-    pos: [f32, ..3],
-
-    #[name = "a_Color"]
-    color: [f32, ..3],
-}
-
-impl Clone for Vertex {
-    fn clone(&self) -> Vertex {
-        Vertex { pos: self.pos, color: self.color }
-    }
-}
-
-impl fmt::Show for Vertex {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Pos({}, {}, {})", self.pos[0], self.pos[1], self.pos[2])
-    }
-}
-
-static VERTEX_SRC: gfx::ShaderSource<'static> = shaders! {
-GLSL_120: b"
-    #version 120
-
-    attribute vec3 a_Pos;
-    attribute vec3 a_Color;
-    varying vec3 v_Color;
-
-    uniform mat4 u_Model;
-    uniform mat4 u_View;
-    uniform mat4 u_Proj;
-
-    void main() {
-        v_Color = a_Color;
-        gl_Position = u_Proj * u_View * u_Model * vec4(a_Pos, 1.0);
-    }
-"
-GLSL_150: b"
-    #version 150 core
-
-    in vec3 a_Pos;
-    in vec3 a_Color;
-    out vec3 v_Color;
-
-    uniform mat4 u_Model;
-    uniform mat4 u_View;
-    uniform mat4 u_Proj;
-
-    void main() {
-        v_Color = a_Color;
-        gl_Position = u_Proj * u_View * u_Model * vec4(a_Pos, 1.0);
-    }
-"
-};
-
-static FRAGMENT_SRC: gfx::ShaderSource<'static> = shaders! {
-GLSL_120: b"
-    #version 120
-
-    varying vec3 v_Color;
-    out vec4 o_Color;
-
-    void main() {
-        o_Color = vec4(v_Color, 1.0);
-    }
-"
-GLSL_150: b"
-    #version 150 core
-
-    in vec3 v_Color;
-    out vec4 o_Color;
-
-    void main() {
-        o_Color = vec4(v_Color, 1.0);
-    }
-"
-};
-
 fn main() {
     let glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
@@ -165,12 +87,11 @@ fn main() {
     glfw.set_error_callback(glfw::FAIL_ON_ERRORS);
     window.set_key_polling(true);
 
-
-
     let device          = gfx::GlDevice::new(|s| window.get_proc_address(s));
     let mut graphics    = gfx::Graphics::new(device);
 
-    let program = graphics.device.link_program(VERTEX_SRC.clone(), FRAGMENT_SRC.clone()).unwrap();
+    let program = graphics.device.link_program(shader::VERTEX_SRC.clone(),
+                                               shader::FRAGMENT_SRC.clone()).unwrap();
     let frame = gfx::Frame::new(w as u16, h as u16);
     let world = World {
         model: One::one(),

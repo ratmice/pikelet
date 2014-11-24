@@ -1,6 +1,6 @@
 // Copyright Brendan Zabarauskas 2014
 
-use Vertex;
+use shader::Vertex;
 
 pub const VERTEX_DATA: &'static [Vertex] = &[
     // top (0, 0, 1)
