@@ -95,14 +95,16 @@ fn main() {
     let frame = gfx::Frame::new(w as u16, h as u16);
     let world = World {
         model: One::one(),
-        view: {
-            let mut rot: Rot3<f32> = One::one();
-            rot.look_at(&Vec3 { x: 0.0, y:  0.0, z: 0.0 }, &Vec3::z());
-            let mut view = to_homogeneous(&rot);
-            view.set_col(3, Vec4 { x: 1.5, y: -5.0, z: 3.0, w: 0.0 });
-            view
-        },
-        proj: PerspMat3::new(w as f32 / h as f32, 60.0 * (f32::consts::PI / 180.0), 1.0, 10.0,),
+        view: to_homogeneous(&{
+            let mut transform: Iso3<f32> = One::one();
+            transform.look_at_z(&Pnt3::new(1.5, -5.0, 3.0),
+                                &Pnt3::new(0.0,  0.0, 0.0),
+                                &Vec3::z());
+            transform
+        }),
+        proj: PerspMat3::new(w as f32 / h as f32,
+                             60.0 * (f32::consts::PI / 180.0),
+                             1.0, 10.0),
     };
 
     // let house_mesh      = graphics.device.create_mesh(house::VERTEX_DATA);
