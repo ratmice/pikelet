@@ -4,35 +4,35 @@ use shader::Vertex;
 
 pub const VERTEX_DATA: &'static [Vertex] = &[
     // top (0, 0, 1)
-    Vertex { pos: [-1.0, -1.0,  1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [ 1.0, -1.0,  1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [ 1.0,  1.0,  1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [-1.0,  1.0,  1.0], color: [0.0, 0.0, 0.0] },
+    Vertex { pos: [-1.0, -1.0,  1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [ 1.0, -1.0,  1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [ 1.0,  1.0,  1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [-1.0,  1.0,  1.0], color: [1.0, 1.0, 1.0] },
     // bottom (0, 0, -1)
-    Vertex { pos: [-1.0,  1.0, -1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [ 1.0,  1.0, -1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [ 1.0, -1.0, -1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [-1.0, -1.0, -1.0], color: [0.0, 0.0, 0.0] },
+    Vertex { pos: [-1.0,  1.0, -1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [ 1.0,  1.0, -1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [ 1.0, -1.0, -1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [-1.0, -1.0, -1.0], color: [1.0, 1.0, 1.0] },
     // right (1, 0, 0)
-    Vertex { pos: [ 1.0, -1.0, -1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [ 1.0,  1.0, -1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [ 1.0,  1.0,  1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [ 1.0, -1.0,  1.0], color: [0.0, 0.0, 0.0] },
+    Vertex { pos: [ 1.0, -1.0, -1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [ 1.0,  1.0, -1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [ 1.0,  1.0,  1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [ 1.0, -1.0,  1.0], color: [1.0, 1.0, 1.0] },
     // left (-1, 0, 0)
-    Vertex { pos: [-1.0, -1.0,  1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [-1.0,  1.0,  1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [-1.0,  1.0, -1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [-1.0, -1.0, -1.0], color: [0.0, 0.0, 0.0] },
+    Vertex { pos: [-1.0, -1.0,  1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [-1.0,  1.0,  1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [-1.0,  1.0, -1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [-1.0, -1.0, -1.0], color: [1.0, 1.0, 1.0] },
     // front (0, 1, 0)
-    Vertex { pos: [ 1.0,  1.0, -1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [-1.0,  1.0, -1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [-1.0,  1.0,  1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [ 1.0,  1.0,  1.0], color: [0.0, 0.0, 0.0] },
+    Vertex { pos: [ 1.0,  1.0, -1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [-1.0,  1.0, -1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [-1.0,  1.0,  1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [ 1.0,  1.0,  1.0], color: [1.0, 1.0, 1.0] },
     // back (0, -1, 0)
-    Vertex { pos: [ 1.0, -1.0,  1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [-1.0, -1.0,  1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [-1.0, -1.0, -1.0], color: [0.0, 0.0, 0.0] },
-    Vertex { pos: [ 1.0, -1.0, -1.0], color: [0.0, 0.0, 0.0] },
+    Vertex { pos: [ 1.0, -1.0,  1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [-1.0, -1.0,  1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [-1.0, -1.0, -1.0], color: [1.0, 1.0, 1.0] },
+    Vertex { pos: [ 1.0, -1.0, -1.0], color: [1.0, 1.0, 1.0] },
 ];
 
 pub const INDEX_DATA: &'static [u8] = &[
