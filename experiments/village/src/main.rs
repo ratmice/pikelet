@@ -87,41 +87,64 @@ fn main() {
     glfw.set_error_callback(glfw::FAIL_ON_ERRORS);
     window.set_key_polling(true);
 
+    // Graphics stuff
+
     let device          = gfx::GlDevice::new(|s| window.get_proc_address(s));
     let mut graphics    = gfx::Graphics::new(device);
+    let program         = graphics.device.link_program(shader::VERTEX_SRC.clone(),
+                                                       shader::FRAGMENT_SRC.clone()).unwrap();
+    let frame           = gfx::Frame::new(w as u16, h as u16);
+    let clear_data      = gfx::ClearData { color: sky::DAY_COLOR, depth: 1.0, stencil: 0 };
 
-    let program = graphics.device.link_program(shader::VERTEX_SRC.clone(),
-                                               shader::FRAGMENT_SRC.clone()).unwrap();
-    let frame = gfx::Frame::new(w as u16, h as u16);
+    // Camera stuff
 
     let aspect = w as f32 / h as f32;
     let fov = 45.0 * (f32::consts::PI / 180.0);
     let proj = PerspMat3::new(aspect, fov, 1.0, 10.0);
     let mut cam = Camera::new(zero(), proj);
-    cam.look_at(&Pnt3::new(1.5, -5.0, 3.0), &Pnt3::new(0.0,  0.0, 0.0), &Vec3::z());
+    cam.look_at(&Pnt3::new(1.5, 5.0, 3.0), &Pnt3::new(0.0,  0.0, 0.0), &Vec3::z());
 
-    let house_mesh      = graphics.device.create_mesh(house::VERTEX_DATA);
-    let house_slice     = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
-    let house_state     = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    const KEY_DELTA: f32 = 0.1;
+    let mut cam_pos_delta: Vec3<f32> = zero();
+
+    // Model stuff
+
+    let house_mesh  = graphics.device.create_mesh(house::VERTEX_DATA);
+    let house_slice = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
+    let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
     let house_batch: shader::Batch = graphics.make_batch(&program, &house_mesh, house_slice, &house_state).unwrap();
 
-    let axis_mesh       = graphics.device.create_mesh(axis_thingy::VERTEX_DATA);
-    let axis_slice      = axis_mesh.to_slice(gfx::Line);
-    let axis_state      = gfx::DrawState::new();
+    let axis_mesh   = graphics.device.create_mesh(axis_thingy::VERTEX_DATA);
+    let axis_slice  = axis_mesh.to_slice(gfx::Line);
+    let axis_state  = gfx::DrawState::new();
     let axis_batch: shader::Batch = graphics.make_batch(&program, &axis_mesh, axis_slice, &axis_state).unwrap();
-
-    let clear_data      = gfx::ClearData { color: sky::DAY_COLOR, depth: 1.0, stencil: 0 };
 
     while !window.should_close() {
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
             match event {
-                glfw::KeyEvent(glfw::Key::Escape, _, glfw::Press, _) =>
-                    window.set_should_close(true),
+                // Close window on escape
+                glfw::KeyEvent(glfw::Key::Escape, _, glfw::Press, _) => {
+                    window.set_should_close(true);
+                },
+
+                // WASD movement
+                glfw::KeyEvent(glfw::Key::W, _, glfw::Press, _) => cam_pos_delta.y += KEY_DELTA,
+                glfw::KeyEvent(glfw::Key::S, _, glfw::Press, _) => cam_pos_delta.y -= KEY_DELTA,
+                glfw::KeyEvent(glfw::Key::A, _, glfw::Press, _) => cam_pos_delta.x += KEY_DELTA,
+                glfw::KeyEvent(glfw::Key::D, _, glfw::Press, _) => cam_pos_delta.x -= KEY_DELTA,
+                // Revert WASD movement on key release
+                glfw::KeyEvent(glfw::Key::W, _, glfw::Release, _) => cam_pos_delta.y -= KEY_DELTA,
+                glfw::KeyEvent(glfw::Key::S, _, glfw::Release, _) => cam_pos_delta.y += KEY_DELTA,
+                glfw::KeyEvent(glfw::Key::A, _, glfw::Release, _) => cam_pos_delta.x -= KEY_DELTA,
+                glfw::KeyEvent(glfw::Key::D, _, glfw::Release, _) => cam_pos_delta.x += KEY_DELTA,
+
+                // Everything else
                 _ => {},
             }
         }
 
+        cam.view.append_translation(&cam_pos_delta);
         let world = cam.to_mat();
         let params = shader::Params { transform: *world.as_array() };
 
