@@ -17,15 +17,15 @@ extern crate time;
 use gfx::{Device, DeviceHelper, ToSlice};
 use glfw::Context;
 use genmesh::{Vertices, Triangulate};
-use genmesh::generators::{Plane, SharedVertex, IndexedPolygon};
+use genmesh::generators::{Plane, IndexedPolygon};
 use nalgebra::*;
 use noise::source::Perlin;
-use noise::source::Source;
 use std::f32;
 use std::rand::Rng;
 // use time::precise_time_s;
 
 use camera::Camera;
+use terrain::Terrain;
 
 mod axis_thingy;
 mod camera;
@@ -33,6 +33,7 @@ mod forest;
 mod house;
 mod shader;
 mod sky;
+mod terrain;
 
 ////////////////////////////////////////////////////////////////////////////////
 /*******************************************************************************
@@ -114,29 +115,26 @@ fn main() {
 
     // Terrain
 
+    const TERRAIN_HEIGHT_FACTOR: f32 = 5.0;
+    const TERRAIN_GRID_SPACING: f32 = 30.0;
+    const TERRAIN_COLOR: [f32, ..3] = [0.4, 0.6, 0.2];
+
     let rand_seed = std::rand::task_rng().gen();
     let noise = Perlin::new().seed(rand_seed);
     let plane = Plane::subdivide(256, 256);
+    let pnt_to_vertex = |pos: Pnt3<f32>| shader::Vertex { pos: *pos.as_array(), color: TERRAIN_COLOR };
+    let terrain = Terrain::new(TERRAIN_HEIGHT_FACTOR, TERRAIN_GRID_SPACING, noise);
 
-    let terrain_vertices: Vec<shader::Vertex> = plane.shared_vertex_iter()
-        .map(|(x, y)| {
-            const TERRAIN_COLOR: [f32, ..3] = [0.6, 0.8, 0.4];
-            const TERRAIN_HEIGHT_FACTOR: f32 = 5.0;
-            const TERRAIN_GRID_SPACING: f32 = 30.0;
-            shader::Vertex {
-                pos: [x * TERRAIN_GRID_SPACING,
-                      y * TERRAIN_GRID_SPACING,
-                      noise.get(x, y, 0.0) * TERRAIN_HEIGHT_FACTOR],
-                color: TERRAIN_COLOR,
-            }
-        })
-        .collect();
-    let terrain_mesh = graphics.device.create_mesh(terrain_vertices.as_slice());
+    let terrain_vertices: Vec<_> = terrain.shared_pnts(&plane)
+                                          .map(pnt_to_vertex)
+                                          .collect();
     let terrain_indices: Vec<u32> = plane.indexed_polygon_iter()
-        .triangulate()
-        .vertices()
-        .map(|i| i as u32)
-        .collect();
+                                         .triangulate()
+                                         .vertices()
+                                         .map(|i| i as u32)
+                                         .collect();
+
+    let terrain_mesh = graphics.device.create_mesh(terrain_vertices.as_slice());
     let terrain_slice = graphics.device.create_buffer_static(terrain_indices.as_slice()).to_slice(gfx::TriangleList);
     let terrain_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
     let terrain_batch: shader::Batch = graphics.make_batch(&program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
