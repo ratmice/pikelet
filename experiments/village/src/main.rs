@@ -16,16 +16,14 @@ extern crate time;
 
 use gfx::{Device, DeviceHelper, ToSlice};
 use glfw::Context;
-// use genmesh::{Vertices, Triangulate};
-// use genmesh::generators::{Plane, SharedVertex, IndexedPolygon};
+use genmesh::{Vertices, Triangulate};
+use genmesh::generators::{Plane, SharedVertex, IndexedPolygon};
 use nalgebra::*;
+use noise::source::Perlin;
+use noise::source::Source;
 use std::f32;
-use std::fmt;
 use std::rand::Rng;
 // use time::precise_time_s;
-
-// use noise::source::Perlin;
-// use noise::source::Source;
 
 use camera::Camera;
 
@@ -107,17 +105,50 @@ fn main() {
     const KEY_DELTA: f32 = 0.1;
     let mut cam_pos_delta: Vec3<f32> = zero();
 
-    // Model stuff
+    // House
 
     let house_mesh  = graphics.device.create_mesh(house::VERTEX_DATA);
     let house_slice = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
     let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
     let house_batch: shader::Batch = graphics.make_batch(&program, &house_mesh, house_slice, &house_state).unwrap();
 
+    // Terrain
+
+    let rand_seed = std::rand::task_rng().gen();
+    let noise = Perlin::new().seed(rand_seed);
+    let plane = Plane::subdivide(256, 256);
+
+    let terrain_vertices: Vec<shader::Vertex> = plane.shared_vertex_iter()
+        .map(|(x, y)| {
+            const TERRAIN_COLOR: [f32, ..3] = [0.6, 0.8, 0.4];
+            const TERRAIN_HEIGHT_FACTOR: f32 = 5.0;
+            const TERRAIN_GRID_SPACING: f32 = 30.0;
+            shader::Vertex {
+                pos: [x * TERRAIN_GRID_SPACING,
+                      y * TERRAIN_GRID_SPACING,
+                      noise.get(x, y, 0.0) * TERRAIN_HEIGHT_FACTOR],
+                color: TERRAIN_COLOR,
+            }
+        })
+        .collect();
+    let terrain_mesh = graphics.device.create_mesh(terrain_vertices.as_slice());
+    let terrain_indices: Vec<u32> = plane.indexed_polygon_iter()
+        .triangulate()
+        .vertices()
+        .map(|i| i as u32)
+        .collect();
+    let terrain_slice = graphics.device.create_buffer_static(terrain_indices.as_slice()).to_slice(gfx::TriangleList);
+    let terrain_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let terrain_batch: shader::Batch = graphics.make_batch(&program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
+
+    // Axis
+
     let axis_mesh   = graphics.device.create_mesh(axis_thingy::VERTEX_DATA);
     let axis_slice  = axis_mesh.to_slice(gfx::Line);
     let axis_state  = gfx::DrawState::new();
     let axis_batch: shader::Batch = graphics.make_batch(&program, &axis_mesh, axis_slice, &axis_state).unwrap();
+
+    // Main loop
 
     while !window.should_close() {
         glfw.poll_events();
@@ -150,6 +181,7 @@ fn main() {
 
         graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
         graphics.draw(&house_batch, &params, &frame);
+        graphics.draw(&terrain_batch, &params, &frame);
         graphics.draw(&axis_batch, &params, &frame);
         graphics.end_frame();
 
