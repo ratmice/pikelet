@@ -24,6 +24,12 @@ impl fmt::Show for Vertex {
     }
 }
 
+#[shader_param(Batch)]
+pub struct Params {
+    #[name = "u_Transform"]
+    pub transform: [[f32, ..4], ..4],
+}
+
 pub static VERTEX_SRC: gfx::ShaderSource<'static> = shaders! {
 GLSL_120: b"
     #version 120
@@ -32,13 +38,11 @@ GLSL_120: b"
     attribute vec3 a_Color;
     varying vec3 v_Color;
 
-    uniform mat4 u_Model;
-    uniform mat4 u_View;
-    uniform mat4 u_Proj;
+    uniform mat4 u_Transform;
 
     void main() {
         v_Color = a_Color;
-        gl_Position = u_Proj * u_View * u_Model * vec4(a_Pos, 1.0);
+        gl_Position = u_Transform * vec4(a_Pos, 1.0);
     }
 "
 GLSL_150: b"
@@ -48,13 +52,11 @@ GLSL_150: b"
     in vec3 a_Color;
     out vec3 v_Color;
 
-    uniform mat4 u_Model;
-    uniform mat4 u_View;
-    uniform mat4 u_Proj;
+    uniform mat4 u_Transform;
 
     void main() {
         v_Color = a_Color;
-        gl_Position = u_Proj * u_View * u_Model * vec4(a_Pos, 1.0);
+        gl_Position = u_Transform * vec4(a_Pos, 1.0);
     }
 "
 };

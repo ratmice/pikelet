@@ -1,5 +1,6 @@
 // Copyright Brendan Zabarauskas 2014
 
+#![feature(default_type_params)]
 #![feature(globs)]
 #![feature(phase)]
 
@@ -26,7 +27,7 @@ use std::rand::Rng;
 // use noise::source::Perlin;
 // use noise::source::Source;
 
-use world::{World, WorldBatch};
+use camera::Camera;
 
 mod axis_thingy;
 mod camera;
@@ -34,7 +35,6 @@ mod forest;
 mod house;
 mod shader;
 mod sky;
-mod world;
 
 ////////////////////////////////////////////////////////////////////////////////
 /*******************************************************************************
@@ -93,29 +93,22 @@ fn main() {
     let program = graphics.device.link_program(shader::VERTEX_SRC.clone(),
                                                shader::FRAGMENT_SRC.clone()).unwrap();
     let frame = gfx::Frame::new(w as u16, h as u16);
-    let world = World {
-        model: One::one(),
-        view: to_homogeneous(&{
-            let mut transform = one::<Iso3<f32>>();
-            transform.look_at_z(&Pnt3::new(1.5, -5.0, 3.0),
-                                &Pnt3::new(0.0,  0.0, 0.0),
-                                &Vec3::z());
-            inv(&transform).unwrap()
-        }),
-        proj: PerspMat3::new(w as f32 / h as f32,
-                             45.0 * (f32::consts::PI / 180.0),
-                             1.0, 10.0),
-    };
+
+    let aspect = w as f32 / h as f32;
+    let fov = 45.0 * (f32::consts::PI / 180.0);
+    let proj = PerspMat3::new(aspect, fov, 1.0, 10.0);
+    let mut cam = Camera::new(zero(), proj);
+    cam.look_at(&Pnt3::new(1.5, -5.0, 3.0), &Pnt3::new(0.0,  0.0, 0.0), &Vec3::z());
 
     let house_mesh      = graphics.device.create_mesh(house::VERTEX_DATA);
     let house_slice     = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
     let house_state     = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
-    let house_batch: WorldBatch = graphics.make_batch(&program, &house_mesh, house_slice, &house_state).unwrap();
+    let house_batch: shader::Batch = graphics.make_batch(&program, &house_mesh, house_slice, &house_state).unwrap();
 
     let axis_mesh       = graphics.device.create_mesh(axis_thingy::VERTEX_DATA);
     let axis_slice      = axis_mesh.to_slice(gfx::Line);
     let axis_state      = gfx::DrawState::new();
-    let axis_batch: WorldBatch = graphics.make_batch(&program, &axis_mesh, axis_slice, &axis_state).unwrap();
+    let axis_batch: shader::Batch = graphics.make_batch(&program, &axis_mesh, axis_slice, &axis_state).unwrap();
 
     let clear_data      = gfx::ClearData { color: sky::DAY_COLOR, depth: 1.0, stencil: 0 };
 
@@ -129,9 +122,12 @@ fn main() {
             }
         }
 
+        let world = cam.to_mat();
+        let params = shader::Params { transform: *world.as_array() };
+
         graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
-        graphics.draw(&house_batch, world.as_params(), &frame);
-        graphics.draw(&axis_batch, world.as_params(), &frame);
+        graphics.draw(&house_batch, &params, &frame);
+        graphics.draw(&axis_batch, &params, &frame);
         graphics.end_frame();
 
         window.swap_buffers();
