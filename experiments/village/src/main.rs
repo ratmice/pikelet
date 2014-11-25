@@ -129,13 +129,13 @@ fn main() {
                 },
 
                 // WASD movement
-                glfw::KeyEvent(glfw::Key::W, _, glfw::Press, _) => cam_pos_delta.y += KEY_DELTA,
-                glfw::KeyEvent(glfw::Key::S, _, glfw::Press, _) => cam_pos_delta.y -= KEY_DELTA,
+                glfw::KeyEvent(glfw::Key::W, _, glfw::Press, _) => cam_pos_delta.y -= KEY_DELTA,
+                glfw::KeyEvent(glfw::Key::S, _, glfw::Press, _) => cam_pos_delta.y += KEY_DELTA,
                 glfw::KeyEvent(glfw::Key::A, _, glfw::Press, _) => cam_pos_delta.x += KEY_DELTA,
                 glfw::KeyEvent(glfw::Key::D, _, glfw::Press, _) => cam_pos_delta.x -= KEY_DELTA,
                 // Revert WASD movement on key release
-                glfw::KeyEvent(glfw::Key::W, _, glfw::Release, _) => cam_pos_delta.y -= KEY_DELTA,
-                glfw::KeyEvent(glfw::Key::S, _, glfw::Release, _) => cam_pos_delta.y += KEY_DELTA,
+                glfw::KeyEvent(glfw::Key::W, _, glfw::Release, _) => cam_pos_delta.y += KEY_DELTA,
+                glfw::KeyEvent(glfw::Key::S, _, glfw::Release, _) => cam_pos_delta.y -= KEY_DELTA,
                 glfw::KeyEvent(glfw::Key::A, _, glfw::Release, _) => cam_pos_delta.x -= KEY_DELTA,
                 glfw::KeyEvent(glfw::Key::D, _, glfw::Release, _) => cam_pos_delta.x += KEY_DELTA,
 
