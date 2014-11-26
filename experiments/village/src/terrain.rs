@@ -2,8 +2,8 @@
 
 use nalgebra::*;
 use noise::source::Source;
-use genmesh::Vertices;
-use genmesh::generators::{SharedVertex, SharedVertexIterator};
+use genmesh::{Triangle, MapVertex, TriangulateIterator, Triangulate};
+use genmesh::generators::Plane;
 use std::num::Float;
 
 pub struct Terrain<S> {
@@ -27,29 +27,40 @@ impl<S: Source> Terrain<S> {
                         Float::zero()) * self.height_factor
     }
 
-    pub fn shared_pnts<'a, P: SharedVertex<(f32, f32)>>(&'a self, polygon: &'a P) -> TerrainPnts<'a, S, P> {
-        TerrainPnts {
+    pub fn triangulate<'a>(&'a self, polygon: Plane) -> TerrainTriangles<'a, S> {
+        TerrainTriangles {
             terrain: self,
-            vertices: polygon.shared_vertex_iter(),
+            triangles: polygon.triangulate(),
         }
     }
 }
 
-struct TerrainPnts<'a, S: 'a, P: 'a> {
+struct TerrainTriangles<'a, S: 'a> {
     terrain: &'a Terrain<S>,
-    vertices: SharedVertexIterator<'a, P, (f32, f32)>,
+    triangles: TriangulateIterator<Plane, (f32, f32)>,
 }
 
-impl<'a, S: Source, P: SharedVertex<(f32, f32)>> Iterator<Pnt3<f32>> for TerrainPnts<'a, S, P> {
-    fn next(&mut self) -> Option<Pnt3<f32>> {
-        self.vertices.next().map(|(x, y)| {
-            Pnt3::new(x * self.terrain.grid_spacing,
-                      y * self.terrain.grid_spacing,
-                      self.terrain.source.get(x, y, Float::zero()) * self.terrain.height_factor)
-        })
+impl<'a, S: Source> Iterator<Triangle<(Pnt3<f32>, Vec3<f32>)>> for TerrainTriangles<'a, S> {
+    fn next(&mut self) -> Option<Triangle<(Pnt3<f32>, Vec3<f32>)>> {
+        fn sub_pnts<T: BaseFloat>(a: &Pnt3<T>, b: &Pnt3<T>) -> Vec3<T> {
+            Vec3::new(a.x - b.x, a.y - b.y, a.z - b.z)
+        }
+
+        self.triangles.next()
+            .map(|tri| tri.map_vertex(|(x, y)| Pnt3 {
+                x: x * self.terrain.grid_spacing,
+                y: y * self.terrain.grid_spacing,
+                z: self.terrain.source.get(x, y, Float::zero()) * self.terrain.height_factor,
+            }))
+            .map(|Triangle { x, y, z }| {
+                let v = sub_pnts(&y, &x);          // first side of the triangle
+                let w = sub_pnts(&z, &x);          // second side of the triangle
+                let n = normalize(&cross(&v, &w)); // the normal of the triangle
+                Triangle { x: (x, n), y: (y, n), z: (z, n) }
+            })
     }
 
     fn size_hint(&self) -> (uint, Option<uint>) {
-        self.vertices.size_hint()
+        self.triangles.size_hint()
     }
 }

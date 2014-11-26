@@ -16,8 +16,8 @@ extern crate time;
 
 use gfx::{Device, DeviceHelper, ToSlice};
 use glfw::Context;
-use genmesh::{Vertices, Triangulate};
-use genmesh::generators::{Plane, IndexedPolygon};
+use genmesh::{Triangulate, Vertices};
+use genmesh::generators::Plane;
 use nalgebra::*;
 use noise::source::Perlin;
 use std::f32;
@@ -122,20 +122,20 @@ fn main() {
     let rand_seed = std::rand::task_rng().gen();
     let noise = Perlin::new().seed(rand_seed);
     let plane = Plane::subdivide(256, 256);
-    let pnt_to_vertex = |pos: Pnt3<f32>| shader::Vertex { pos: *pos.as_array(), color: TERRAIN_COLOR };
     let terrain = Terrain::new(TERRAIN_HEIGHT_FACTOR, TERRAIN_GRID_SPACING, noise);
 
-    let terrain_vertices: Vec<_> = terrain.shared_pnts(&plane)
-                                          .map(pnt_to_vertex)
-                                          .collect();
-    let terrain_indices: Vec<u32> = plane.indexed_polygon_iter()
-                                         .triangulate()
-                                         .vertices()
-                                         .map(|i| i as u32)
-                                         .collect();
+    let terrain_vertices: Vec<_> = terrain
+        .triangulate(plane)
+        .vertices()
+        .map(|(p, _)| shader::Vertex {
+            pos: *p.as_array(),
+            // normal: *n.as_array(),
+            color: TERRAIN_COLOR,
+        })
+        .collect();
 
     let terrain_mesh = graphics.device.create_mesh(terrain_vertices.as_slice());
-    let terrain_slice = graphics.device.create_buffer_static(terrain_indices.as_slice()).to_slice(gfx::TriangleList);
+    let terrain_slice = terrain_mesh.to_slice(gfx::TriangleList);
     let terrain_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
     let terrain_batch: shader::Batch = graphics.make_batch(&program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
 
