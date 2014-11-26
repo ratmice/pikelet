@@ -42,10 +42,6 @@ struct TerrainTriangles<'a, S: 'a> {
 
 impl<'a, S: Source> Iterator<Triangle<(Pnt3<f32>, Vec3<f32>)>> for TerrainTriangles<'a, S> {
     fn next(&mut self) -> Option<Triangle<(Pnt3<f32>, Vec3<f32>)>> {
-        fn sub_pnts<T: BaseFloat>(a: &Pnt3<T>, b: &Pnt3<T>) -> Vec3<T> {
-            Vec3::new(a.x - b.x, a.y - b.y, a.z - b.z)
-        }
-
         self.triangles.next()
             .map(|tri| tri.map_vertex(|(x, y)| Pnt3 {
                 x: x * self.terrain.grid_spacing,
@@ -53,9 +49,9 @@ impl<'a, S: Source> Iterator<Triangle<(Pnt3<f32>, Vec3<f32>)>> for TerrainTriang
                 z: self.terrain.source.get(x, y, Float::zero()) * self.terrain.height_factor,
             }))
             .map(|Triangle { x, y, z }| {
-                let v = sub_pnts(&y, &x);  // first side of the triangle
-                let w = sub_pnts(&z, &x);  // second side of the triangle
-                let n = cross(&v, &w);     // the normal of the triangle
+                let v = y - x;          // first side of the triangle
+                let w = z - x;          // second side of the triangle
+                let n = cross(&v, &w);  // the normal of the triangle
                 Triangle { x: (x, n), y: (y, n), z: (z, n) }
             })
     }
