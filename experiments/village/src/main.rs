@@ -86,12 +86,15 @@ fn main() {
     glfw.set_error_callback(glfw::FAIL_ON_ERRORS);
     window.set_key_polling(true);
 
-    // Graphics stuff
+    // Graphics setup
 
     let device          = gfx::GlDevice::new(|s| window.get_proc_address(s));
     let mut graphics    = gfx::Graphics::new(device);
-    let program         = graphics.device.link_program(shader::VERTEX_SRC.clone(),
-                                                       shader::FRAGMENT_SRC.clone()).unwrap();
+
+    let color_program   = graphics.device.link_program(shader::color::VERTEX_SRC.clone(),
+                                                       shader::color::FRAGMENT_SRC.clone()).unwrap();
+    let flat_program    = graphics.device.link_program(shader::flat::VERTEX_SRC.clone(),
+                                                       shader::flat::FRAGMENT_SRC.clone()).unwrap();
     let frame           = gfx::Frame::new(w as u16, h as u16);
     let clear_data      = gfx::ClearData { color: sky::DAY_COLOR, depth: 1.0, stencil: 0 };
 
@@ -111,7 +114,7 @@ fn main() {
     let house_mesh  = graphics.device.create_mesh(house::VERTEX_DATA);
     let house_slice = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
     let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
-    let house_batch: shader::Batch = graphics.make_batch(&program, &house_mesh, house_slice, &house_state).unwrap();
+    let house_batch: shader::Batch = graphics.make_batch(&color_program, &house_mesh, house_slice, &house_state).unwrap();
 
     // Terrain
 
@@ -127,9 +130,9 @@ fn main() {
     let terrain_vertices: Vec<_> = terrain
         .triangulate(plane)
         .vertices()
-        .map(|(p, _)| shader::Vertex {
+        .map(|(p, n)| shader::flat::Vertex {
             pos: *p.as_array(),
-            // normal: *n.as_array(),
+            norm: *n.as_array(),
             color: TERRAIN_COLOR,
         })
         .collect();
@@ -137,14 +140,14 @@ fn main() {
     let terrain_mesh = graphics.device.create_mesh(terrain_vertices.as_slice());
     let terrain_slice = terrain_mesh.to_slice(gfx::TriangleList);
     let terrain_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
-    let terrain_batch: shader::Batch = graphics.make_batch(&program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
+    let terrain_batch: shader::Batch = graphics.make_batch(&flat_program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
 
     // Axis
 
     let axis_mesh   = graphics.device.create_mesh(axis_thingy::VERTEX_DATA);
     let axis_slice  = axis_mesh.to_slice(gfx::Line);
     let axis_state  = gfx::DrawState::new();
-    let axis_batch: shader::Batch = graphics.make_batch(&program, &axis_mesh, axis_slice, &axis_state).unwrap();
+    let axis_batch: shader::Batch = graphics.make_batch(&color_program, &axis_mesh, axis_slice, &axis_state).unwrap();
 
     // Main loop
 
@@ -175,7 +178,10 @@ fn main() {
 
         cam.view.append_translation(&cam_pos_delta);
         let world = cam.to_mat();
-        let params = shader::Params { transform: *world.as_array() };
+        let params = shader::Params {
+            sun_dir: [0.0, 0.5, 1.0],
+            transform: *world.as_array(),
+        };
 
         graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
         graphics.draw(&house_batch, &params, &frame);

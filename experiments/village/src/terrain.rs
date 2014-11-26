@@ -53,9 +53,9 @@ impl<'a, S: Source> Iterator<Triangle<(Pnt3<f32>, Vec3<f32>)>> for TerrainTriang
                 z: self.terrain.source.get(x, y, Float::zero()) * self.terrain.height_factor,
             }))
             .map(|Triangle { x, y, z }| {
-                let v = sub_pnts(&y, &x);          // first side of the triangle
-                let w = sub_pnts(&z, &x);          // second side of the triangle
-                let n = normalize(&cross(&v, &w)); // the normal of the triangle
+                let v = sub_pnts(&y, &x);  // first side of the triangle
+                let w = sub_pnts(&z, &x);  // second side of the triangle
+                let n = cross(&v, &w);     // the normal of the triangle
                 Triangle { x: (x, n), y: (y, n), z: (z, n) }
             })
     }
