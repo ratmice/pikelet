@@ -114,7 +114,7 @@ fn main() {
     let house_mesh  = graphics.device.create_mesh(house::VERTEX_DATA);
     let house_slice = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
     let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
-    let house_batch: shader::Batch = graphics.make_batch(&color_program, &house_mesh, house_slice, &house_state).unwrap();
+    let house_batch: shader::Batch = graphics.make_batch(&flat_program, &house_mesh, house_slice, &house_state).unwrap();
 
     // Terrain
 
