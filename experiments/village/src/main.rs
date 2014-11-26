@@ -102,9 +102,9 @@ fn main() {
 
     let aspect = w as f32 / h as f32;
     let fov = 45.0 * (f32::consts::PI / 180.0);
-    let proj = PerspMat3::new(aspect, fov, 1.0, 10.0);
+    let proj = PerspMat3::new(aspect, fov, 0.1, 300.0);
     let mut cam = Camera::new(zero(), proj);
-    cam.look_at(&Pnt3::new(1.5, 5.0, 3.0), &Pnt3::new(0.0,  0.0, 0.0), &Vec3::z());
+    cam.look_at(&Pnt3::new(5.0, 20.0, 10.0), &Pnt3::new(0.0,  0.0, 0.0), &Vec3::z());
 
     const KEY_DELTA: f32 = 0.1;
     let mut cam_pos_delta: Vec3<f32> = zero();
@@ -118,12 +118,12 @@ fn main() {
 
     // Terrain
 
-    const TERRAIN_HEIGHT_FACTOR: f32 = 5.0;
-    const TERRAIN_GRID_SPACING: f32 = 30.0;
+    const TERRAIN_HEIGHT_FACTOR: f32 = 100.0;
+    const TERRAIN_GRID_SPACING: f32 = 1200.0;
     const TERRAIN_COLOR: [f32, ..3] = [0.4, 0.6, 0.2];
 
     let rand_seed = std::rand::task_rng().gen();
-    let noise = Perlin::new().seed(rand_seed);
+    let noise = Perlin::new().seed(rand_seed).frequency(10.0);
     let plane = Plane::subdivide(256, 256);
     let terrain = Terrain::new(TERRAIN_HEIGHT_FACTOR, TERRAIN_GRID_SPACING, noise);
 
