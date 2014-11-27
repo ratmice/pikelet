@@ -86,6 +86,8 @@ fn main() {
     glfw.set_error_callback(glfw::FAIL_ON_ERRORS);
     window.set_key_polling(true);
 
+    window.set_cursor_pos_polling(true);
+
     // Graphics setup
 
     let device          = gfx::GlDevice::new(|s| window.get_proc_address(s));
@@ -108,6 +110,13 @@ fn main() {
 
     const KEY_DELTA: f32 = 0.1;
     let mut cam_pos_delta: Vec3<f32> = zero();
+
+    // Initialise the first cursor position. This will help us calculate the
+    // delta later.
+    let mut cursor_prev = {
+        let (x, y) = window.get_cursor_pos();
+        Pnt2::new(x as f32, y as f32)
+    };
 
     // House
 
@@ -170,6 +179,15 @@ fn main() {
                 glfw::KeyEvent(glfw::Key::S, _, glfw::Release, _) => cam_pos_delta.y -= KEY_DELTA,
                 glfw::KeyEvent(glfw::Key::A, _, glfw::Release, _) => cam_pos_delta.x -= KEY_DELTA,
                 glfw::KeyEvent(glfw::Key::D, _, glfw::Release, _) => cam_pos_delta.x += KEY_DELTA,
+
+                // Rotate camera when the cursor is moved
+                glfw::CursorPosEvent(x, y) => {
+                    let cursor_curr = Pnt2::new(x as f32, y as f32);
+                    let cursor_delta = cursor_prev - cursor_curr;
+                    cursor_prev = cursor_curr;
+                    let _ = cursor_delta; // unused
+                    // println!("{}", cursor_delta);
+                },
 
                 // Everything else
                 _ => {},
