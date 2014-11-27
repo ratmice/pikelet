@@ -83,7 +83,6 @@ fn main() {
     let (w, h) = window.get_framebuffer_size();
 
     window.make_current();
-    glfw.set_error_callback(glfw::FAIL_ON_ERRORS);
     window.set_key_polling(true);
 
     window.set_cursor_pos_polling(true);
