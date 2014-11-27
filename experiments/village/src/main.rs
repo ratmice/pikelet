@@ -16,16 +16,16 @@ extern crate time;
 
 use gfx::{Device, DeviceHelper, ToSlice};
 use glfw::Context;
-use genmesh::{Vertices, Triangulate};
-use genmesh::generators::{Plane, SharedVertex, IndexedPolygon};
+use genmesh::{Triangulate, Vertices};
+use genmesh::generators::Plane;
 use nalgebra::*;
 use noise::source::Perlin;
-use noise::source::Source;
 use std::f32;
 use std::rand::Rng;
 // use time::precise_time_s;
 
 use camera::Camera;
+use terrain::Terrain;
 
 mod axis_thingy;
 mod camera;
@@ -33,6 +33,7 @@ mod forest;
 mod house;
 mod shader;
 mod sky;
+mod terrain;
 
 ////////////////////////////////////////////////////////////////////////////////
 /*******************************************************************************
@@ -82,15 +83,19 @@ fn main() {
     let (w, h) = window.get_framebuffer_size();
 
     window.make_current();
-    glfw.set_error_callback(glfw::FAIL_ON_ERRORS);
     window.set_key_polling(true);
 
-    // Graphics stuff
+    window.set_cursor_pos_polling(true);
+
+    // Graphics setup
 
     let device          = gfx::GlDevice::new(|s| window.get_proc_address(s));
     let mut graphics    = gfx::Graphics::new(device);
-    let program         = graphics.device.link_program(shader::VERTEX_SRC.clone(),
-                                                       shader::FRAGMENT_SRC.clone()).unwrap();
+
+    let color_program   = graphics.device.link_program(shader::color::VERTEX_SRC.clone(),
+                                                       shader::color::FRAGMENT_SRC.clone()).unwrap();
+    let flat_program    = graphics.device.link_program(shader::flat::VERTEX_SRC.clone(),
+                                                       shader::flat::FRAGMENT_SRC.clone()).unwrap();
     let frame           = gfx::Frame::new(w as u16, h as u16);
     let clear_data      = gfx::ClearData { color: sky::DAY_COLOR, depth: 1.0, stencil: 0 };
 
@@ -98,55 +103,59 @@ fn main() {
 
     let aspect = w as f32 / h as f32;
     let fov = 45.0 * (f32::consts::PI / 180.0);
-    let proj = PerspMat3::new(aspect, fov, 1.0, 10.0);
+    let proj = PerspMat3::new(aspect, fov, 0.1, 300.0);
     let mut cam = Camera::new(zero(), proj);
-    cam.look_at(&Pnt3::new(1.5, 5.0, 3.0), &Pnt3::new(0.0,  0.0, 0.0), &Vec3::z());
+    cam.look_at(&Pnt3::new(5.0, 20.0, 10.0), &Pnt3::new(0.0,  0.0, 0.0), &Vec3::z());
 
     const KEY_DELTA: f32 = 0.1;
     let mut cam_pos_delta: Vec3<f32> = zero();
+
+    // Initialise the first cursor position. This will help us calculate the
+    // delta later.
+    let mut cursor_prev = {
+        let (x, y) = window.get_cursor_pos();
+        Pnt2::new(x as f32, y as f32)
+    };
 
     // House
 
     let house_mesh  = graphics.device.create_mesh(house::VERTEX_DATA);
     let house_slice = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
     let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
-    let house_batch: shader::Batch = graphics.make_batch(&program, &house_mesh, house_slice, &house_state).unwrap();
+    let house_batch: shader::Batch = graphics.make_batch(&flat_program, &house_mesh, house_slice, &house_state).unwrap();
 
     // Terrain
 
-    let rand_seed = std::rand::task_rng().gen();
-    let noise = Perlin::new().seed(rand_seed);
-    let plane = Plane::subdivide(256, 256);
+    const TERRAIN_HEIGHT_FACTOR: f32 = 100.0;
+    const TERRAIN_GRID_SPACING: f32 = 1200.0;
+    const TERRAIN_COLOR: [f32, ..3] = [0.4, 0.6, 0.2];
 
-    let terrain_vertices: Vec<shader::Vertex> = plane.shared_vertex_iter()
-        .map(|(x, y)| {
-            const TERRAIN_COLOR: [f32, ..3] = [0.6, 0.8, 0.4];
-            const TERRAIN_HEIGHT_FACTOR: f32 = 5.0;
-            const TERRAIN_GRID_SPACING: f32 = 30.0;
-            shader::Vertex {
-                pos: [x * TERRAIN_GRID_SPACING,
-                      y * TERRAIN_GRID_SPACING,
-                      noise.get(x, y, 0.0) * TERRAIN_HEIGHT_FACTOR],
-                color: TERRAIN_COLOR,
-            }
+    let rand_seed = std::rand::task_rng().gen();
+    let noise = Perlin::new().seed(rand_seed).frequency(10.0);
+    let plane = Plane::subdivide(256, 256);
+    let terrain = Terrain::new(TERRAIN_HEIGHT_FACTOR, TERRAIN_GRID_SPACING, noise);
+
+    let terrain_vertices: Vec<_> = terrain
+        .triangulate(plane)
+        .vertices()
+        .map(|(p, n)| shader::flat::Vertex {
+            pos: *p.as_array(),
+            norm: *n.as_array(),
+            color: TERRAIN_COLOR,
         })
         .collect();
+
     let terrain_mesh = graphics.device.create_mesh(terrain_vertices.as_slice());
-    let terrain_indices: Vec<u32> = plane.indexed_polygon_iter()
-        .triangulate()
-        .vertices()
-        .map(|i| i as u32)
-        .collect();
-    let terrain_slice = graphics.device.create_buffer_static(terrain_indices.as_slice()).to_slice(gfx::TriangleList);
+    let terrain_slice = terrain_mesh.to_slice(gfx::TriangleList);
     let terrain_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
-    let terrain_batch: shader::Batch = graphics.make_batch(&program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
+    let terrain_batch: shader::Batch = graphics.make_batch(&flat_program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
 
     // Axis
 
     let axis_mesh   = graphics.device.create_mesh(axis_thingy::VERTEX_DATA);
     let axis_slice  = axis_mesh.to_slice(gfx::Line);
     let axis_state  = gfx::DrawState::new();
-    let axis_batch: shader::Batch = graphics.make_batch(&program, &axis_mesh, axis_slice, &axis_state).unwrap();
+    let axis_batch: shader::Batch = graphics.make_batch(&color_program, &axis_mesh, axis_slice, &axis_state).unwrap();
 
     // Main loop
 
@@ -170,6 +179,15 @@ fn main() {
                 glfw::KeyEvent(glfw::Key::A, _, glfw::Release, _) => cam_pos_delta.x -= KEY_DELTA,
                 glfw::KeyEvent(glfw::Key::D, _, glfw::Release, _) => cam_pos_delta.x += KEY_DELTA,
 
+                // Rotate camera when the cursor is moved
+                glfw::CursorPosEvent(x, y) => {
+                    let cursor_curr = Pnt2::new(x as f32, y as f32);
+                    let cursor_delta = cursor_prev - cursor_curr;
+                    cursor_prev = cursor_curr;
+                    let _ = cursor_delta; // unused
+                    // println!("{}", cursor_delta);
+                },
+
                 // Everything else
                 _ => {},
             }
@@ -177,7 +195,10 @@ fn main() {
 
         cam.view.append_translation(&cam_pos_delta);
         let world = cam.to_mat();
-        let params = shader::Params { transform: *world.as_array() };
+        let params = shader::Params {
+            sun_dir: [0.0, 0.5, 1.0],
+            transform: *world.as_array(),
+        };
 
         graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
         graphics.draw(&house_batch, &params, &frame);

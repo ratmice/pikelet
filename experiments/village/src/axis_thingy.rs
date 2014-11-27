@@ -1,6 +1,6 @@
 // Copyright Brendan Zabarauskas 2014
 
-use shader::Vertex;
+use shader::color::Vertex;
 
 const X_AXIS_COLOR: [f32, ..3] = [0.9, 0.1, 0.1];
 const Y_AXIS_COLOR: [f32, ..3] = [0.1, 0.9, 0.1];
