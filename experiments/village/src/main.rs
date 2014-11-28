@@ -194,10 +194,11 @@ fn main() {
         }
 
         cam.view.append_translation(&cam_pos_delta);
-        let world = cam.to_mat();
+        let view_proj = cam.to_mat();
         let params = shader::Params {
             sun_dir: [0.0, 0.5, 1.0],
-            transform: *world.as_array(),
+            model: *one::<Mat4<_>>().as_array(),
+            view_proj: *view_proj.as_array(),
         };
 
         graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);

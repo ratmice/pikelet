@@ -4,9 +4,10 @@
 pub struct Params {
     #[name="u_SunDir"]
     pub sun_dir: [f32, ..3],
-
-    #[name = "u_Transform"]
-    pub transform: [[f32, ..4], ..4],
+    #[name = "u_Model"]
+    pub model: [[f32, ..4], ..4],
+    #[name = "u_ViewProj"]
+    pub view_proj: [[f32, ..4], ..4],
 }
 
 pub mod color {
@@ -43,11 +44,12 @@ pub mod color {
         attribute vec3 a_Color;
         varying vec3 v_Color;
 
-        uniform mat4 u_Transform;
+        uniform mat4 u_Model;
+        uniform mat4 u_ViewProj;
 
         void main() {
             v_Color = a_Color;
-            gl_Position = u_Transform * vec4(a_Pos, 1.0);
+            gl_Position = u_ViewProj * u_Model * vec4(a_Pos, 1.0);
         }
     "
     GLSL_150: b"
@@ -57,11 +59,12 @@ pub mod color {
         in vec3 a_Color;
         out vec3 v_Color;
 
-        uniform mat4 u_Transform;
+        uniform mat4 u_Model;
+        uniform mat4 u_ViewProj;
 
         void main() {
             v_Color = a_Color;
-            gl_Position = u_Transform * vec4(a_Pos, 1.0);
+            gl_Position = u_ViewProj * u_Model * vec4(a_Pos, 1.0);
         }
     "
     };
@@ -135,14 +138,15 @@ pub mod flat {
         varying vec3 v_Color;
         varying vec3 v_Norm;
 
-        uniform mat4 u_Transform;
+        uniform mat4 u_Model;
+        uniform mat4 u_ViewProj;
 
         void main() {
             v_Pos = a_Pos;
             v_Color = a_Color;
             v_Norm = a_Norm;
 
-            gl_Position = u_Transform * vec4(a_Pos, 1.0);
+            gl_Position = u_ViewProj * u_Model * vec4(a_Pos, 1.0);
         }
     "
     GLSL_150: b"
@@ -156,14 +160,15 @@ pub mod flat {
         out vec3 v_Color;
         out vec3 v_Norm;
 
-        uniform mat4 u_Transform;
+        uniform mat4 u_Model;
+        uniform mat4 u_ViewProj;
 
         void main() {
             v_Pos = a_Pos;
             v_Color = a_Color;
             v_Norm = a_Norm;
 
-            gl_Position = u_Transform * vec4(a_Pos, 1.0);
+            gl_Position = u_ViewProj * u_Model * vec4(a_Pos, 1.0);
         }
     "
     };
