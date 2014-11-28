@@ -117,12 +117,9 @@ fn main() {
         Pnt2::new(x as f32, y as f32)
     };
 
-    // House
+    // RNG setup
 
-    let house_mesh  = graphics.device.create_mesh(house::VERTEX_DATA);
-    let house_slice = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
-    let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
-    let house_batch: shader::Batch = graphics.make_batch(&flat_program, &house_mesh, house_slice, &house_state).unwrap();
+    let mut rng = std::rand::task_rng();
 
     // Terrain
 
@@ -130,7 +127,7 @@ fn main() {
     const TERRAIN_GRID_SPACING: f32 = 1200.0;
     const TERRAIN_COLOR: [f32, ..3] = [0.4, 0.6, 0.2];
 
-    let rand_seed = std::rand::task_rng().gen();
+    let rand_seed = rng.gen();
     let noise = Perlin::new().seed(rand_seed).frequency(10.0);
     let plane = Plane::subdivide(256, 256);
     let terrain = Terrain::new(TERRAIN_HEIGHT_FACTOR, TERRAIN_GRID_SPACING, noise);
@@ -149,6 +146,24 @@ fn main() {
     let terrain_slice = terrain_mesh.to_slice(gfx::TriangleList);
     let terrain_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
     let terrain_batch: shader::Batch = graphics.make_batch(&flat_program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
+
+    // Houses
+
+    let house_mesh  = graphics.device.create_mesh(house::VERTEX_DATA);
+    let house_slice = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
+    let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let house_batch: shader::Batch = graphics.make_batch(&flat_program, &house_mesh, house_slice, &house_state).unwrap();
+
+    const HOUSE_XY_SCATTER: f32 = 200.0;
+    let house_translations: Vec<_> = range(0i, 100)
+        .map(|_| {
+            let (x, y) = rng.gen::<(f32, f32)>();
+            let x = (x * HOUSE_XY_SCATTER) - (HOUSE_XY_SCATTER / 2.0);
+            let y = (y * HOUSE_XY_SCATTER) - (HOUSE_XY_SCATTER / 2.0);
+            let h = terrain.get_height_at(x, y);
+            Pnt3::new(x, y, h)
+        })
+        .collect();
 
     // Axis
 
@@ -202,7 +217,21 @@ fn main() {
         };
 
         graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
-        graphics.draw(&house_batch, &params, &frame);
+
+        // FIXME: we should not be calculating this every frame
+        for housev in house_translations.iter() {
+            let params = shader::Params {
+                sun_dir: [0.0, 0.5, 1.0],
+                model: {
+                    let mut model = one::<Mat4<f32>>();
+                    model.set_col(3, housev.to_homogeneous().to_vec());
+                    *model.as_array()
+                },
+                view_proj: *view_proj.as_array(),
+            };
+            graphics.draw(&house_batch, &params, &frame);
+        }
+
         graphics.draw(&terrain_batch, &params, &frame);
         graphics.draw(&axis_batch, &params, &frame);
         graphics.end_frame();
