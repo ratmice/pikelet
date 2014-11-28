@@ -25,6 +25,7 @@ use std::rand::Rng;
 // use time::precise_time_s;
 
 use camera::Camera;
+use house::Village;
 use terrain::Terrain;
 
 mod axis_thingy;
@@ -154,16 +155,7 @@ fn main() {
     let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
     let house_batch: shader::Batch = graphics.make_batch(&flat_program, &house_mesh, house_slice, &house_state).unwrap();
 
-    const HOUSE_XY_SCATTER: f32 = 200.0;
-    let house_translations: Vec<_> = range(0i, 100)
-        .map(|_| {
-            let (x, y) = rng.gen::<(f32, f32)>();
-            let x = (x * HOUSE_XY_SCATTER) - (HOUSE_XY_SCATTER / 2.0);
-            let y = (y * HOUSE_XY_SCATTER) - (HOUSE_XY_SCATTER / 2.0);
-            let h = terrain.get_height_at(x, y);
-            Pnt3::new(x, y, h)
-        })
-        .collect();
+    let village = Village::new(100, 200.0, &terrain, &mut rng);
 
     // Axis
 
@@ -209,28 +201,20 @@ fn main() {
         }
 
         cam.view.append_translation(&cam_pos_delta);
+
+        let sun_dir = [0.0, 0.5, 1.0];
         let view_proj = cam.to_mat();
         let params = shader::Params {
-            sun_dir: [0.0, 0.5, 1.0],
+            sun_dir: sun_dir,
             model: *one::<Mat4<_>>().as_array(),
             view_proj: *view_proj.as_array(),
         };
 
         graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
 
-        // FIXME: we should not be calculating this every frame
-        for housev in house_translations.iter() {
-            let params = shader::Params {
-                sun_dir: [0.0, 0.5, 1.0],
-                model: {
-                    let mut model = one::<Mat4<f32>>();
-                    model.set_col(3, housev.to_homogeneous().to_vec());
-                    *model.as_array()
-                },
-                view_proj: *view_proj.as_array(),
-            };
-            graphics.draw(&house_batch, &params, &frame);
-        }
+        village.params(sun_dir, *view_proj.as_array(), |params| {
+            graphics.draw(&house_batch, params, &frame);
+        });
 
         graphics.draw(&terrain_batch, &params, &frame);
         graphics.draw(&axis_batch, &params, &frame);
