@@ -186,8 +186,8 @@ pub mod flat {
         uniform vec3 u_SunDir;
 
         void main() {
-            float sunDotNorm = max(dot(u_SunDir, normalize(v_Norm)), 0.0);
-            o_Color = vec4(sunDotNorm * v_Color, 1.0);
+            float sunIntensity = max(dot(u_SunDir, normalize(v_Norm)), 0.0);
+            o_Color = vec4(sunIntensity * v_Color, 1.0);
         }
     "
     GLSL_150: b"
@@ -202,8 +202,8 @@ pub mod flat {
         uniform vec3 u_SunDir;
 
         void main() {
-            float sunDotNorm = max(dot(u_SunDir, normalize(v_Norm)), 0.0);
-            o_Color = vec4(sunDotNorm * v_Color, 1.0);
+            float sunIntensity = max(dot(u_SunDir, normalize(v_Norm)), 0.0);
+            o_Color = vec4(sunIntensity * v_Color, 1.0);
         }
     "
     };
