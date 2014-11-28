@@ -51,19 +51,31 @@ pub const INDEX_DATA: &'static [u8] = &[
 ];
 
 pub struct Village {
-    pub positions: Vec<Pnt3<f32>>,
+    pub transforms: Vec<Mat4<f32>>,
+}
+
+fn model_mat(scale_x: f32, scale_y: f32, scale_z: f32, position: Pnt3<f32>) -> Mat4<f32> {
+    let mut model: Mat4<f32> = zero();
+    model.set_col(0, Vec4::x() * scale_x);
+    model.set_col(1, Vec4::y() * scale_y);
+    model.set_col(2, Vec4::z() * scale_z);
+    model.set_col(3, position.to_homogeneous().to_vec());
+    model
 }
 
 impl Village {
     pub fn new<S: Source, R: Rng>(n: uint, scatter_factor: f32, terrain: &Terrain<S>, rng: &mut R) -> Village {
         Village {
-            positions: {
+            transforms: {
                 range(0, n).map(|_| {
                     let (x, y) = rng.gen::<(f32, f32)>();
                     let x = (x * scatter_factor) - (scatter_factor / 2.0);
                     let y = (y * scatter_factor) - (scatter_factor / 2.0);
-                    let h = terrain.get_height_at(x, y);
-                    Pnt3::new(x, y, h)
+                    let z = terrain.get_height_at(x, y);
+                    let scale_x = (rng.gen::<f32>() * 10.0) + 1.0;
+                    let scale_y = (rng.gen::<f32>() * 10.0) + 1.0;
+                    let scale_z = (rng.gen::<f32>() * 10.0) + 1.0;
+                    model_mat(scale_x, scale_y, scale_z, Pnt3::new(x, y, z))
                 })
                 .collect()
             },
@@ -77,11 +89,8 @@ impl Village {
             view_proj: view_proj,
         };
 
-        for pos in self.positions.iter() {
-            let mut model = one::<Mat4<f32>>();
-            model.set_col(3, pos.to_homogeneous().to_vec());
-            world.model = model;
-
+        for model in self.transforms.iter() {
+            world.model = *model;
             f(&world)
         }
     }
