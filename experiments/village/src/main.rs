@@ -21,6 +21,7 @@ use genmesh::generators::Plane;
 use nalgebra::*;
 use noise::source::Perlin;
 use std::f32;
+use std::mem;
 use std::rand::Rng;
 // use time::precise_time_s;
 
@@ -69,6 +70,18 @@ TODO:
 
 *******************************************************************************/
 ////////////////////////////////////////////////////////////////////////////////
+
+struct World {
+    pub sun_dir: Vec3<f32>,
+    pub model: Mat4<f32>,
+    pub view_proj: Mat4<f32>,
+}
+
+impl World {
+    pub fn as_params(&self) -> &shader::Params {
+        unsafe { mem::transmute(self) }
+    }
+}
 
 fn main() {
     let glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -202,22 +215,22 @@ fn main() {
 
         cam.view.append_translation(&cam_pos_delta);
 
-        let sun_dir = [0.0, 0.5, 1.0];
+        let sun_dir = Vec3::new(0.0, 0.5, 1.0);
         let view_proj = cam.to_mat();
-        let params = shader::Params {
+        let world = World {
             sun_dir: sun_dir,
-            model: *one::<Mat4<_>>().as_array(),
-            view_proj: *view_proj.as_array(),
+            model: one(),
+            view_proj: view_proj,
         };
 
         graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
 
-        village.params(sun_dir, *view_proj.as_array(), |params| {
-            graphics.draw(&house_batch, params, &frame);
+        village.map_worlds(sun_dir, view_proj, |world| {
+            graphics.draw(&house_batch, world.as_params(), &frame);
         });
 
-        graphics.draw(&terrain_batch, &params, &frame);
-        graphics.draw(&axis_batch, &params, &frame);
+        graphics.draw(&terrain_batch, world.as_params(), &frame);
+        graphics.draw(&axis_batch, world.as_params(), &frame);
         graphics.end_frame();
 
         window.swap_buffers();

@@ -4,7 +4,7 @@ use nalgebra::*;
 use noise::source::Source;
 use std::rand::Rng;
 
-use shader::Params;
+use World;
 use shader::flat::Vertex;
 use terrain::Terrain;
 
@@ -70,19 +70,19 @@ impl Village {
         }
     }
 
-    pub fn params(&self, sun_dir: [f32, ..3], view_proj: [[f32, ..4], ..4], f: |&Params|) {
-        let mut params = Params {
+    pub fn map_worlds(&self, sun_dir: Vec3<f32>, view_proj: Mat4<f32>, f: |&World|) {
+        let mut world = World {
             sun_dir: sun_dir,
-            model: *one::<Mat4<_>>().as_array(),
+            model: one(),
             view_proj: view_proj,
         };
 
         for pos in self.positions.iter() {
             let mut model = one::<Mat4<f32>>();
             model.set_col(3, pos.to_homogeneous().to_vec());
-            params.model = *model.as_array();
+            world.model = model;
 
-            f(&params)
+            f(&world)
         }
     }
 }
