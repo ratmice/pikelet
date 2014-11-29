@@ -28,6 +28,7 @@ use std::rand::Rng;
 use camera::Camera;
 use terrain::Terrain;
 
+mod antenna;
 mod axis_thingy;
 mod camera;
 mod forest;
@@ -138,6 +139,22 @@ fn main() {
         .pos_x(gen::Range { min: -100.0, max: 100.0 })
         .pos_y(gen::Range { min: -100.0, max: 100.0 });
 
+    // Antenna batch setup
+
+    let antenna_mesh   = graphics.device.create_mesh(antenna::VERTEX_DATA);
+    let antenna_slice  = antenna_mesh.to_slice(gfx::Line);
+    let antenna_state  = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let antenna_batch: shader::Batch = graphics.make_batch(&color_program, &antenna_mesh, antenna_slice, &antenna_state).unwrap();
+
+    // Antenna generation setup
+
+    let antenna_gen = gen::Scatter::new()
+        .scale_x(gen::Range { min: 1.0, max: 1.0 })
+        .scale_y(gen::Range { min: 1.0, max: 1.0 })
+        .scale_z(gen::Range { min: 5.0, max: 10.0 })
+        .pos_x(gen::Range { min: -100.0, max: 100.0 })
+        .pos_y(gen::Range { min: -100.0, max: 100.0 });
+
     'main: loop {
         // Camera stuff
 
@@ -183,9 +200,10 @@ fn main() {
         let terrain_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
         let terrain_batch: shader::Batch = graphics.make_batch(&flat_program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
 
-        // Scatter houses
+        // Scatter objects
 
         let village = village_gen.scatter(100, &terrain, &mut rng);
+        let antennas = antenna_gen.scatter(100, &terrain, &mut rng);
 
         'event: loop {
             if window.should_close() {
@@ -241,6 +259,10 @@ fn main() {
 
             village.map_worlds(sun_dir, view_proj, |world| {
                 graphics.draw(&house_batch, world.as_params(), &frame);
+            });
+
+            antennas.map_worlds(sun_dir, view_proj, |world| {
+                graphics.draw(&antenna_batch, world.as_params(), &frame);
             });
 
             graphics.draw(&terrain_batch, world.as_params(), &frame);
