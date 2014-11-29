@@ -149,7 +149,7 @@ fn main() {
         let mut cam = Camera::new(zero(), proj);
         cam.look_at(&Pnt3::new(5.0, 20.0, 10.0), &Pnt3::new(0.0,  0.0, 0.0), &Vec3::z());
 
-        const KEY_DELTA: f32 = 0.1;
+        const KEY_DELTA: f32 = 0.5;
         let mut cam_pos_delta: Vec3<f32> = zero();
 
         // Initialise the first cursor position. This will help us calculate the
