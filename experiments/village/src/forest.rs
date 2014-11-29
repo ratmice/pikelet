@@ -1,1 +1,1 @@
-// Copyright Brendan Zabarauskas 2014
+// Copyright The Voyager Developers 2014

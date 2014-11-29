@@ -1,4 +1,4 @@
-// Copyright Brendan Zabarauskas 2014
+// Copyright The Voyager Developers 2014
 
 #[shader_param(Batch)]
 pub struct Params {

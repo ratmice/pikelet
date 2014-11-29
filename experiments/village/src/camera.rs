@@ -1,4 +1,4 @@
-// Copyright Brendan Zabarauskas 2014
+// Copyright The Voyager Developers 2014
 
 // Based on https://github.com/PistonDevelopers/cam/blob/master/src/camera.rs
 
