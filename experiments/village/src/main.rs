@@ -26,12 +26,12 @@ use std::rand::Rng;
 // use time::precise_time_s;
 
 use camera::Camera;
-use house::Village;
 use terrain::Terrain;
 
 mod axis_thingy;
 mod camera;
 mod forest;
+mod gen;
 mod house;
 mod shader;
 mod sky;
@@ -131,6 +131,15 @@ fn main() {
     let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
     let house_batch: shader::Batch = graphics.make_batch(&flat_program, &house_mesh, house_slice, &house_state).unwrap();
 
+    // Village generation setup
+
+    let village_gen = gen::Scatter::new()
+        .scale_x(gen::Range { min: 1.0, max: 10.0 })
+        .scale_y(gen::Range { min: 1.0, max: 10.0 })
+        .scale_z(gen::Range { min: 1.0, max: 10.0 })
+        .pos_x(gen::Range { min: -100.0, max: 100.0 })
+        .pos_y(gen::Range { min: -100.0, max: 100.0 });
+
     'main: loop {
         // Camera stuff
 
@@ -176,9 +185,9 @@ fn main() {
         let terrain_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
         let terrain_batch: shader::Batch = graphics.make_batch(&flat_program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
 
-        // Village
+        // Scatter houses
 
-        let village = Village::new(100, 200.0, &terrain, &mut rng);
+        let village = village_gen.scatter(100, &terrain, &mut rng);
 
         'event: loop {
             if window.should_close() {
