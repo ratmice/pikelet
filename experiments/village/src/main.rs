@@ -1,4 +1,4 @@
-// Copyright Brendan Zabarauskas 2014
+// Copyright The Voyager Developers 2014
 
 #![feature(default_type_params)]
 #![feature(globs)]
@@ -21,15 +21,18 @@ use genmesh::generators::Plane;
 use nalgebra::*;
 use noise::source::Perlin;
 use std::f32;
+use std::mem;
 use std::rand::Rng;
 // use time::precise_time_s;
 
 use camera::Camera;
 use terrain::Terrain;
 
+mod antenna;
 mod axis_thingy;
 mod camera;
 mod forest;
+mod gen;
 mod house;
 mod shader;
 mod sky;
@@ -54,11 +57,9 @@ TODO:
     - hedges
     - stone walls
     - roads/paths
-- perlin terrain
 - distant mountain ranges
 - water
     - intersecting plane (same color as sky)
-- shadow shader based on sun direction
 - sky
     - sun
     - day/night
@@ -68,6 +69,18 @@ TODO:
 
 *******************************************************************************/
 ////////////////////////////////////////////////////////////////////////////////
+
+struct World {
+    pub sun_dir: Vec3<f32>,
+    pub model: Mat4<f32>,
+    pub view_proj: Mat4<f32>,
+}
+
+impl World {
+    pub fn as_params(&self) -> &shader::Params {
+        unsafe { mem::transmute(self) }
+    }
+}
 
 fn main() {
     let glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -99,113 +112,164 @@ fn main() {
     let frame           = gfx::Frame::new(w as u16, h as u16);
     let clear_data      = gfx::ClearData { color: sky::DAY_COLOR, depth: 1.0, stencil: 0 };
 
-    // Camera stuff
+    // RNG setup
 
-    let aspect = w as f32 / h as f32;
-    let fov = 45.0 * (f32::consts::PI / 180.0);
-    let proj = PerspMat3::new(aspect, fov, 0.1, 300.0);
-    let mut cam = Camera::new(zero(), proj);
-    cam.look_at(&Pnt3::new(5.0, 20.0, 10.0), &Pnt3::new(0.0,  0.0, 0.0), &Vec3::z());
+    let mut rng = std::rand::task_rng();
 
-    const KEY_DELTA: f32 = 0.1;
-    let mut cam_pos_delta: Vec3<f32> = zero();
-
-    // Initialise the first cursor position. This will help us calculate the
-    // delta later.
-    let mut cursor_prev = {
-        let (x, y) = window.get_cursor_pos();
-        Pnt2::new(x as f32, y as f32)
-    };
-
-    // House
-
-    let house_mesh  = graphics.device.create_mesh(house::VERTEX_DATA);
-    let house_slice = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
-    let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
-    let house_batch: shader::Batch = graphics.make_batch(&flat_program, &house_mesh, house_slice, &house_state).unwrap();
-
-    // Terrain
-
-    const TERRAIN_HEIGHT_FACTOR: f32 = 100.0;
-    const TERRAIN_GRID_SPACING: f32 = 1200.0;
-    const TERRAIN_COLOR: [f32, ..3] = [0.4, 0.6, 0.2];
-
-    let rand_seed = std::rand::task_rng().gen();
-    let noise = Perlin::new().seed(rand_seed).frequency(10.0);
-    let plane = Plane::subdivide(256, 256);
-    let terrain = Terrain::new(TERRAIN_HEIGHT_FACTOR, TERRAIN_GRID_SPACING, noise);
-
-    let terrain_vertices: Vec<_> = terrain
-        .triangulate(plane)
-        .vertices()
-        .map(|(p, n)| shader::flat::Vertex {
-            pos: *p.as_array(),
-            norm: *n.as_array(),
-            color: TERRAIN_COLOR,
-        })
-        .collect();
-
-    let terrain_mesh = graphics.device.create_mesh(terrain_vertices.as_slice());
-    let terrain_slice = terrain_mesh.to_slice(gfx::TriangleList);
-    let terrain_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
-    let terrain_batch: shader::Batch = graphics.make_batch(&flat_program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
-
-    // Axis
+    // Axis batch setup
 
     let axis_mesh   = graphics.device.create_mesh(axis_thingy::VERTEX_DATA);
     let axis_slice  = axis_mesh.to_slice(gfx::Line);
     let axis_state  = gfx::DrawState::new();
     let axis_batch: shader::Batch = graphics.make_batch(&color_program, &axis_mesh, axis_slice, &axis_state).unwrap();
 
-    // Main loop
+    // House batch setup
 
-    while !window.should_close() {
-        glfw.poll_events();
-        for (_, event) in glfw::flush_messages(&events) {
-            match event {
-                // Close window on escape
-                glfw::KeyEvent(glfw::Key::Escape, _, glfw::Press, _) => {
-                    window.set_should_close(true);
-                },
+    let house_mesh  = graphics.device.create_mesh(house::VERTEX_DATA);
+    let house_slice = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
+    let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let house_batch: shader::Batch = graphics.make_batch(&flat_program, &house_mesh, house_slice, &house_state).unwrap();
 
-                // WASD movement
-                glfw::KeyEvent(glfw::Key::W, _, glfw::Press, _) => cam_pos_delta.y -= KEY_DELTA,
-                glfw::KeyEvent(glfw::Key::S, _, glfw::Press, _) => cam_pos_delta.y += KEY_DELTA,
-                glfw::KeyEvent(glfw::Key::A, _, glfw::Press, _) => cam_pos_delta.x += KEY_DELTA,
-                glfw::KeyEvent(glfw::Key::D, _, glfw::Press, _) => cam_pos_delta.x -= KEY_DELTA,
-                // Revert WASD movement on key release
-                glfw::KeyEvent(glfw::Key::W, _, glfw::Release, _) => cam_pos_delta.y += KEY_DELTA,
-                glfw::KeyEvent(glfw::Key::S, _, glfw::Release, _) => cam_pos_delta.y -= KEY_DELTA,
-                glfw::KeyEvent(glfw::Key::A, _, glfw::Release, _) => cam_pos_delta.x -= KEY_DELTA,
-                glfw::KeyEvent(glfw::Key::D, _, glfw::Release, _) => cam_pos_delta.x += KEY_DELTA,
+    // Village generation setup
 
-                // Rotate camera when the cursor is moved
-                glfw::CursorPosEvent(x, y) => {
-                    let cursor_curr = Pnt2::new(x as f32, y as f32);
-                    let cursor_delta = cursor_prev - cursor_curr;
-                    cursor_prev = cursor_curr;
-                    let _ = cursor_delta; // unused
-                    // println!("{}", cursor_delta);
-                },
+    let village_gen = gen::Scatter::new()
+        .scale_x(gen::Range { min: 1.0, max: 10.0 })
+        .scale_y(gen::Range { min: 1.0, max: 10.0 })
+        .scale_z(gen::Range { min: 1.0, max: 10.0 })
+        .pos_x(gen::Range { min: -100.0, max: 100.0 })
+        .pos_y(gen::Range { min: -100.0, max: 100.0 });
 
-                // Everything else
-                _ => {},
-            }
-        }
+    // Antenna batch setup
 
-        cam.view.append_translation(&cam_pos_delta);
-        let world = cam.to_mat();
-        let params = shader::Params {
-            sun_dir: [0.0, 0.5, 1.0],
-            transform: *world.as_array(),
+    let antenna_mesh   = graphics.device.create_mesh(antenna::VERTEX_DATA);
+    let antenna_slice  = antenna_mesh.to_slice(gfx::Line);
+    let antenna_state  = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let antenna_batch: shader::Batch = graphics.make_batch(&color_program, &antenna_mesh, antenna_slice, &antenna_state).unwrap();
+
+    // Antenna generation setup
+
+    let antenna_gen = gen::Scatter::new()
+        .scale_x(gen::Range { min: 1.0, max: 1.0 })
+        .scale_y(gen::Range { min: 1.0, max: 1.0 })
+        .scale_z(gen::Range { min: 5.0, max: 10.0 })
+        .pos_x(gen::Range { min: -100.0, max: 100.0 })
+        .pos_y(gen::Range { min: -100.0, max: 100.0 });
+
+    'main: loop {
+        // Camera stuff
+
+        let aspect = w as f32 / h as f32;
+        let fov = 45.0 * (f32::consts::PI / 180.0);
+        let proj = PerspMat3::new(aspect, fov, 0.1, 300.0);
+        let mut cam = Camera::new(zero(), proj);
+        cam.look_at(&Pnt3::new(5.0, 20.0, 10.0), &Pnt3::new(0.0,  0.0, 0.0), &Vec3::z());
+
+        const KEY_DELTA: f32 = 0.5;
+        let mut cam_pos_delta: Vec3<f32> = zero();
+
+        // Initialise the first cursor position. This will help us calculate the
+        // delta later.
+        let mut cursor_prev = {
+            let (x, y) = window.get_cursor_pos();
+            Pnt2::new(x as f32, y as f32)
         };
 
-        graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
-        graphics.draw(&house_batch, &params, &frame);
-        graphics.draw(&terrain_batch, &params, &frame);
-        graphics.draw(&axis_batch, &params, &frame);
-        graphics.end_frame();
+        // Terrain
 
-        window.swap_buffers();
+        const TERRAIN_HEIGHT_FACTOR: f32 = 100.0;
+        const TERRAIN_GRID_SPACING: f32 = 1200.0;
+        const TERRAIN_COLOR: [f32, ..3] = [0.4, 0.6, 0.2];
+
+        let rand_seed = rng.gen();
+        let noise = Perlin::new().seed(rand_seed).frequency(10.0);
+        let plane = Plane::subdivide(256, 256);
+        let terrain = Terrain::new(TERRAIN_HEIGHT_FACTOR, TERRAIN_GRID_SPACING, noise);
+
+        let terrain_vertices: Vec<_> = terrain
+            .triangulate(plane)
+            .vertices()
+            .map(|(p, n)| shader::flat::Vertex {
+                pos: *p.as_array(),
+                norm: *n.as_array(),
+                color: TERRAIN_COLOR,
+            })
+            .collect();
+
+        let terrain_mesh = graphics.device.create_mesh(terrain_vertices.as_slice());
+        let terrain_slice = terrain_mesh.to_slice(gfx::TriangleList);
+        let terrain_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+        let terrain_batch: shader::Batch = graphics.make_batch(&flat_program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
+
+        // Scatter objects
+
+        let village = village_gen.scatter(100, &terrain, &mut rng);
+        let antennas = antenna_gen.scatter(100, &terrain, &mut rng);
+
+        'event: loop {
+            if window.should_close() {
+                break 'main;
+            }
+            glfw.poll_events();
+            for (_, event) in glfw::flush_messages(&events) {
+                match event {
+                    // Close window on escape
+                    glfw::KeyEvent(glfw::Key::Escape, _, glfw::Press, _) => {
+                        window.set_should_close(true);
+                    },
+
+                    // WASD movement
+                    glfw::KeyEvent(glfw::Key::W, _, glfw::Press, _) => cam_pos_delta.y -= KEY_DELTA,
+                    glfw::KeyEvent(glfw::Key::S, _, glfw::Press, _) => cam_pos_delta.y += KEY_DELTA,
+                    glfw::KeyEvent(glfw::Key::A, _, glfw::Press, _) => cam_pos_delta.x += KEY_DELTA,
+                    glfw::KeyEvent(glfw::Key::D, _, glfw::Press, _) => cam_pos_delta.x -= KEY_DELTA,
+                    // Revert WASD movement on key release
+                    glfw::KeyEvent(glfw::Key::W, _, glfw::Release, _) => cam_pos_delta.y += KEY_DELTA,
+                    glfw::KeyEvent(glfw::Key::S, _, glfw::Release, _) => cam_pos_delta.y -= KEY_DELTA,
+                    glfw::KeyEvent(glfw::Key::A, _, glfw::Release, _) => cam_pos_delta.x -= KEY_DELTA,
+                    glfw::KeyEvent(glfw::Key::D, _, glfw::Release, _) => cam_pos_delta.x += KEY_DELTA,
+
+                    // Regenerate landscape
+                    glfw::KeyEvent(glfw::Key::R, _, glfw::Press, _) => break 'event,
+
+                    // Rotate camera when the cursor is moved
+                    glfw::CursorPosEvent(x, y) => {
+                        let cursor_curr = Pnt2::new(x as f32, y as f32);
+                        let cursor_delta = cursor_prev - cursor_curr;
+                        cursor_prev = cursor_curr;
+                        let _ = cursor_delta; // unused
+                        // println!("{}", cursor_delta);
+                    },
+
+                    // Everything else
+                    _ => {},
+                }
+            }
+
+            cam.view.append_translation(&cam_pos_delta);
+
+            let sun_dir = Vec3::new(0.0, 0.5, 1.0);
+            let view_proj = cam.to_mat();
+            let world = World {
+                sun_dir: sun_dir,
+                model: one(),
+                view_proj: view_proj,
+            };
+
+            graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
+
+            village.map_worlds(sun_dir, view_proj, |world| {
+                graphics.draw(&house_batch, world.as_params(), &frame);
+            });
+
+            antennas.map_worlds(sun_dir, view_proj, |world| {
+                graphics.draw(&antenna_batch, world.as_params(), &frame);
+            });
+
+            graphics.draw(&terrain_batch, world.as_params(), &frame);
+            graphics.draw(&axis_batch, world.as_params(), &frame);
+            graphics.end_frame();
+
+            window.swap_buffers();
+        }
     }
 }
