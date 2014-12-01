@@ -152,6 +152,27 @@ fn main() {
         .pos_x(gen::Range { min: -100.0, max: 100.0 })
         .pos_y(gen::Range { min: -100.0, max: 100.0 });
 
+    // Tree batch setup
+
+    let foliage_mesh   = graphics.device.create_mesh(objects::tree::foliage::VERTEX_DATA);
+    let foliage_slice  = foliage_mesh.to_slice(gfx::TriangleList);
+    let foliage_state  = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let foliage_batch: shader::Batch = graphics.make_batch(&color_program, &foliage_mesh, foliage_slice, &foliage_state).unwrap();
+
+    let trunk_mesh   = graphics.device.create_mesh(objects::tree::trunk::VERTEX_DATA);
+    let trunk_slice  = trunk_mesh.to_slice(gfx::Line);
+    let trunk_state  = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let trunk_batch: shader::Batch = graphics.make_batch(&color_program, &trunk_mesh, trunk_slice, &trunk_state).unwrap();
+
+    // Tree generation setup
+
+    let tree_gen = gen::Scatter::new()
+        .scale_x(gen::Range { min: 2.0, max: 5.0 })
+        .scale_y(gen::Range { min: 2.0, max: 5.0 })
+        .scale_z(gen::Range { min: 5.0, max: 10.0 })
+        .pos_x(gen::Range { min: -100.0, max: 100.0 })
+        .pos_y(gen::Range { min: -100.0, max: 100.0 });
+
     'main: loop {
         // Camera stuff
 
@@ -201,6 +222,7 @@ fn main() {
 
         let village = village_gen.scatter(100, &terrain, &mut rng);
         let antennas = antenna_gen.scatter(100, &terrain, &mut rng);
+        let trees = tree_gen.scatter(100, &terrain, &mut rng);
 
         'event: loop {
             if window.should_close() {
@@ -260,6 +282,11 @@ fn main() {
 
             antennas.map_worlds(sun_dir, view_proj, |world| {
                 graphics.draw(&antenna_batch, world.as_params(), &frame);
+            });
+
+            trees.map_worlds(sun_dir, view_proj, |world| {
+                graphics.draw(&foliage_batch, world.as_params(), &frame);
+                graphics.draw(&trunk_batch, world.as_params(), &frame);
             });
 
             graphics.draw(&terrain_batch, world.as_params(), &frame);
