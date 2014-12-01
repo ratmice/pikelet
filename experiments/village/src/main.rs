@@ -28,12 +28,9 @@ use std::rand::Rng;
 use camera::Camera;
 use terrain::Terrain;
 
-mod antenna;
-mod axis_thingy;
 mod camera;
-mod forest;
 mod gen;
-mod house;
+mod objects;
 mod shader;
 mod sky;
 mod terrain;
@@ -118,15 +115,15 @@ fn main() {
 
     // Axis batch setup
 
-    let axis_mesh   = graphics.device.create_mesh(axis_thingy::VERTEX_DATA);
+    let axis_mesh   = graphics.device.create_mesh(objects::axis::VERTEX_DATA);
     let axis_slice  = axis_mesh.to_slice(gfx::Line);
     let axis_state  = gfx::DrawState::new();
     let axis_batch: shader::Batch = graphics.make_batch(&color_program, &axis_mesh, axis_slice, &axis_state).unwrap();
 
     // House batch setup
 
-    let house_mesh  = graphics.device.create_mesh(house::VERTEX_DATA);
-    let house_slice = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
+    let house_mesh  = graphics.device.create_mesh(objects::house::VERTEX_DATA);
+    let house_slice = graphics.device.create_buffer_static(objects::house::INDEX_DATA).to_slice(gfx::TriangleList);
     let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
     let house_batch: shader::Batch = graphics.make_batch(&flat_program, &house_mesh, house_slice, &house_state).unwrap();
 
@@ -141,7 +138,7 @@ fn main() {
 
     // Antenna batch setup
 
-    let antenna_mesh   = graphics.device.create_mesh(antenna::VERTEX_DATA);
+    let antenna_mesh   = graphics.device.create_mesh(objects::antenna::VERTEX_DATA);
     let antenna_slice  = antenna_mesh.to_slice(gfx::Line);
     let antenna_state  = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
     let antenna_batch: shader::Batch = graphics.make_batch(&color_program, &antenna_mesh, antenna_slice, &antenna_state).unwrap();
@@ -151,6 +148,27 @@ fn main() {
     let antenna_gen = gen::Scatter::new()
         .scale_x(gen::Range { min: 1.0, max: 1.0 })
         .scale_y(gen::Range { min: 1.0, max: 1.0 })
+        .scale_z(gen::Range { min: 5.0, max: 10.0 })
+        .pos_x(gen::Range { min: -100.0, max: 100.0 })
+        .pos_y(gen::Range { min: -100.0, max: 100.0 });
+
+    // Tree batch setup
+
+    let foliage_mesh   = graphics.device.create_mesh(objects::tree::foliage::VERTEX_DATA);
+    let foliage_slice  = foliage_mesh.to_slice(gfx::TriangleList);
+    let foliage_state  = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let foliage_batch: shader::Batch = graphics.make_batch(&color_program, &foliage_mesh, foliage_slice, &foliage_state).unwrap();
+
+    let trunk_mesh   = graphics.device.create_mesh(objects::tree::trunk::VERTEX_DATA);
+    let trunk_slice  = trunk_mesh.to_slice(gfx::Line);
+    let trunk_state  = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let trunk_batch: shader::Batch = graphics.make_batch(&color_program, &trunk_mesh, trunk_slice, &trunk_state).unwrap();
+
+    // Tree generation setup
+
+    let tree_gen = gen::Scatter::new()
+        .scale_x(gen::Range { min: 2.0, max: 5.0 })
+        .scale_y(gen::Range { min: 2.0, max: 5.0 })
         .scale_z(gen::Range { min: 5.0, max: 10.0 })
         .pos_x(gen::Range { min: -100.0, max: 100.0 })
         .pos_y(gen::Range { min: -100.0, max: 100.0 });
@@ -204,6 +222,7 @@ fn main() {
 
         let village = village_gen.scatter(100, &terrain, &mut rng);
         let antennas = antenna_gen.scatter(100, &terrain, &mut rng);
+        let trees = tree_gen.scatter(100, &terrain, &mut rng);
 
         'event: loop {
             if window.should_close() {
@@ -263,6 +282,11 @@ fn main() {
 
             antennas.map_worlds(sun_dir, view_proj, |world| {
                 graphics.draw(&antenna_batch, world.as_params(), &frame);
+            });
+
+            trees.map_worlds(sun_dir, view_proj, |world| {
+                graphics.draw(&foliage_batch, world.as_params(), &frame);
+                graphics.draw(&trunk_batch, world.as_params(), &frame);
             });
 
             graphics.draw(&terrain_batch, world.as_params(), &frame);
