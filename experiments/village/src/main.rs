@@ -28,12 +28,9 @@ use std::rand::Rng;
 use camera::Camera;
 use terrain::Terrain;
 
-mod antenna;
-mod axis_thingy;
 mod camera;
-mod forest;
 mod gen;
-mod house;
+mod objects;
 mod shader;
 mod sky;
 mod terrain;
@@ -118,15 +115,15 @@ fn main() {
 
     // Axis batch setup
 
-    let axis_mesh   = graphics.device.create_mesh(axis_thingy::VERTEX_DATA);
+    let axis_mesh   = graphics.device.create_mesh(objects::axis::VERTEX_DATA);
     let axis_slice  = axis_mesh.to_slice(gfx::Line);
     let axis_state  = gfx::DrawState::new();
     let axis_batch: shader::Batch = graphics.make_batch(&color_program, &axis_mesh, axis_slice, &axis_state).unwrap();
 
     // House batch setup
 
-    let house_mesh  = graphics.device.create_mesh(house::VERTEX_DATA);
-    let house_slice = graphics.device.create_buffer_static(house::INDEX_DATA).to_slice(gfx::TriangleList);
+    let house_mesh  = graphics.device.create_mesh(objects::house::VERTEX_DATA);
+    let house_slice = graphics.device.create_buffer_static(objects::house::INDEX_DATA).to_slice(gfx::TriangleList);
     let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
     let house_batch: shader::Batch = graphics.make_batch(&flat_program, &house_mesh, house_slice, &house_state).unwrap();
 
@@ -141,7 +138,7 @@ fn main() {
 
     // Antenna batch setup
 
-    let antenna_mesh   = graphics.device.create_mesh(antenna::VERTEX_DATA);
+    let antenna_mesh   = graphics.device.create_mesh(objects::antenna::VERTEX_DATA);
     let antenna_slice  = antenna_mesh.to_slice(gfx::Line);
     let antenna_state  = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
     let antenna_batch: shader::Batch = graphics.make_batch(&color_program, &antenna_mesh, antenna_slice, &antenna_state).unwrap();
