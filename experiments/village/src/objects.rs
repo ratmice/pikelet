@@ -111,7 +111,7 @@ pub mod tree {
 
         pub const VERTEX_DATA: &'static [Vertex] = &[
             Vertex { pos: [ 0.0,  0.01,  0.0], color: COLOR },
-            Vertex { pos: [ 0.0,  0.01,  1.0], color: COLOR },
+            Vertex { pos: [ 0.0,  0.01,  0.7], color: COLOR },
         ];
     }
 
@@ -121,9 +121,9 @@ pub mod tree {
         pub const COLOR: [f32, ..3] = [0.2, 0.4, 0.1];
 
         pub const VERTEX_DATA: &'static [Vertex] = &[
-            Vertex { pos: [-1.0,  0.0,  0.0], color: COLOR },
+            Vertex { pos: [-0.2,  0.0,  0.3], color: COLOR },
             Vertex { pos: [ 0.0,  0.0,  1.0], color: COLOR },
-            Vertex { pos: [ 1.0,  0.0,  0.0], color: COLOR },
+            Vertex { pos: [ 0.2,  0.0,  0.3], color: COLOR },
         ];
     }
 }
