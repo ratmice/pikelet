@@ -218,9 +218,9 @@ fn main() {
 
         // Scatter objects
 
-        let village = village_gen.scatter(100, &terrain, &mut rng);
-        let antennas = antenna_gen.scatter(100, &terrain, &mut rng);
-        let trees = tree_gen.scatter(100, &terrain, &mut rng);
+        let village = village_gen.scatter_objects(100, &terrain, &mut rng);
+        let antennas = antenna_gen.scatter_objects(100, &terrain, &mut rng);
+        let trees = tree_gen.scatter_billboards(100, &terrain, &mut rng);
 
         'event: loop {
             if window.should_close() {
@@ -282,7 +282,7 @@ fn main() {
                 graphics.draw(&antenna_batch, world.as_params(), &frame);
             });
 
-            trees.map_worlds(sun_dir, view_proj, |world| {
+            trees.map_worlds(sun_dir, cam, |world| {
                 graphics.draw(&foliage_batch, world.as_params(), &frame);
                 graphics.draw(&trunk_batch, world.as_params(), &frame);
             });
