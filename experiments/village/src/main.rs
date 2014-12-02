@@ -130,9 +130,9 @@ fn main() {
     // Village generation setup
 
     let village_gen = gen::Scatter::new()
-        .scale_x(gen::Range { min: 1.0, max: 10.0 })
-        .scale_y(gen::Range { min: 1.0, max: 10.0 })
-        .scale_z(gen::Range { min: 1.0, max: 10.0 })
+        .scale_non_proportional(gen::Range { min: 1.0, max: 10.0 },
+                                gen::Range { min: 1.0, max: 10.0 },
+                                gen::Range { min: 1.0, max: 10.0 })
         .pos_x(gen::Range { min: -100.0, max: 100.0 })
         .pos_y(gen::Range { min: -100.0, max: 100.0 });
 
@@ -146,9 +146,9 @@ fn main() {
     // Antenna generation setup
 
     let antenna_gen = gen::Scatter::new()
-        .scale_x(gen::Range { min: 1.0, max: 1.0 })
-        .scale_y(gen::Range { min: 1.0, max: 1.0 })
-        .scale_z(gen::Range { min: 5.0, max: 10.0 })
+        .scale_non_proportional(gen::Range { min: 1.0, max: 1.0 },
+                                gen::Range { min: 1.0, max: 1.0 },
+                                gen::Range { min: 5.0, max: 10.0 })
         .pos_x(gen::Range { min: -100.0, max: 100.0 })
         .pos_y(gen::Range { min: -100.0, max: 100.0 });
 
@@ -167,9 +167,7 @@ fn main() {
     // Tree generation setup
 
     let tree_gen = gen::Scatter::new()
-        .scale_x(gen::Range { min: 2.0, max: 5.0 })
-        .scale_y(gen::Range { min: 2.0, max: 5.0 })
-        .scale_z(gen::Range { min: 5.0, max: 10.0 })
+        .scale_proportional(gen::Range { min: 5.0, max: 10.0 })
         .pos_x(gen::Range { min: -100.0, max: 100.0 })
         .pos_y(gen::Range { min: -100.0, max: 100.0 });
 
@@ -220,9 +218,9 @@ fn main() {
 
         // Scatter objects
 
-        let village = village_gen.scatter(100, &terrain, &mut rng);
-        let antennas = antenna_gen.scatter(100, &terrain, &mut rng);
-        let trees = tree_gen.scatter(100, &terrain, &mut rng);
+        let village = village_gen.scatter_objects(100, &terrain, &mut rng);
+        let antennas = antenna_gen.scatter_objects(100, &terrain, &mut rng);
+        let trees = tree_gen.scatter_billboards(100, &terrain, &mut rng);
 
         'event: loop {
             if window.should_close() {
@@ -284,7 +282,7 @@ fn main() {
                 graphics.draw(&antenna_batch, world.as_params(), &frame);
             });
 
-            trees.map_worlds(sun_dir, view_proj, |world| {
+            trees.map_worlds(sun_dir, cam, |world| {
                 graphics.draw(&foliage_batch, world.as_params(), &frame);
                 graphics.draw(&trunk_batch, world.as_params(), &frame);
             });
