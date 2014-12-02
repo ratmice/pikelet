@@ -232,26 +232,26 @@ fn main() {
             for (_, event) in glfw::flush_messages(&events) {
                 match event {
                     // Close window on escape
-                    glfw::KeyEvent(glfw::Key::Escape, _, glfw::Press, _) => {
+                    glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Press, _) => {
                         window.set_should_close(true);
                     },
 
                     // WASD movement
-                    glfw::KeyEvent(glfw::Key::W, _, glfw::Press, _) => cam_pos_delta.y -= KEY_DELTA,
-                    glfw::KeyEvent(glfw::Key::S, _, glfw::Press, _) => cam_pos_delta.y += KEY_DELTA,
-                    glfw::KeyEvent(glfw::Key::A, _, glfw::Press, _) => cam_pos_delta.x += KEY_DELTA,
-                    glfw::KeyEvent(glfw::Key::D, _, glfw::Press, _) => cam_pos_delta.x -= KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::W, _, glfw::Press, _) => cam_pos_delta.y -= KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::S, _, glfw::Press, _) => cam_pos_delta.y += KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::A, _, glfw::Press, _) => cam_pos_delta.x += KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::D, _, glfw::Press, _) => cam_pos_delta.x -= KEY_DELTA,
                     // Revert WASD movement on key release
-                    glfw::KeyEvent(glfw::Key::W, _, glfw::Release, _) => cam_pos_delta.y += KEY_DELTA,
-                    glfw::KeyEvent(glfw::Key::S, _, glfw::Release, _) => cam_pos_delta.y -= KEY_DELTA,
-                    glfw::KeyEvent(glfw::Key::A, _, glfw::Release, _) => cam_pos_delta.x -= KEY_DELTA,
-                    glfw::KeyEvent(glfw::Key::D, _, glfw::Release, _) => cam_pos_delta.x += KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::W, _, glfw::Release, _) => cam_pos_delta.y += KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::S, _, glfw::Release, _) => cam_pos_delta.y -= KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::A, _, glfw::Release, _) => cam_pos_delta.x -= KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::D, _, glfw::Release, _) => cam_pos_delta.x += KEY_DELTA,
 
                     // Regenerate landscape
-                    glfw::KeyEvent(glfw::Key::R, _, glfw::Press, _) => break 'event,
+                    glfw::WindowEvent::Key(glfw::Key::R, _, glfw::Press, _) => break 'event,
 
                     // Rotate camera when the cursor is moved
-                    glfw::CursorPosEvent(x, y) => {
+                    glfw::WindowEvent::CursorPos(x, y) => {
                         let cursor_curr = Pnt2::new(x as f32, y as f32);
                         let cursor_delta = cursor_prev - cursor_curr;
                         cursor_prev = cursor_curr;
