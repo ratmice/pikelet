@@ -34,35 +34,38 @@ fn model_mat(scale_x: f32, scale_y: f32, scale_z: f32, position: Pnt3<f32>) -> M
     model
 }
 
+pub enum ScaleRange {
+    Proportional {
+        xyz: Range,
+    },
+    NonProportional {
+        x: Range,
+        y: Range,
+        z: Range,
+    },
+}
+
 pub struct Scatter {
-    pub scale_x: Range,
-    pub scale_y: Range,
-    pub scale_z: Range,
-    pub pos_x:  Range,
-    pub pos_y:  Range,
+    pub scale: ScaleRange,
+    pub pos_x: Range,
+    pub pos_y: Range,
 }
 
 impl Scatter {
     pub fn new() -> Scatter {
         Scatter {
-            scale_x: Range { min: 0.0, max: 1.0 },
-            scale_y: Range { min: 0.0, max: 1.0 },
-            scale_z: Range { min: 0.0, max: 1.0 },
-            pos_x:  Range { min: 0.0, max: 1.0 },
-            pos_y:  Range { min: 0.0, max: 1.0 },
+            scale: ScaleRange::Proportional { xyz: Range { min: 0.0, max: 1.0 } },
+            pos_x: Range { min: 0.0, max: 1.0 },
+            pos_y: Range { min: 0.0, max: 1.0 },
         }
     }
 
-    pub fn scale_x(self, scale_x: Range) -> Scatter {
-        Scatter { scale_x: scale_x, ..self }
+    pub fn scale_proportional(self, xyz: Range) -> Scatter {
+        Scatter { scale: ScaleRange::Proportional { xyz: xyz }, ..self }
     }
 
-    pub fn scale_y(self, scale_y: Range) -> Scatter {
-        Scatter { scale_y: scale_y, ..self }
-    }
-
-    pub fn scale_z(self, scale_z: Range) -> Scatter {
-        Scatter { scale_z: scale_z, ..self }
+    pub fn scale_non_proportional(self, x: Range, y: Range, z: Range) -> Scatter {
+        Scatter { scale: ScaleRange::NonProportional { x: x, y: y, z: z }, ..self }
     }
 
     pub fn pos_x(self, pos_x:  Range) -> Scatter {
@@ -77,9 +80,17 @@ impl Scatter {
         Objects {
             transforms: {
                 range(0, count).map(|_| {
-                    let scale_x = self.scale_x.shift(rng.gen());
-                    let scale_y = self.scale_y.shift(rng.gen());
-                    let scale_z = self.scale_z.shift(rng.gen());
+                    let (scale_x, scale_y, scale_z) = match self.scale {
+                        ScaleRange::Proportional { xyz } => {
+                            let xyz = xyz.shift(rng.gen());
+                            (xyz, xyz, xyz)
+                        },
+                        ScaleRange::NonProportional { x, y, z } => {
+                           (x.shift(rng.gen()),
+                            y.shift(rng.gen()),
+                            z.shift(rng.gen()))
+                        },
+                    };
                     let pos_x = self.pos_x.shift(rng.gen());
                     let pos_y = self.pos_y.shift(rng.gen());
                     let pos_z = terrain.get_height_at(pos_x, pos_y);
