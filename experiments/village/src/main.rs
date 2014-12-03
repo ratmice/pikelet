@@ -30,6 +30,7 @@ use terrain::Terrain;
 
 mod camera;
 mod gen;
+mod math;
 mod objects;
 mod shader;
 mod sky;
@@ -119,6 +120,15 @@ fn main() {
     let axis_slice  = axis_mesh.to_slice(gfx::Line);
     let axis_state  = gfx::DrawState::new();
     let axis_batch: shader::Batch = graphics.make_batch(&color_program, &axis_mesh, axis_slice, &axis_state).unwrap();
+
+    // Water batch setup
+
+    const WATER_LEVEL: f32 = -12.0;
+
+    let water_mesh   = graphics.device.create_mesh(objects::water::VERTEX_DATA);
+    let water_slice  = graphics.device.create_buffer_static(objects::water::INDEX_DATA).to_slice(gfx::TriangleList);
+    let water_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let water_batch: shader::Batch = graphics.make_batch(&color_program, &water_mesh, water_slice, &water_state).unwrap();
 
     // House batch setup
 
@@ -218,9 +228,9 @@ fn main() {
 
         // Scatter objects
 
-        let village = village_gen.scatter_objects(100, &terrain, &mut rng);
-        let antennas = antenna_gen.scatter_objects(100, &terrain, &mut rng);
-        let trees = tree_gen.scatter_billboards(100, &terrain, &mut rng);
+        let village = village_gen.scatter_objects(100, WATER_LEVEL, &terrain, &mut rng);
+        let antennas = antenna_gen.scatter_objects(100, WATER_LEVEL, &terrain, &mut rng);
+        let trees = tree_gen.scatter_billboards(100, WATER_LEVEL, &terrain, &mut rng);
 
         'event: loop {
             if window.should_close() {
@@ -271,6 +281,12 @@ fn main() {
                 model: one(),
                 view_proj: view_proj,
             };
+            let water_world = World {
+                sun_dir: sun_dir,
+                model: math::model_mat(Vec3::new(500.0, 500.0, 1.0),
+                                       Pnt3::new(0.0, 0.0, WATER_LEVEL)),
+                view_proj: view_proj,
+            };
 
             graphics.clear(clear_data, gfx::COLOR | gfx::DEPTH, &frame);
 
@@ -288,6 +304,7 @@ fn main() {
             });
 
             graphics.draw(&terrain_batch, world.as_params(), &frame);
+            graphics.draw(&water_batch, water_world.as_params(), &frame);
             graphics.draw(&axis_batch, world.as_params(), &frame);
             graphics.end_frame();
 

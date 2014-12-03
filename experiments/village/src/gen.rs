@@ -6,6 +6,7 @@ use std::rand::Rng;
 
 use World;
 use camera::Camera;
+use math;
 use terrain::Terrain;
 
 pub struct Range {
@@ -23,16 +24,6 @@ impl Range {
     pub fn shift(&self, factor: f32) -> f32 {
         (factor * self.delta()) + self.min
     }
-}
-
-/// Construct a model matrix
-fn model_mat(scale: Vec3<f32>, position: Pnt3<f32>) -> Mat4<f32> {
-    let mut model: Mat4<f32> = zero();
-    model.set_col(0, Vec4::x() * scale.x);
-    model.set_col(1, Vec4::y() * scale.y);
-    model.set_col(2, Vec4::z() * scale.z);
-    model.set_col(3, position.to_homogeneous().to_vec());
-    model
 }
 
 pub enum ScaleRange {
@@ -91,27 +82,37 @@ impl Scatter {
         }
     }
 
-    pub fn gen_position<S: Source, R: Rng>(&self, terrain: &Terrain<S>, rng: &mut R) -> Pnt3<f32> {
-        let x = self.pos_x.shift(rng.gen());
-        let y = self.pos_y.shift(rng.gen());
-        let z = terrain.get_height_at(x, y);
-        Pnt3::new(x, y, z)
+    pub fn gen_position<S: Source, R: Rng>(&self, water_level: f32, terrain: &Terrain<S>, rng: &mut R) -> Pnt3<f32> {
+        // Attempt to find a position above the water. This obviously will not
+        // terminate if the water level is above the highest point in the
+        // terrain.
+        loop {
+            let x = self.pos_x.shift(rng.gen());
+            let y = self.pos_y.shift(rng.gen());
+            let z = terrain.get_height_at(x, y);
+
+            if z < water_level {
+                continue;
+            } else {
+                return Pnt3::new(x, y, z);
+            }
+        }
     }
 
-    pub fn scatter_objects<S: Source, R: Rng>(&self, count: uint, terrain: &Terrain<S>, rng: &mut R) -> Objects {
+    pub fn scatter_objects<S: Source, R: Rng>(&self, count: uint, water_level: f32, terrain: &Terrain<S>, rng: &mut R) -> Objects {
         Objects {
             transforms: {
                 range(0, count)
-                    .map(|_| model_mat(self.gen_scale(rng), self.gen_position(terrain, rng)))
+                    .map(|_| math::model_mat(self.gen_scale(rng), self.gen_position(water_level, terrain, rng)))
                     .collect()
             },
         }
     }
 
-    pub fn scatter_billboards<S: Source, R: Rng>(self, count: uint, terrain: &Terrain<S>, rng: &mut R) -> Billboards {
+    pub fn scatter_billboards<S: Source, R: Rng>(self, count: uint, water_level: f32, terrain: &Terrain<S>, rng: &mut R) -> Billboards {
         Billboards {
             scales: range(0, count).map(|_| self.gen_scale(rng)).collect(),
-            positions: range(0, count).map(|_| self.gen_position(terrain, rng)).collect(),
+            positions: range(0, count).map(|_| self.gen_position(water_level, terrain, rng)).collect(),
         }
     }
 }
@@ -150,7 +151,7 @@ impl Billboards {
 
         for (scale, position) in self.scales.iter().zip(self.positions.iter()) {
             let Vec3 { x, y, .. } = cam.view.translation;
-            let scale_mat = model_mat(*scale, Pnt3::new(0.0, 0.0, 0.0));
+            let scale_mat = math::model_mat(*scale, Pnt3::new(0.0, 0.0, 0.0));
             let mut tform: Iso3<f32> = one();
             tform.look_at_z(position, &Pnt3::new(x, y, position.z), &Vec3::z());
             world.model = tform.to_homogeneous() * scale_mat;
