@@ -6,6 +6,7 @@ use std::rand::Rng;
 
 use World;
 use camera::Camera;
+use math;
 use terrain::Terrain;
 
 pub struct Range {
@@ -23,16 +24,6 @@ impl Range {
     pub fn shift(&self, factor: f32) -> f32 {
         (factor * self.delta()) + self.min
     }
-}
-
-/// Construct a model matrix
-fn model_mat(scale: Vec3<f32>, position: Pnt3<f32>) -> Mat4<f32> {
-    let mut model: Mat4<f32> = zero();
-    model.set_col(0, Vec4::x() * scale.x);
-    model.set_col(1, Vec4::y() * scale.y);
-    model.set_col(2, Vec4::z() * scale.z);
-    model.set_col(3, position.to_homogeneous().to_vec());
-    model
 }
 
 pub enum ScaleRange {
@@ -102,7 +93,7 @@ impl Scatter {
         Objects {
             transforms: {
                 range(0, count)
-                    .map(|_| model_mat(self.gen_scale(rng), self.gen_position(terrain, rng)))
+                    .map(|_| math::model_mat(self.gen_scale(rng), self.gen_position(terrain, rng)))
                     .collect()
             },
         }
@@ -150,7 +141,7 @@ impl Billboards {
 
         for (scale, position) in self.scales.iter().zip(self.positions.iter()) {
             let Vec3 { x, y, .. } = cam.view.translation;
-            let scale_mat = model_mat(*scale, Pnt3::new(0.0, 0.0, 0.0));
+            let scale_mat = math::model_mat(*scale, Pnt3::new(0.0, 0.0, 0.0));
             let mut tform: Iso3<f32> = one();
             tform.look_at_z(position, &Pnt3::new(x, y, position.z), &Vec3::z());
             world.model = tform.to_homogeneous() * scale_mat;

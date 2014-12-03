@@ -36,6 +36,27 @@ pub mod axis {
     ];
 }
 
+pub mod water {
+    use shader::color::Vertex;
+    use sky;
+
+    pub const COLOR: [f32, ..3] = [sky::DAY_COLOR[0],
+                                   sky::DAY_COLOR[1],
+                                   sky::DAY_COLOR[2]];
+
+    pub const VERTEX_DATA: &'static [Vertex] = &[
+        Vertex { pos: [-1.0, -1.0,  0.0], color: COLOR },
+        Vertex { pos: [ 1.0, -1.0,  0.0], color: COLOR },
+        Vertex { pos: [ 1.0,  1.0,  0.0], color: COLOR },
+        Vertex { pos: [-1.0,  1.0,  0.0], color: COLOR },
+    ];
+
+    pub const INDEX_DATA: &'static [u8] = &[
+         0,  1,  2,  2,  3,  0,
+    ];
+}
+
+
 pub mod house {
     use shader::flat::Vertex;
 
