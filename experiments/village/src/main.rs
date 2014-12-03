@@ -83,12 +83,12 @@ impl World {
 fn main() {
     let glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
-    glfw.window_hint(glfw::ContextVersion(3, 2));
-    glfw.window_hint(glfw::OpenglForwardCompat(true));
-    glfw.window_hint(glfw::OpenglProfile(glfw::OpenGlProfileHint::Core));
+    glfw.window_hint(glfw::WindowHint::ContextVersion(3, 2));
+    glfw.window_hint(glfw::WindowHint::OpenglForwardCompat(true));
+    glfw.window_hint(glfw::WindowHint::OpenglProfile(glfw::OpenGlProfileHint::Core));
 
     let (window, events) = glfw
-        .create_window(640, 480, "Village.", glfw::Windowed)
+        .create_window(640, 480, "Village.", glfw::WindowMode::Windowed)
         .expect("Failed to create GLFW window.");
 
     let (w, h) = window.get_framebuffer_size();
@@ -117,7 +117,7 @@ fn main() {
     // Axis batch setup
 
     let axis_mesh   = graphics.device.create_mesh(objects::axis::VERTEX_DATA);
-    let axis_slice  = axis_mesh.to_slice(gfx::Line);
+    let axis_slice  = axis_mesh.to_slice(gfx::PrimitiveType::Line);
     let axis_state  = gfx::DrawState::new();
     let axis_batch: shader::Batch = graphics.make_batch(&color_program, &axis_mesh, axis_slice, &axis_state).unwrap();
 
@@ -126,15 +126,15 @@ fn main() {
     const WATER_LEVEL: f32 = -12.0;
 
     let water_mesh   = graphics.device.create_mesh(objects::water::VERTEX_DATA);
-    let water_slice  = graphics.device.create_buffer_static(objects::water::INDEX_DATA).to_slice(gfx::TriangleList);
-    let water_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let water_slice  = graphics.device.create_buffer_static(objects::water::INDEX_DATA).to_slice(gfx::PrimitiveType::TriangleList);
+    let water_state = gfx::DrawState::new().depth(gfx::state::Comparison::LessEqual, true);
     let water_batch: shader::Batch = graphics.make_batch(&color_program, &water_mesh, water_slice, &water_state).unwrap();
 
     // House batch setup
 
     let house_mesh  = graphics.device.create_mesh(objects::house::VERTEX_DATA);
-    let house_slice = graphics.device.create_buffer_static(objects::house::INDEX_DATA).to_slice(gfx::TriangleList);
-    let house_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let house_slice = graphics.device.create_buffer_static(objects::house::INDEX_DATA).to_slice(gfx::PrimitiveType::TriangleList);
+    let house_state = gfx::DrawState::new().depth(gfx::state::Comparison::LessEqual, true);
     let house_batch: shader::Batch = graphics.make_batch(&flat_program, &house_mesh, house_slice, &house_state).unwrap();
 
     // Village generation setup
@@ -149,8 +149,8 @@ fn main() {
     // Antenna batch setup
 
     let antenna_mesh   = graphics.device.create_mesh(objects::antenna::VERTEX_DATA);
-    let antenna_slice  = antenna_mesh.to_slice(gfx::Line);
-    let antenna_state  = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let antenna_slice  = antenna_mesh.to_slice(gfx::PrimitiveType::Line);
+    let antenna_state  = gfx::DrawState::new().depth(gfx::state::Comparison::LessEqual, true);
     let antenna_batch: shader::Batch = graphics.make_batch(&color_program, &antenna_mesh, antenna_slice, &antenna_state).unwrap();
 
     // Antenna generation setup
@@ -165,13 +165,13 @@ fn main() {
     // Tree batch setup
 
     let foliage_mesh   = graphics.device.create_mesh(objects::tree::foliage::VERTEX_DATA);
-    let foliage_slice  = foliage_mesh.to_slice(gfx::TriangleList);
-    let foliage_state  = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let foliage_slice  = foliage_mesh.to_slice(gfx::PrimitiveType::TriangleList);
+    let foliage_state  = gfx::DrawState::new().depth(gfx::state::Comparison::LessEqual, true);
     let foliage_batch: shader::Batch = graphics.make_batch(&color_program, &foliage_mesh, foliage_slice, &foliage_state).unwrap();
 
     let trunk_mesh   = graphics.device.create_mesh(objects::tree::trunk::VERTEX_DATA);
-    let trunk_slice  = trunk_mesh.to_slice(gfx::Line);
-    let trunk_state  = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+    let trunk_slice  = trunk_mesh.to_slice(gfx::PrimitiveType::Line);
+    let trunk_state  = gfx::DrawState::new().depth(gfx::state::Comparison::LessEqual, true);
     let trunk_batch: shader::Batch = graphics.make_batch(&color_program, &trunk_mesh, trunk_slice, &trunk_state).unwrap();
 
     // Tree generation setup
@@ -222,8 +222,8 @@ fn main() {
             .collect();
 
         let terrain_mesh = graphics.device.create_mesh(terrain_vertices.as_slice());
-        let terrain_slice = terrain_mesh.to_slice(gfx::TriangleList);
-        let terrain_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
+        let terrain_slice = terrain_mesh.to_slice(gfx::PrimitiveType::TriangleList);
+        let terrain_state = gfx::DrawState::new().depth(gfx::state::Comparison::LessEqual, true);
         let terrain_batch: shader::Batch = graphics.make_batch(&flat_program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();
 
         // Scatter objects
@@ -240,23 +240,23 @@ fn main() {
             for (_, event) in glfw::flush_messages(&events) {
                 match event {
                     // Close window on escape
-                    glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Press, _) => {
+                    glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Action::Press, _) => {
                         window.set_should_close(true);
                     },
 
                     // WASD movement
-                    glfw::WindowEvent::Key(glfw::Key::W, _, glfw::Press, _) => cam_pos_delta.y -= KEY_DELTA,
-                    glfw::WindowEvent::Key(glfw::Key::S, _, glfw::Press, _) => cam_pos_delta.y += KEY_DELTA,
-                    glfw::WindowEvent::Key(glfw::Key::A, _, glfw::Press, _) => cam_pos_delta.x += KEY_DELTA,
-                    glfw::WindowEvent::Key(glfw::Key::D, _, glfw::Press, _) => cam_pos_delta.x -= KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::W, _, glfw::Action::Press, _) => cam_pos_delta.y -= KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::S, _, glfw::Action::Press, _) => cam_pos_delta.y += KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::A, _, glfw::Action::Press, _) => cam_pos_delta.x += KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::D, _, glfw::Action::Press, _) => cam_pos_delta.x -= KEY_DELTA,
                     // Revert WASD movement on key release
-                    glfw::WindowEvent::Key(glfw::Key::W, _, glfw::Release, _) => cam_pos_delta.y += KEY_DELTA,
-                    glfw::WindowEvent::Key(glfw::Key::S, _, glfw::Release, _) => cam_pos_delta.y -= KEY_DELTA,
-                    glfw::WindowEvent::Key(glfw::Key::A, _, glfw::Release, _) => cam_pos_delta.x -= KEY_DELTA,
-                    glfw::WindowEvent::Key(glfw::Key::D, _, glfw::Release, _) => cam_pos_delta.x += KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::W, _, glfw::Action::Release, _) => cam_pos_delta.y += KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::S, _, glfw::Action::Release, _) => cam_pos_delta.y -= KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::A, _, glfw::Action::Release, _) => cam_pos_delta.x -= KEY_DELTA,
+                    glfw::WindowEvent::Key(glfw::Key::D, _, glfw::Action::Release, _) => cam_pos_delta.x += KEY_DELTA,
 
                     // Regenerate landscape
-                    glfw::WindowEvent::Key(glfw::Key::R, _, glfw::Press, _) => break 'event,
+                    glfw::WindowEvent::Key(glfw::Key::R, _, glfw::Action::Press, _) => break 'event,
 
                     // Rotate camera when the cursor is moved
                     glfw::WindowEvent::CursorPos(x, y) => {
