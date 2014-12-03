@@ -123,6 +123,8 @@ fn main() {
 
     // Water batch setup
 
+    const WATER_LEVEL: f32 = -12.0;
+
     let water_mesh   = graphics.device.create_mesh(objects::water::VERTEX_DATA);
     let water_slice  = graphics.device.create_buffer_static(objects::water::INDEX_DATA).to_slice(gfx::TriangleList);
     let water_state = gfx::DrawState::new().depth(gfx::state::LessEqual, true);
@@ -226,9 +228,9 @@ fn main() {
 
         // Scatter objects
 
-        let village = village_gen.scatter_objects(100, &terrain, &mut rng);
-        let antennas = antenna_gen.scatter_objects(100, &terrain, &mut rng);
-        let trees = tree_gen.scatter_billboards(100, &terrain, &mut rng);
+        let village = village_gen.scatter_objects(100, WATER_LEVEL, &terrain, &mut rng);
+        let antennas = antenna_gen.scatter_objects(100, WATER_LEVEL, &terrain, &mut rng);
+        let trees = tree_gen.scatter_billboards(100, WATER_LEVEL, &terrain, &mut rng);
 
         'event: loop {
             if window.should_close() {
@@ -281,7 +283,8 @@ fn main() {
             };
             let water_world = World {
                 sun_dir: sun_dir,
-                model: math::model_mat(Vec3::new(200.0, 200.0, 1.0), Pnt3::new(0.0, 0.0, -18.0)),
+                model: math::model_mat(Vec3::new(500.0, 500.0, 1.0),
+                                       Pnt3::new(0.0, 0.0, WATER_LEVEL)),
                 view_proj: view_proj,
             };
 

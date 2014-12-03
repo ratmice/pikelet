@@ -82,27 +82,37 @@ impl Scatter {
         }
     }
 
-    pub fn gen_position<S: Source, R: Rng>(&self, terrain: &Terrain<S>, rng: &mut R) -> Pnt3<f32> {
-        let x = self.pos_x.shift(rng.gen());
-        let y = self.pos_y.shift(rng.gen());
-        let z = terrain.get_height_at(x, y);
-        Pnt3::new(x, y, z)
+    pub fn gen_position<S: Source, R: Rng>(&self, water_level: f32, terrain: &Terrain<S>, rng: &mut R) -> Pnt3<f32> {
+        // Attempt to find a position above the water. This obviously will not
+        // terminate if the water level is above the highest point in the
+        // terrain.
+        loop {
+            let x = self.pos_x.shift(rng.gen());
+            let y = self.pos_y.shift(rng.gen());
+            let z = terrain.get_height_at(x, y);
+
+            if z < water_level {
+                continue;
+            } else {
+                return Pnt3::new(x, y, z);
+            }
+        }
     }
 
-    pub fn scatter_objects<S: Source, R: Rng>(&self, count: uint, terrain: &Terrain<S>, rng: &mut R) -> Objects {
+    pub fn scatter_objects<S: Source, R: Rng>(&self, count: uint, water_level: f32, terrain: &Terrain<S>, rng: &mut R) -> Objects {
         Objects {
             transforms: {
                 range(0, count)
-                    .map(|_| math::model_mat(self.gen_scale(rng), self.gen_position(terrain, rng)))
+                    .map(|_| math::model_mat(self.gen_scale(rng), self.gen_position(water_level, terrain, rng)))
                     .collect()
             },
         }
     }
 
-    pub fn scatter_billboards<S: Source, R: Rng>(self, count: uint, terrain: &Terrain<S>, rng: &mut R) -> Billboards {
+    pub fn scatter_billboards<S: Source, R: Rng>(self, count: uint, water_level: f32, terrain: &Terrain<S>, rng: &mut R) -> Billboards {
         Billboards {
             scales: range(0, count).map(|_| self.gen_scale(rng)).collect(),
-            positions: range(0, count).map(|_| self.gen_position(terrain, rng)).collect(),
+            positions: range(0, count).map(|_| self.gen_position(water_level, terrain, rng)).collect(),
         }
     }
 }
