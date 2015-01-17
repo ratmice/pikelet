@@ -3,23 +3,24 @@
 #[shader_param(Batch)]
 pub struct Params {
     #[name="u_SunDir"]
-    pub sun_dir: [f32, ..3],
+    pub sun_dir: [f32; 3],
     #[name = "u_Model"]
-    pub model: [[f32, ..4], ..4],
+    pub model: [[f32; 4]; 4],
     #[name = "u_ViewProj"]
-    pub view_proj: [[f32, ..4], ..4],
+    pub view_proj: [[f32; 4]; 4],
 }
 
 pub mod color {
     use gfx;
     use std::fmt;
 
+    #[derive(Copy)]
     #[vertex_format]
     pub struct Vertex {
         #[name = "a_Pos"]
-        pub pos: [f32, ..3],
+        pub pos: [f32; 3],
         #[name = "a_Color"]
-        pub color: [f32, ..3],
+        pub color: [f32; 3],
     }
 
     impl Clone for Vertex {
@@ -30,14 +31,12 @@ pub mod color {
 
     impl fmt::Show for Vertex {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "{{ pos: {}, color: {} }}",
-                   self.pos.as_slice(),
-                   self.color.as_slice())
+            write!(f, "{{ pos: {:?}, color: {:?} }}", self.pos, self.color)
         }
     }
 
     pub static VERTEX_SRC: gfx::ShaderSource<'static> = shaders! {
-    GLSL_120: b"
+    glsl_120: b"
         #version 120
 
         attribute vec3 a_Pos;
@@ -51,8 +50,8 @@ pub mod color {
             v_Color = a_Color;
             gl_Position = u_ViewProj * u_Model * vec4(a_Pos, 1.0);
         }
-    "
-    GLSL_150: b"
+    ",
+    glsl_150: b"
         #version 150 core
 
         in vec3 a_Pos;
@@ -70,7 +69,7 @@ pub mod color {
     };
 
     pub static FRAGMENT_SRC: gfx::ShaderSource<'static> = shaders! {
-    GLSL_120: b"
+    glsl_120: b"
         #version 120
 
         varying vec3 v_Color;
@@ -79,8 +78,8 @@ pub mod color {
         void main() {
             o_Color = vec4(v_Color, 1.0);
         }
-    "
-    GLSL_150: b"
+    ",
+    glsl_150: b"
         #version 150 core
 
         in vec3 v_Color;
@@ -97,14 +96,15 @@ pub mod flat {
     use gfx;
     use std::fmt;
 
+    #[derive(Copy)]
     #[vertex_format]
     pub struct Vertex {
         #[name = "a_Pos"]
-        pub pos: [f32, ..3],
+        pub pos: [f32; 3],
         #[name = "a_Norm"]
-        pub norm: [f32, ..3],
+        pub norm: [f32; 3],
         #[name = "a_Color"]
-        pub color: [f32, ..3],
+        pub color: [f32; 3],
     }
 
     impl Clone for Vertex {
@@ -119,15 +119,12 @@ pub mod flat {
 
     impl fmt::Show for Vertex {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "{{ pos: {}, norm: {}, color: {} }}",
-                   self.pos.as_slice(),
-                   self.norm.as_slice(),
-                   self.color.as_slice())
+            write!(f, "{{ pos: {:?}, norm: {:?}, color: {:?} }}", self.pos, self.norm, self.color)
         }
     }
 
     pub static VERTEX_SRC: gfx::ShaderSource<'static> = shaders! {
-    GLSL_120: b"
+    glsl_120: b"
         #version 120
 
         attribute vec3 a_Pos;
@@ -148,8 +145,8 @@ pub mod flat {
 
             gl_Position = u_ViewProj * u_Model * vec4(a_Pos, 1.0);
         }
-    "
-    GLSL_150: b"
+    ",
+    glsl_150: b"
         #version 150 core
 
         in vec3 a_Pos;
@@ -174,7 +171,7 @@ pub mod flat {
     };
 
     pub static FRAGMENT_SRC: gfx::ShaderSource<'static> = shaders! {
-    GLSL_120: b"
+    glsl_120: b"
         #version 120
 
         varying vec3 v_Pos;
@@ -189,8 +186,8 @@ pub mod flat {
             float sunIntensity = max(dot(u_SunDir, normalize(v_Norm)), 0.0);
             o_Color = vec4(sunIntensity * v_Color, 1.0);
         }
-    "
-    GLSL_150: b"
+    ",
+    glsl_150: b"
         #version 150 core
 
         in vec3 v_Pos;

@@ -10,6 +10,9 @@ git = "https://github.com/csherratt/genmesh.git"
 [dependencies.gfx]
 git = "https://github.com/gfx-rs/gfx-rs"
 
+[dependencies.gfx_macros]
+git = "https://github.com/gfx-rs/gfx-rs"
+
 # [dependencies.glutin]
 # git = "https://github.com/tomaka/glutin"
 # path = "../../../../rust/glutin"
