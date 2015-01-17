@@ -5,6 +5,7 @@
 // use std::num::Float;
 use nalgebra::*;
 
+#[derive(Copy)]
 pub struct Camera<N = f32> {
     pub view: Iso3<N>,
     pub proj: PerspMat3<N>,

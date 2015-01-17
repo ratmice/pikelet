@@ -1,12 +1,11 @@
 // Copyright The Voyager Developers 2014
 
-#![feature(default_type_params)]
-#![feature(globs)]
-#![feature(phase)]
+#![feature(plugin)]
 
 extern crate genmesh;
 extern crate gfx;
-#[phase(plugin)]
+#[macro_use]
+#[plugin]
 extern crate gfx_macros;
 // extern crate glutin;
 extern crate glfw;
@@ -19,7 +18,7 @@ use glfw::Context;
 use genmesh::{Triangulate, Vertices};
 use genmesh::generators::Plane;
 use nalgebra::*;
-use noise::source::Perlin;
+use noise::Brownian3;
 use std::f32;
 use std::mem;
 use std::rand::Rng;
@@ -112,7 +111,7 @@ fn main() {
 
     // RNG setup
 
-    let mut rng = std::rand::task_rng();
+    let mut rng = std::rand::weak_rng();
 
     // Axis batch setup
 
@@ -204,12 +203,12 @@ fn main() {
 
         const TERRAIN_HEIGHT_FACTOR: f32 = 100.0;
         const TERRAIN_GRID_SPACING: f32 = 1200.0;
-        const TERRAIN_COLOR: [f32, ..3] = [0.4, 0.6, 0.2];
+        const TERRAIN_COLOR: [f32; 3] = [0.4, 0.6, 0.2];
 
-        let rand_seed = rng.gen();
-        let noise = Perlin::new().seed(rand_seed).frequency(10.0);
+        let seed = rng.gen();
+        let noise = Brownian3::new(noise::perlin3, 4);
         let plane = Plane::subdivide(256, 256);
-        let terrain = Terrain::new(TERRAIN_HEIGHT_FACTOR, TERRAIN_GRID_SPACING, noise);
+        let terrain = Terrain::new(seed, noise, TERRAIN_HEIGHT_FACTOR, TERRAIN_GRID_SPACING);
 
         let terrain_vertices: Vec<_> = terrain
             .triangulate(plane)
@@ -221,7 +220,7 @@ fn main() {
             })
             .collect();
 
-        let terrain_mesh = graphics.device.create_mesh(terrain_vertices.as_slice());
+        let terrain_mesh = graphics.device.create_mesh(&*terrain_vertices);
         let terrain_slice = terrain_mesh.to_slice(gfx::PrimitiveType::TriangleList);
         let terrain_state = gfx::DrawState::new().depth(gfx::state::Comparison::LessEqual, true);
         let terrain_batch: shader::Batch = graphics.make_batch(&flat_program, &terrain_mesh, terrain_slice, &terrain_state).unwrap();

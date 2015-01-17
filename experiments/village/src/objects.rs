@@ -3,9 +3,9 @@
 pub mod axis {
     use shader::color::Vertex;
 
-    pub const X_AXIS_COLOR: [f32, ..3] = [0.9, 0.1, 0.1];
-    pub const Y_AXIS_COLOR: [f32, ..3] = [0.1, 0.9, 0.1];
-    pub const Z_AXIS_COLOR: [f32, ..3] = [0.1, 0.1, 0.9];
+    pub const X_AXIS_COLOR: [f32; 3] = [0.9, 0.1, 0.1];
+    pub const Y_AXIS_COLOR: [f32; 3] = [0.1, 0.9, 0.1];
+    pub const Z_AXIS_COLOR: [f32; 3] = [0.1, 0.1, 0.9];
 
     /// Points for an axis widget thingy
     ///
@@ -40,7 +40,7 @@ pub mod water {
     use shader::color::Vertex;
     use sky;
 
-    pub const COLOR: [f32, ..3] = [sky::DAY_COLOR[0],
+    pub const COLOR: [f32; 3] = [sky::DAY_COLOR[0],
                                    sky::DAY_COLOR[1],
                                    sky::DAY_COLOR[2]];
 
@@ -60,7 +60,7 @@ pub mod water {
 pub mod house {
     use shader::flat::Vertex;
 
-    pub const COLOR: [f32, ..3] = [1.0, 1.0, 1.0];
+    pub const COLOR: [f32; 3] = [1.0, 1.0, 1.0];
 
     pub const VERTEX_DATA: &'static [Vertex] = &[
         // top (0, 0, 1)
@@ -108,7 +108,7 @@ pub mod house {
 pub mod antenna {
     use shader::color::Vertex;
 
-    pub const COLOR: [f32, ..3] = [0.2, 0.2, 0.2];
+    pub const COLOR: [f32; 3] = [0.2, 0.2, 0.2];
 
     /// Points for an antenna
     pub const VERTEX_DATA: &'static [Vertex] = &[
@@ -128,7 +128,7 @@ pub mod tree {
     pub mod trunk {
         use shader::color::Vertex;
 
-        pub const COLOR: [f32, ..3] = [0.2, 0.2, 0.2];
+        pub const COLOR: [f32; 3] = [0.2, 0.2, 0.2];
 
         pub const VERTEX_DATA: &'static [Vertex] = &[
             Vertex { pos: [ 0.0,  0.0,  0.01], color: COLOR },
@@ -139,7 +139,7 @@ pub mod tree {
     pub mod foliage {
         use shader::color::Vertex;
 
-        pub const COLOR: [f32, ..3] = [0.2, 0.4, 0.1];
+        pub const COLOR: [f32; 3] = [0.2, 0.4, 0.1];
 
         pub const VERTEX_DATA: &'static [Vertex] = &[
             Vertex { pos: [-0.2,  0.3,  0.0], color: COLOR },

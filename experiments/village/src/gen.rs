@@ -1,7 +1,7 @@
 // Copyright The Voyager Developers 2014
 
 use nalgebra::*;
-use noise::source::Source;
+use noise::GenFn3;
 use std::rand::Rng;
 
 use World;
@@ -9,6 +9,7 @@ use camera::Camera;
 use math;
 use terrain::Terrain;
 
+#[derive(Copy)]
 pub struct Range {
     pub min: f32,
     pub max: f32,
@@ -26,6 +27,7 @@ impl Range {
     }
 }
 
+#[derive(Copy)]
 pub enum ScaleRange {
     Proportional {
         xyz: Range,
@@ -82,7 +84,9 @@ impl Scatter {
         }
     }
 
-    pub fn gen_position<S: Source, R: Rng>(&self, water_level: f32, terrain: &Terrain<S>, rng: &mut R) -> Pnt3<f32> {
+    pub fn gen_position<F: GenFn3<f32>, R: Rng>(&self, water_level: f32, terrain: &Terrain<F>,
+                                                rng: &mut R) -> Pnt3<f32>
+    {
         // Attempt to find a position above the water. This obviously will not
         // terminate if the water level is above the highest point in the
         // terrain.
@@ -99,20 +103,24 @@ impl Scatter {
         }
     }
 
-    pub fn scatter_objects<S: Source, R: Rng>(&self, count: uint, water_level: f32, terrain: &Terrain<S>, rng: &mut R) -> Objects {
+    pub fn scatter_objects<F: GenFn3<f32>, R: Rng>(&self, count: usize, water_level: f32,
+                                                   terrain: &Terrain<F>, rng: &mut R) -> Objects
+    {
         Objects {
             transforms: {
-                range(0, count)
+                (0..count)
                     .map(|_| math::model_mat(self.gen_scale(rng), self.gen_position(water_level, terrain, rng)))
                     .collect()
             },
         }
     }
 
-    pub fn scatter_billboards<S: Source, R: Rng>(self, count: uint, water_level: f32, terrain: &Terrain<S>, rng: &mut R) -> Billboards {
+    pub fn scatter_billboards<F: GenFn3<f32>, R: Rng>(&self, count: usize, water_level: f32,
+                                                      terrain: &Terrain<F>, rng: &mut R) -> Billboards
+    {
         Billboards {
-            scales: range(0, count).map(|_| self.gen_scale(rng)).collect(),
-            positions: range(0, count).map(|_| self.gen_position(water_level, terrain, rng)).collect(),
+            scales: (0..count).map(|_| self.gen_scale(rng)).collect(),
+            positions: (0..count).map(|_| self.gen_position(water_level, terrain, rng)).collect(),
         }
     }
 }
@@ -122,7 +130,7 @@ pub struct Objects {
 }
 
 impl Objects {
-    pub fn map_worlds(&self, sun_dir: Vec3<f32>, view_proj: Mat4<f32>, f: |&World|) {
+    pub fn map_worlds<F: FnMut(&World)>(&self, sun_dir: Vec3<f32>, view_proj: Mat4<f32>, mut f: F) {
         let mut world = World {
             sun_dir: sun_dir,
             model: one(),
@@ -142,7 +150,7 @@ pub struct Billboards {
 }
 
 impl Billboards {
-    pub fn map_worlds(&self, sun_dir: Vec3<f32>, cam: Camera<f32>, f: |&World|) {
+    pub fn map_worlds<F: FnMut(&World)>(&self, sun_dir: Vec3<f32>, cam: Camera<f32>, mut f: F) {
         let mut world = World {
             sun_dir: sun_dir,
             model: one(),
