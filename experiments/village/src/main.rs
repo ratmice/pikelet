@@ -18,7 +18,7 @@ use glfw::Context;
 use genmesh::{Triangulate, Vertices};
 use genmesh::generators::Plane;
 use nalgebra::*;
-use noise::Brownian3;
+use noise::Brownian2;
 use std::f32;
 use std::mem;
 use std::rand::Rng;
@@ -206,7 +206,7 @@ fn main() {
         const TERRAIN_COLOR: [f32; 3] = [0.4, 0.6, 0.2];
 
         let seed = rng.gen();
-        let noise = Brownian3::new(noise::perlin3, 4);
+        let noise = Brownian2::new(noise::perlin2, 4);
         let plane = Plane::subdivide(256, 256);
         let terrain = Terrain::new(seed, noise, TERRAIN_HEIGHT_FACTOR, TERRAIN_GRID_SPACING);
 

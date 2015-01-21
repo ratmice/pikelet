@@ -1,19 +1,19 @@
 // Copyright The Voyager Developers 2014
 
 use nalgebra::*;
-use noise::{GenFn3, Seed};
+use noise::{GenFn2, Seed};
 use genmesh::{Triangle, MapVertex, TriangulateIterator, Triangulate};
 use genmesh::generators::Plane;
 use std::num::Float;
 
-pub struct Terrain<F: GenFn3<f32>> {
+pub struct Terrain<F: GenFn2<f32>> {
     pub seed: Seed,
     pub function: F,
     pub height_factor: f32,
     pub grid_spacing: f32,
 }
 
-impl<F: GenFn3<f32>> Terrain<F> {
+impl<F: GenFn2<f32>> Terrain<F> {
     pub fn new(seed: Seed, function: F, height_factor: f32, grid_spacing: f32) -> Terrain<F> {
         Terrain {
             seed:           seed,
@@ -24,8 +24,7 @@ impl<F: GenFn3<f32>> Terrain<F> {
     }
 
     pub fn get_height_at(&self, x: f32, y: f32) -> f32 {
-        (self.function)(&self.seed, &[x / self.grid_spacing, y / self.grid_spacing,
-                        Float::zero()]) * self.height_factor
+        (self.function)(&self.seed, &[x / self.grid_spacing, y / self.grid_spacing]) * self.height_factor
     }
 
     pub fn triangulate<'a>(&'a self, polygon: Plane) -> TerrainTriangles<'a, F> {
@@ -41,7 +40,7 @@ struct TerrainTriangles<'a, F: 'a> {
     triangles: TriangulateIterator<Plane, (f32, f32)>,
 }
 
-impl<'a, F: GenFn3<f32>> Iterator for TerrainTriangles<'a, F> {
+impl<'a, F: GenFn2<f32>> Iterator for TerrainTriangles<'a, F> {
     type Item = Triangle<(Pnt3<f32>, Vec3<f32>)>;
 
     fn next(&mut self) -> Option<Triangle<(Pnt3<f32>, Vec3<f32>)>> {

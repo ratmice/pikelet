@@ -1,7 +1,7 @@
 // Copyright The Voyager Developers 2014
 
 use nalgebra::*;
-use noise::GenFn3;
+use noise::GenFn2;
 use std::rand::Rng;
 
 use World;
@@ -84,7 +84,7 @@ impl Scatter {
         }
     }
 
-    pub fn gen_position<F: GenFn3<f32>, R: Rng>(&self, water_level: f32, terrain: &Terrain<F>,
+    pub fn gen_position<F: GenFn2<f32>, R: Rng>(&self, water_level: f32, terrain: &Terrain<F>,
                                                 rng: &mut R) -> Pnt3<f32>
     {
         // Attempt to find a position above the water. This obviously will not
@@ -103,7 +103,7 @@ impl Scatter {
         }
     }
 
-    pub fn scatter_objects<F: GenFn3<f32>, R: Rng>(&self, count: usize, water_level: f32,
+    pub fn scatter_objects<F: GenFn2<f32>, R: Rng>(&self, count: usize, water_level: f32,
                                                    terrain: &Terrain<F>, rng: &mut R) -> Objects
     {
         Objects {
@@ -115,7 +115,7 @@ impl Scatter {
         }
     }
 
-    pub fn scatter_billboards<F: GenFn3<f32>, R: Rng>(&self, count: usize, water_level: f32,
+    pub fn scatter_billboards<F: GenFn2<f32>, R: Rng>(&self, count: usize, water_level: f32,
                                                       terrain: &Terrain<F>, rng: &mut R) -> Billboards
     {
         Billboards {
