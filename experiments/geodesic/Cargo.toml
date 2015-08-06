@@ -6,5 +6,6 @@ authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
 [dependencies]
 gfx = "*"
 gfx_gl = "*"
-glutin = "*"
+gfx_window_glutin = "*"
+glutin = "0.2"
 nalgebra = "*"
