@@ -9,15 +9,28 @@ use glutin::ElementState as State;
 use glutin::VirtualKeyCode as KeyCode;
 use glutin::{GlProfile, GlRequest, WindowBuilder};
 use gfx::traits::*;
-use na::Pnt3;
+use na::{Iso3, Mat4, Pnt3, PerspMat3, Vec3};
 
 gfx_vertex!(Vertex {
     a_Pos @ pos: [f32; 3],
 });
 
-gfx_parameters!( Params {
-    foo @ foo: i32,
+gfx_parameters!(Params {
+    u_Model @ model: [[f32; 4]; 4],
+    u_View @ view: [[f32; 4]; 4],
+    u_Proj @ proj: [[f32; 4]; 4],
 });
+
+impl<T: gfx::Resources> Params<T> {
+    fn new(model: &Mat4<f32>, view: &Iso3<f32>, proj: &PerspMat3<f32>) -> Params<T> {
+        Params {
+            model: *model.as_array(),
+            view: *na::to_homogeneous(&na::inv(view).unwrap()).as_array(),
+            proj: *proj.to_mat().as_array(),
+            _r: std::marker::PhantomData
+        }
+    }
+}
 
 fn icosahedron_points() -> [Pnt3<f32>; 12] {
     let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
@@ -59,6 +72,8 @@ fn main() {
         .with_gl_profile(GlProfile::Core)
         .build().unwrap();
 
+    let (w, h) = window.get_inner_size().unwrap();
+
     let (mut stream, mut device, mut factory) = gfx_window_glutin::init(window);
 
     let vertex_data: Vec<_> = icosahedron_points().iter()
@@ -71,18 +86,29 @@ fn main() {
         .collect();
 
     let vs = gfx::ShaderSource {
-        glsl_150: Some(include_bytes!("triangle_150.glslv")),
+        glsl_150: Some(include_bytes!("triangle_150.v.glsl")),
         .. gfx::ShaderSource::empty()
     };
 
     let fs = gfx::ShaderSource {
-        glsl_150: Some(include_bytes!("triangle_150.glslf")),
+        glsl_150: Some(include_bytes!("triangle_150.f.glsl")),
         .. gfx::ShaderSource::empty()
     };
 
     let program = factory.link_program_source(vs, fs).unwrap();
     let mesh = factory.create_mesh(&vertex_data);
-    let mut batch = gfx::batch::Full::new(mesh, program, Params { foo: 0, _r: std::marker::PhantomData, }).unwrap();
+
+    let model = na::one::<Mat4<f32>>();
+    let mut view = na::one::<Iso3<f32>>();
+    view.look_at_z(&Pnt3::new(3.0, 3.0, 3.0), &na::orig(), &Vec3::z());
+
+    let aspect = w as f32 / h as f32;
+    let fov = 45.0 * (std::f32::consts::PI / 180.0);
+    let proj = PerspMat3::new(aspect, fov, 0.1, 300.0);
+
+    let params = Params::new(&model, &view, &proj);
+
+    let mut batch = gfx::batch::Full::new(mesh, program, params).unwrap();
     batch.slice = index_data.to_slice(&mut factory, gfx::PrimitiveType::Line);
     batch.state = batch.state.depth(gfx::state::Comparison::LessEqual, true);
 
