@@ -72,8 +72,6 @@ fn main() {
         .with_gl_profile(GlProfile::Core)
         .build().unwrap();
 
-    let (w, h) = window.get_inner_size().unwrap();
-
     let (mut stream, mut device, mut factory) = gfx_window_glutin::init(window);
 
     let vertex_data: Vec<_> = icosahedron_points().iter()
@@ -102,9 +100,8 @@ fn main() {
     let mut view = na::one::<Iso3<f32>>();
     view.look_at_z(&Pnt3::new(3.0, 3.0, 3.0), &na::orig(), &Vec3::z());
 
-    let aspect = w as f32 / h as f32;
     let fov = 45.0 * (std::f32::consts::PI / 180.0);
-    let proj = PerspMat3::new(aspect, fov, 0.1, 300.0);
+    let proj = PerspMat3::new(stream.get_aspect_ratio(), fov, 0.1, 300.0);
 
     let params = Params::new(&model, &view, &proj);
 
