@@ -30,6 +30,10 @@ impl<T: gfx::Resources> Params<T> {
             _r: std::marker::PhantomData
         }
     }
+
+    fn set_proj(&mut self, proj: &PerspMat3<f32>) {
+        self.proj = *proj.to_mat().as_array();
+    }
 }
 
 
@@ -105,7 +109,7 @@ fn main() {
     view.look_at_z(&Pnt3::new(5.0, 5.0, 5.0), &na::orig(), &Vec3::z());
 
     let fov = 45.0 * (std::f32::consts::PI / 180.0);
-    let proj = PerspMat3::new(stream.get_aspect_ratio(), fov, 0.1, 300.0);
+    let mut proj = PerspMat3::new(stream.get_aspect_ratio(), fov, 0.1, 300.0);
 
     let params = Params::new(&model, &view, &proj);
 
@@ -121,6 +125,9 @@ fn main() {
                 _ => {},
             }
         }
+
+        proj.set_aspect(stream.get_aspect_ratio());
+        batch.params.set_proj(&proj);
 
         stream.clear(gfx::ClearData {
             color: [0.3, 0.3, 0.3, 1.0],
