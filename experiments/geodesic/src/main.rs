@@ -32,24 +32,28 @@ impl<T: gfx::Resources> Params<T> {
     }
 }
 
-fn icosahedron_points() -> [Pnt3<f32>; 12] {
-    let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
-    let du = 1.0 / f32::sqrt(phi * phi + 1.0);
-    let dv = phi * du;
 
+/// Generates the cartesian coordinates of a [regular iocosahedron]
+/// (https://en.wikipedia.org/wiki/Regular_icosahedron) with an edge length of 2.
+fn icosahedron_points() -> [Pnt3<f32>; 12] {
+    // The cartesian coordinates of the iocosahedron are are described by the
+    // cyclic permutations of (±ϕ, ±1, 0), where ϕ is the [Golden Ratio]
+    // (https://en.wikipedia.org/wiki/Golden_ratio).
+
+    let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
     [
-        Pnt3::new(0.0,  dv,  du),
-        Pnt3::new(0.0,  dv, -du),
-        Pnt3::new(0.0, -dv,  du),
-        Pnt3::new(0.0, -dv, -du),
-        Pnt3::new( du, 0.0,  dv),
-        Pnt3::new(-du, 0.0,  dv),
-        Pnt3::new( du, 0.0, -dv),
-        Pnt3::new(-du, 0.0, -dv),
-        Pnt3::new( dv,  du, 0.0),
-        Pnt3::new( dv, -du, 0.0),
-        Pnt3::new(-dv,  du, 0.0),
-        Pnt3::new(-dv, -du, 0.0),
+        Pnt3::new( phi,  1.0,  0.0),
+        Pnt3::new( phi, -1.0,  0.0),
+        Pnt3::new(-phi,  1.0,  0.0),
+        Pnt3::new(-phi, -1.0,  0.0),
+        Pnt3::new( 0.0,  phi,  1.0),
+        Pnt3::new( 0.0,  phi, -1.0),
+        Pnt3::new( 0.0, -phi,  1.0),
+        Pnt3::new( 0.0, -phi, -1.0),
+        Pnt3::new( 1.0,  0.0,  phi),
+        Pnt3::new(-1.0,  0.0,  phi),
+        Pnt3::new( 1.0,  0.0, -phi),
+        Pnt3::new(-1.0,  0.0, -phi),
     ]
 }
 
@@ -98,7 +102,7 @@ fn main() {
 
     let model = na::one::<Mat4<f32>>();
     let mut view = na::one::<Iso3<f32>>();
-    view.look_at_z(&Pnt3::new(3.0, 3.0, 3.0), &na::orig(), &Vec3::z());
+    view.look_at_z(&Pnt3::new(5.0, 5.0, 5.0), &na::orig(), &Vec3::z());
 
     let fov = 45.0 * (std::f32::consts::PI / 180.0);
     let proj = PerspMat3::new(stream.get_aspect_ratio(), fov, 0.1, 300.0);
