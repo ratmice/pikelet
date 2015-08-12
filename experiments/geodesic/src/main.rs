@@ -3,6 +3,7 @@ extern crate gfx;
 extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate nalgebra as na;
+extern crate time;
 
 use glutin::Event;
 use glutin::ElementState as State;
@@ -29,6 +30,10 @@ impl<T: gfx::Resources> Params<T> {
             proj: *proj.to_mat().as_array(),
             _r: std::marker::PhantomData
         }
+    }
+
+    fn set_view(&mut self, view: &Iso3<f32>) {
+        self.view = *na::to_homogeneous(&na::inv(view).unwrap()).as_array();
     }
 
     fn set_proj(&mut self, proj: &PerspMat3<f32>) {
@@ -106,8 +111,6 @@ fn main() {
 
     let model = na::one::<Mat4<f32>>();
     let mut view = na::one::<Iso3<f32>>();
-    view.look_at_z(&Pnt3::new(5.0, 5.0, 5.0), &na::orig(), &Vec3::z());
-
     let fov = 45.0 * (std::f32::consts::PI / 180.0);
     let mut proj = PerspMat3::new(stream.get_aspect_ratio(), fov, 0.1, 300.0);
 
@@ -126,6 +129,14 @@ fn main() {
             }
         }
 
+        // Update view matrix
+        let time = time::precise_time_s() as f32;
+        let x = f32::sin(time);
+        let y = f32::cos(time);
+        view.look_at_z(&Pnt3::new(x * 5.0, y * 5.0, 5.0), &na::orig(), &Vec3::z());
+        batch.params.set_view(&view);
+
+        // Update projection matrix
         proj.set_aspect(stream.get_aspect_ratio());
         batch.params.set_proj(&proj);
 
@@ -134,6 +145,7 @@ fn main() {
             depth: 1.0,
             stencil: 0,
         });
+
         stream.draw(&batch).unwrap();
         stream.present(&mut device);
     }
