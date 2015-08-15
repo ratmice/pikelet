@@ -10,21 +10,31 @@ use glutin::ElementState as State;
 use glutin::VirtualKeyCode as KeyCode;
 use glutin::{GlProfile, GlRequest, WindowBuilder};
 use gfx::traits::*;
+use gfx::PrimitiveType as Primitive;
+use gfx::batch::Full as FullBatch;
 use na::{Iso3, Mat4, Pnt3, PerspMat3, Vec3};
 
 gfx_vertex!(Vertex {
     a_Pos @ pos: [f32; 3],
 });
 
+mod color {
+    pub const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+    pub const GREY: [f32; 4] = [0.3, 0.3, 0.3, 1.0];
+    pub const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+}
+
 gfx_parameters!(Params {
+    u_Color @ color: [f32; 4],
     u_Model @ model: [[f32; 4]; 4],
     u_View @ view: [[f32; 4]; 4],
     u_Proj @ proj: [[f32; 4]; 4],
 });
 
 impl<T: gfx::Resources> Params<T> {
-    fn new(model: &Mat4<f32>, view: &Iso3<f32>, proj: &PerspMat3<f32>) -> Params<T> {
+    fn new(color: [f32; 4], model: &Mat4<f32>, view: &Iso3<f32>, proj: &PerspMat3<f32>) -> Params<T> {
         Params {
+            color: color,
             model: *model.as_array(),
             view: *na::to_homogeneous(&na::inv(view).unwrap()).as_array(),
             proj: *proj.to_mat().as_array(),
@@ -40,7 +50,6 @@ impl<T: gfx::Resources> Params<T> {
         self.proj = *proj.to_mat().as_array();
     }
 }
-
 
 /// Generates the cartesian coordinates of a [regular iocosahedron]
 /// (https://en.wikipedia.org/wiki/Regular_icosahedron) with an edge length of 2.
@@ -77,6 +86,37 @@ fn icosahedron_edges() -> [[u8; 2]; 30] {
     ]
 }
 
+struct Face {
+    nodes: [u8; 3],
+    #[allow(dead_code)]
+    edges: [u8; 3],
+}
+
+fn icosahedron_faces() -> [Face; 20] {
+    [
+        Face { nodes: [ 0,  1,  8], edges: [ 0,  7,  3] },
+        Face { nodes: [ 0,  4,  5], edges: [ 1, 18,  2] },
+        Face { nodes: [ 0,  5, 10], edges: [ 2, 21,  4] },
+        Face { nodes: [ 0,  8,  4], edges: [ 3, 19,  1] },
+        Face { nodes: [ 0, 10,  1], edges: [ 4,  8,  0] },
+        Face { nodes: [ 1,  6,  8], edges: [ 5, 24,  7] },
+        Face { nodes: [ 1,  7,  6], edges: [ 6, 23,  5] },
+        Face { nodes: [ 1, 10,  7], edges: [ 8, 26,  6] },
+        Face { nodes: [ 2,  3, 11], edges: [ 9, 17, 13] },
+        Face { nodes: [ 2,  4,  9], edges: [10, 20, 12] },
+        Face { nodes: [ 2,  5,  4], edges: [11, 18, 10] },
+        Face { nodes: [ 2,  9,  3], edges: [12, 16,  9] },
+        Face { nodes: [ 2, 11,  5], edges: [13, 22, 11] },
+        Face { nodes: [ 3,  6,  7], edges: [14, 23, 15] },
+        Face { nodes: [ 3,  7, 11], edges: [15, 27, 17] },
+        Face { nodes: [ 3,  9,  6], edges: [16, 25, 14] },
+        Face { nodes: [ 4,  8,  9], edges: [19, 28, 20] },
+        Face { nodes: [ 5, 11, 10], edges: [22, 29, 21] },
+        Face { nodes: [ 6,  9,  8], edges: [25, 28, 24] },
+        Face { nodes: [ 7, 10, 11], edges: [26, 29, 27] },
+    ]
+}
+
 fn main() {
     let window = WindowBuilder::new()
         .with_title("Geodesic Experiment".to_string())
@@ -87,38 +127,55 @@ fn main() {
 
     let (mut stream, mut device, mut factory) = gfx_window_glutin::init(window);
 
-    let vertex_data: Vec<_> = icosahedron_points().iter()
-        .map(|p| Vertex { pos: *p.as_array() })
-        .collect();
+    let program = {
+        let vs = gfx::ShaderSource {
+            glsl_150: Some(include_bytes!("triangle_150.v.glsl")),
+            .. gfx::ShaderSource::empty()
+        };
 
-    let index_data: Vec<_> = icosahedron_edges().iter()
-        .flat_map(|is| is.iter())
-        .map(|i| *i)
-        .collect();
+        let fs = gfx::ShaderSource {
+            glsl_150: Some(include_bytes!("triangle_150.f.glsl")),
+            .. gfx::ShaderSource::empty()
+        };
 
-    let vs = gfx::ShaderSource {
-        glsl_150: Some(include_bytes!("triangle_150.v.glsl")),
-        .. gfx::ShaderSource::empty()
+        factory.link_program_source(vs, fs).unwrap()
     };
-
-    let fs = gfx::ShaderSource {
-        glsl_150: Some(include_bytes!("triangle_150.f.glsl")),
-        .. gfx::ShaderSource::empty()
-    };
-
-    let program = factory.link_program_source(vs, fs).unwrap();
-    let mesh = factory.create_mesh(&vertex_data);
 
     let model = na::one::<Mat4<f32>>();
     let mut view = na::one::<Iso3<f32>>();
     let fov = 45.0 * (std::f32::consts::PI / 180.0);
     let mut proj = PerspMat3::new(stream.get_aspect_ratio(), fov, 0.1, 300.0);
 
-    let params = Params::new(&model, &view, &proj);
+    let vertex_data: Vec<_> = icosahedron_points().iter()
+        .map(|p| Vertex { pos: *p.as_array() })
+        .collect();
+    let mesh = factory.create_mesh(&vertex_data);
 
-    let mut batch = gfx::batch::Full::new(mesh, program, params).unwrap();
-    batch.slice = index_data.to_slice(&mut factory, gfx::PrimitiveType::Line);
-    batch.state = batch.state.depth(gfx::state::Comparison::LessEqual, true);
+    let mut wireframe_batch = {
+        let index_data: Vec<_> = icosahedron_edges().iter()
+            .flat_map(|is| is.iter())
+            .map(|i| *i)
+            .collect();
+
+        let params = Params::new(color::BLACK, &model, &view, &proj);
+        let mut batch = FullBatch::new(mesh.clone(), program.clone(), params).unwrap();
+        batch.slice = index_data.to_slice(&mut factory, Primitive::Line);
+        // batch.state = batch.state.depth(gfx::state::Comparison::LessEqual, true);
+        batch
+    };
+
+    let mut face_batch = {
+        let index_data: Vec<_> = icosahedron_faces().iter()
+            .flat_map(|face| face.nodes.iter())
+            .map(|i| *i)
+            .collect();
+
+        let params = Params::new(color::WHITE, &model, &view, &proj);
+        let mut batch = FullBatch::new(mesh.clone(), program.clone(), params).unwrap();
+        batch.slice = index_data.to_slice(&mut factory, Primitive::TriangleList);
+        // batch.state = batch.state.depth(gfx::state::Comparison::LessEqual, true);
+        batch
+    };
 
     'main: loop {
         for event in stream.out.window.poll_events() {
@@ -134,19 +191,22 @@ fn main() {
         let x = f32::sin(time);
         let y = f32::cos(time);
         view.look_at_z(&Pnt3::new(x * 5.0, y * 5.0, 5.0), &na::orig(), &Vec3::z());
-        batch.params.set_view(&view);
-
-        // Update projection matrix
         proj.set_aspect(stream.get_aspect_ratio());
-        batch.params.set_proj(&proj);
+
+        wireframe_batch.params.set_view(&view);
+        wireframe_batch.params.set_proj(&proj);
+
+        face_batch.params.set_view(&view);
+        face_batch.params.set_proj(&proj);
 
         stream.clear(gfx::ClearData {
-            color: [0.3, 0.3, 0.3, 1.0],
+            color: color::GREY,
             depth: 1.0,
             stencil: 0,
         });
 
-        stream.draw(&batch).unwrap();
+        stream.draw(&face_batch).unwrap();
+        stream.draw(&wireframe_batch).unwrap();
         stream.present(&mut device);
     }
 }
