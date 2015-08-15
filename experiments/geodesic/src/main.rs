@@ -10,6 +10,7 @@ use glutin::ElementState as State;
 use glutin::VirtualKeyCode as KeyCode;
 use glutin::{GlProfile, GlRequest, WindowBuilder};
 use gfx::traits::*;
+use gfx::state::Comparison;
 use gfx::PrimitiveType as Primitive;
 use gfx::batch::Full as FullBatch;
 use na::{Iso3, Mat4, Pnt3, PerspMat3, Vec3};
@@ -157,10 +158,17 @@ fn main() {
             .map(|i| *i)
             .collect();
 
+        // Scaled to prevent depth-fighting
+        let mut model = na::one::<Mat4<f32>>();
+        let scale = 1.002;
+        model[(0, 0)] = scale;
+        model[(1, 1)] = scale;
+        model[(2, 2)] = scale;
+
         let params = Params::new(color::BLACK, &model, &view, &proj);
         let mut batch = FullBatch::new(mesh.clone(), program.clone(), params).unwrap();
         batch.slice = index_data.to_slice(&mut factory, Primitive::Line);
-        // batch.state = batch.state.depth(gfx::state::Comparison::LessEqual, true);
+        batch.state = batch.state.depth(Comparison::LessEqual, true);
         batch
     };
 
@@ -173,7 +181,7 @@ fn main() {
         let params = Params::new(color::WHITE, &model, &view, &proj);
         let mut batch = FullBatch::new(mesh.clone(), program.clone(), params).unwrap();
         batch.slice = index_data.to_slice(&mut factory, Primitive::TriangleList);
-        // batch.state = batch.state.depth(gfx::state::Comparison::LessEqual, true);
+        batch.state = batch.state.depth(Comparison::LessEqual, true);
         batch
     };
 
