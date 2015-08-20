@@ -15,6 +15,8 @@ use gfx::PrimitiveType as Primitive;
 use gfx::batch::Full as FullBatch;
 use na::{Iso3, Mat4, Pnt3, PerspMat3, Vec3};
 
+mod icosahedron;
+
 gfx_vertex!(Vertex {
     a_Pos @ pos: [f32; 3],
 });
@@ -52,72 +54,6 @@ impl<T: gfx::Resources> Params<T> {
     }
 }
 
-/// Generates the cartesian coordinates of a [regular iocosahedron]
-/// (https://en.wikipedia.org/wiki/Regular_icosahedron) with an edge length of 2.
-fn icosahedron_points() -> [Pnt3<f32>; 12] {
-    // The cartesian coordinates of the iocosahedron are are described by the
-    // cyclic permutations of (±ϕ, ±1, 0), where ϕ is the [Golden Ratio]
-    // (https://en.wikipedia.org/wiki/Golden_ratio).
-
-    let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
-    [
-        Pnt3::new( phi,  1.0,  0.0),
-        Pnt3::new( phi, -1.0,  0.0),
-        Pnt3::new(-phi,  1.0,  0.0),
-        Pnt3::new(-phi, -1.0,  0.0),
-        Pnt3::new( 0.0,  phi,  1.0),
-        Pnt3::new( 0.0,  phi, -1.0),
-        Pnt3::new( 0.0, -phi,  1.0),
-        Pnt3::new( 0.0, -phi, -1.0),
-        Pnt3::new( 1.0,  0.0,  phi),
-        Pnt3::new(-1.0,  0.0,  phi),
-        Pnt3::new( 1.0,  0.0, -phi),
-        Pnt3::new(-1.0,  0.0, -phi),
-    ]
-}
-
-fn icosahedron_edges() -> [[u8; 2]; 30] {
-    [
-        [ 0,  1], [ 0,  4], [ 0,  5], [ 0,  8], [ 0, 10],
-        [ 1,  6], [ 1,  7], [ 1,  8], [ 1, 10], [ 2,  3],
-        [ 2,  4], [ 2,  5], [ 2,  9], [ 2, 11], [ 3,  6],
-        [ 3,  7], [ 3,  9], [ 3, 11], [ 4,  5], [ 4,  8],
-        [ 4,  9], [ 5, 10], [ 5, 11], [ 6,  7], [ 6,  8],
-        [ 6,  9], [ 7, 10], [ 7, 11], [ 8,  9], [10, 11],
-    ]
-}
-
-struct Face {
-    nodes: [u8; 3],
-    #[allow(dead_code)]
-    edges: [u8; 3],
-}
-
-fn icosahedron_faces() -> [Face; 20] {
-    [
-        Face { nodes: [ 0,  1,  8], edges: [ 0,  7,  3] },
-        Face { nodes: [ 0,  4,  5], edges: [ 1, 18,  2] },
-        Face { nodes: [ 0,  5, 10], edges: [ 2, 21,  4] },
-        Face { nodes: [ 0,  8,  4], edges: [ 3, 19,  1] },
-        Face { nodes: [ 0, 10,  1], edges: [ 4,  8,  0] },
-        Face { nodes: [ 1,  6,  8], edges: [ 5, 24,  7] },
-        Face { nodes: [ 1,  7,  6], edges: [ 6, 23,  5] },
-        Face { nodes: [ 1, 10,  7], edges: [ 8, 26,  6] },
-        Face { nodes: [ 2,  3, 11], edges: [ 9, 17, 13] },
-        Face { nodes: [ 2,  4,  9], edges: [10, 20, 12] },
-        Face { nodes: [ 2,  5,  4], edges: [11, 18, 10] },
-        Face { nodes: [ 2,  9,  3], edges: [12, 16,  9] },
-        Face { nodes: [ 2, 11,  5], edges: [13, 22, 11] },
-        Face { nodes: [ 3,  6,  7], edges: [14, 23, 15] },
-        Face { nodes: [ 3,  7, 11], edges: [15, 27, 17] },
-        Face { nodes: [ 3,  9,  6], edges: [16, 25, 14] },
-        Face { nodes: [ 4,  8,  9], edges: [19, 28, 20] },
-        Face { nodes: [ 5, 11, 10], edges: [22, 29, 21] },
-        Face { nodes: [ 6,  9,  8], edges: [25, 28, 24] },
-        Face { nodes: [ 7, 10, 11], edges: [26, 29, 27] },
-    ]
-}
-
 fn main() {
     let window = WindowBuilder::new()
         .with_title("Geodesic Experiment".to_string())
@@ -147,13 +83,13 @@ fn main() {
     let fov = 45.0 * (std::f32::consts::PI / 180.0);
     let mut proj = PerspMat3::new(stream.get_aspect_ratio(), fov, 0.1, 300.0);
 
-    let vertex_data: Vec<_> = icosahedron_points().iter()
-        .map(|p| Vertex { pos: *p.as_array() })
+    let vertex_data: Vec<_> = icosahedron::points().iter()
+        .map(|p| Vertex { pos: *p })
         .collect();
     let mesh = factory.create_mesh(&vertex_data);
 
     let mut wireframe_batch = {
-        let index_data: Vec<_> = icosahedron_edges().iter()
+        let index_data: Vec<_> = icosahedron::edges().iter()
             .flat_map(|is| is.iter())
             .map(|i| *i)
             .collect();
@@ -173,8 +109,8 @@ fn main() {
     };
 
     let mut face_batch = {
-        let index_data: Vec<_> = icosahedron_faces().iter()
-            .flat_map(|face| face.nodes.iter())
+        let index_data: Vec<_> = icosahedron::faces().iter()
+            .flat_map(|face| face.iter())
             .map(|i| *i)
             .collect();
 
