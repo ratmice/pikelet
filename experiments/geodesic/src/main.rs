@@ -15,6 +15,7 @@ use gfx::PrimitiveType as Primitive;
 use gfx::batch::Full as FullBatch;
 use na::{Iso3, Mat4, Pnt3, PerspMat3, Vec3};
 
+mod color;
 mod icosahedron;
 
 gfx_vertex!(Vertex {
@@ -25,12 +26,6 @@ impl Vertex {
     fn icosahedron() -> Vec<Vertex> {
         icosahedron::points().iter().map(|p| Vertex { pos: *p }).collect()
     }
-}
-
-mod color {
-    pub const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-    pub const GREY: [f32; 4] = [0.3, 0.3, 0.3, 1.0];
-    pub const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 }
 
 gfx_parameters!(Params {
