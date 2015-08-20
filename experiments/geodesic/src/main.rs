@@ -21,6 +21,12 @@ gfx_vertex!(Vertex {
     a_Pos @ pos: [f32; 3],
 });
 
+impl Vertex {
+    fn icosahedron() -> Vec<Vertex> {
+        icosahedron::points().iter().map(|p| Vertex { pos: *p }).collect()
+    }
+}
+
 mod color {
     pub const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
     pub const GREY: [f32; 4] = [0.3, 0.3, 0.3, 1.0];
@@ -63,6 +69,14 @@ fn scale_mat4(scale: f32) -> Mat4<f32> {
     )
 }
 
+fn flatten_slices<'a, T, Slice, It>(it: It) -> Vec<T> where
+    T: 'a + Clone,
+    It: Iterator<Item = Slice>,
+    Slice: IntoIterator<Item = &'a T, IntoIter = std::slice::Iter<'a, T>>,
+{
+    it.flat_map(IntoIterator::into_iter).map(Clone::clone).collect()
+}
+
 fn main() {
     let window = WindowBuilder::new()
         .with_title("Geodesic Experiment".to_string())
@@ -92,20 +106,12 @@ fn main() {
     let fov = 45.0 * (std::f32::consts::PI / 180.0);
     let mut proj = PerspMat3::new(stream.get_aspect_ratio(), fov, 0.1, 300.0);
 
-    let vertex_data: Vec<_> = icosahedron::points().iter()
-        .map(|p| Vertex { pos: *p })
-        .collect();
+    let vertex_data = Vertex::icosahedron();
     let mesh = factory.create_mesh(&vertex_data);
 
     let mut wireframe_batch = {
-        let index_data: Vec<_> = icosahedron::edges().iter()
-            .flat_map(|is| is.iter())
-            .map(|i| *i)
-            .collect();
-
-        // Scaled to prevent depth-fighting
-        let model = scale_mat4(1.002);
-
+        let index_data = flatten_slices(icosahedron::edges().iter());
+        let model = scale_mat4(1.002); // Scaled to prevent depth-fighting
         let params = Params::new(color::BLACK, &model, &view, &proj);
         let mut batch = FullBatch::new(mesh.clone(), program.clone(), params).unwrap();
         batch.slice = index_data.to_slice(&mut factory, Primitive::Line);
@@ -114,11 +120,7 @@ fn main() {
     };
 
     let mut face_batch = {
-        let index_data: Vec<_> = icosahedron::faces().iter()
-            .flat_map(|face| face.iter())
-            .map(|i| *i)
-            .collect();
-
+        let index_data = flatten_slices(icosahedron::faces().iter());
         let params = Params::new(color::WHITE, &model, &view, &proj);
         let mut batch = FullBatch::new(mesh.clone(), program.clone(), params).unwrap();
         batch.slice = index_data.to_slice(&mut factory, Primitive::TriangleList);
