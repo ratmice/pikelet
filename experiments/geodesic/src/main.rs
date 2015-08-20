@@ -54,6 +54,15 @@ impl<T: gfx::Resources> Params<T> {
     }
 }
 
+fn scale_mat4(scale: f32) -> Mat4<f32> {
+    Mat4::new(
+        scale, 0.0, 0.0, 0.0,
+        0.0, scale, 0.0, 0.0,
+        0.0, 0.0, scale, 0.0,
+        0.0, 0.0, 0.0, 1.0,
+    )
+}
+
 fn main() {
     let window = WindowBuilder::new()
         .with_title("Geodesic Experiment".to_string())
@@ -95,11 +104,7 @@ fn main() {
             .collect();
 
         // Scaled to prevent depth-fighting
-        let mut model = na::one::<Mat4<f32>>();
-        let scale = 1.002;
-        model[(0, 0)] = scale;
-        model[(1, 1)] = scale;
-        model[(2, 2)] = scale;
+        let model = scale_mat4(1.002);
 
         let params = Params::new(color::BLACK, &model, &view, &proj);
         let mut batch = FullBatch::new(mesh.clone(), program.clone(), params).unwrap();
