@@ -1,0 +1,23 @@
+[package]
+name = "voyager"
+version = "0.0.1"
+authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>",
+           "Chip Collier <photex@gmail.com>"
+          ]
+
+[[bin]]
+name = "voyager"
+path = "voyager/src/main.rs"
+
+[[bin]]
+name = "geodesic"
+path = "geodesic/src/main.rs"
+
+[dependencies]
+gfx = "*"
+gfx_gl = "*"
+gfx_window_glutin = "*"
+glutin = "*"
+nalgebra = "*"
+rustc-serialize = "*"
+time = "*"
