@@ -1,29 +1,31 @@
+#![allow(dead_code)]
+
 extern crate time as lib;
 
 use std::mem;
+use std::ops::Sub;
 
-#[allow(dead_code)]
-pub struct State {
-    previous: f64,
-    current: f64,
+pub struct State<T: Copy + Sub<T, Output = T>> {
+    previous: T,
+    current: T,
 }
 
-#[allow(dead_code)]
-impl State {
-    pub fn previous(&self) -> f64 { self.previous }
-    pub fn current(&self) -> f64 { self.current }
-    pub fn delta(&self) -> f64 { self.current - self.previous }
+impl<T: Copy + Sub<T, Output = T>> State<T> {
+    pub fn previous(&self) -> T { self.previous }
+    pub fn current(&self) -> T { self.current }
+    pub fn delta(&self) -> T { self.current - self.previous }
 }
 
-pub struct Deltas {
-    previous: f64,
+pub struct Deltas<T: Copy + Sub<T, Output = T>> {
+    get_time: fn() -> T,
+    previous: T,
 }
 
-impl Iterator for Deltas {
-    type Item = State;
+impl<T: Copy + Sub<T, Output = T>> Iterator for Deltas<T> {
+    type Item = State<T>;
 
-    fn next(&mut self) -> Option<State> {
-        let current = lib::precise_time_s();
+    fn next(&mut self) -> Option<State<T>> {
+        let current = (self.get_time)();
         let previous = mem::replace(&mut self.previous, current);
         Some(State {
             previous: previous,
@@ -32,6 +34,16 @@ impl Iterator for Deltas {
     }
 }
 
-pub fn seconds() -> Deltas {
-    Deltas { previous: lib::precise_time_s() }
+pub fn seconds() -> Deltas<f64> {
+    Deltas {
+        get_time: lib::precise_time_s,
+        previous: lib::precise_time_s(),
+    }
+}
+
+pub fn nanoseconds() -> Deltas<u64> {
+    Deltas {
+        get_time: lib::precise_time_ns,
+        previous: lib::precise_time_ns(),
+    }
 }
