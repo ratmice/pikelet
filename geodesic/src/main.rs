@@ -3,7 +3,6 @@ extern crate gfx;
 extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate nalgebra as na;
-extern crate time;
 
 use glutin::Event;
 use glutin::ElementState as State;
@@ -17,6 +16,7 @@ use na::{Iso3, Mat4, Pnt3, PerspMat3, Vec3};
 
 mod color;
 mod icosahedron;
+mod time;
 
 gfx_vertex!(Vertex {
     a_Pos @ pos: [f32; 3],
@@ -123,7 +123,7 @@ fn main() {
         batch
     };
 
-    'main: loop {
+    'main: for time in time::seconds() {
         for event in stream.out.window.poll_events() {
             match event {
                 Event::Closed => break 'main,
@@ -133,9 +133,8 @@ fn main() {
         }
 
         // Update view matrix
-        let time = time::precise_time_s() as f32;
-        let x = f32::sin(time);
-        let y = f32::cos(time);
+        let x = f32::sin(time.current() as f32);
+        let y = f32::cos(time.current() as f32);
         view.look_at_z(&Pnt3::new(x * 5.0, y * 5.0, 5.0), &na::orig(), &Vec3::z());
         proj.set_aspect(stream.get_aspect_ratio());
 
