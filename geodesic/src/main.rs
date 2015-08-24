@@ -17,6 +17,7 @@ use na::{Iso3, Mat4, Pnt3, PerspMat3, Vec3};
 
 mod color;
 mod icosahedron;
+mod math;
 
 gfx_vertex!(Vertex {
     a_Pos @ pos: [f32; 3],
@@ -53,15 +54,6 @@ impl<T: gfx::Resources> Params<T> {
     fn set_proj(&mut self, proj: &PerspMat3<f32>) {
         self.proj = *proj.to_mat().as_array();
     }
-}
-
-fn scale_mat4(scale: f32) -> Mat4<f32> {
-    Mat4::new(
-        scale, 0.0, 0.0, 0.0,
-        0.0, scale, 0.0, 0.0,
-        0.0, 0.0, scale, 0.0,
-        0.0, 0.0, 0.0, 1.0,
-    )
 }
 
 fn flatten_slices<'a, T, Slice, It>(it: It) -> Vec<T> where
@@ -103,7 +95,7 @@ fn main() {
 
     let mut wireframe_batch = {
         let index_data = flatten_slices(icosahedron::edges().iter());
-        let model = scale_mat4(1.002); // Scaled to prevent depth-fighting
+        let model = math::scale_mat4(1.002); // Scaled to prevent depth-fighting
         let params = Params::new(color::BLACK, &model, &view, &proj);
         let mut batch = FullBatch::new(mesh.clone(), program.clone(), params).unwrap();
         batch.slice = index_data.to_slice(&mut factory, Primitive::Line);
