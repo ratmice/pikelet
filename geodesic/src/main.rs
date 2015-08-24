@@ -82,19 +82,16 @@ fn main() {
 
     let (mut stream, mut device, mut factory) = gfx_window_glutin::init(window);
 
-    let program = {
-        let vs = gfx::ShaderSource {
+    let program = factory.link_program_source(
+        gfx::ShaderSource {
             glsl_150: Some(include_bytes!("triangle_150.v.glsl")),
             .. gfx::ShaderSource::empty()
-        };
-
-        let fs = gfx::ShaderSource {
-            glsl_150: Some(include_bytes!("triangle_150.f.glsl")),
-            .. gfx::ShaderSource::empty()
-        };
-
-        factory.link_program_source(vs, fs).unwrap()
-    };
+        },
+        gfx::ShaderSource {
+           glsl_150: Some(include_bytes!("triangle_150.f.glsl")),
+           .. gfx::ShaderSource::empty()
+       },
+    ).unwrap();
 
     let model = na::one::<Mat4<f32>>();
     let mut view = na::one::<Iso3<f32>>();
