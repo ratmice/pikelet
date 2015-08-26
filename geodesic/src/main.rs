@@ -3,6 +3,7 @@ extern crate gfx;
 extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate nalgebra as na;
+extern crate vtime;
 
 use glutin::Event;
 use glutin::ElementState as State;
@@ -16,7 +17,6 @@ use na::{Iso3, Mat4, Pnt3, PerspMat3, Vec3};
 
 mod color;
 mod icosahedron;
-mod time;
 
 gfx_vertex!(Vertex {
     a_Pos @ pos: [f32; 3],
@@ -123,7 +123,7 @@ fn main() {
         batch
     };
 
-    'main: for time in time::seconds() {
+    'main: for time in vtime::seconds() {
         for event in stream.out.window.poll_events() {
             match event {
                 Event::Closed => break 'main,

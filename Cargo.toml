@@ -13,6 +13,10 @@ path = "voyager/src/main.rs"
 name = "geodesic"
 path = "geodesic/src/main.rs"
 
+[lib]
+name = "vtime"
+path = "time/src/lib.rs"
+
 [dependencies]
 gfx = "*"
 gfx_gl = "*"
