@@ -17,7 +17,11 @@ path = "geodesic/src/main.rs"
 gfx = "*"
 gfx_gl = "*"
 gfx_window_glutin = "*"
+glium = "*"
 glutin = "*"
 nalgebra = "*"
 rustc-serialize = "*"
 time = "*"
+
+[dependencies.imgui]
+path = "imgui"
