@@ -36,8 +36,13 @@ impl Application {
     }
 
     fn render(&self) {
+        use glium::Surface;
 
-        self.display.swap_buffers();
+        let mut frame = self.display.draw();
+
+        frame.clear_color_and_depth((0.5, 0.5, 0.5, 1.0), 0.0);
+
+        frame.finish();
     }
 
     fn update(&self, delta:f64) {
