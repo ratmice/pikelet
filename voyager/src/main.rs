@@ -4,6 +4,7 @@ extern crate vtime;
 
 use std::thread;
 
+use glium::{Display, DisplayBuild, Surface};
 use glium::glutin;
 
 use resources::ResourceManager;
@@ -13,14 +14,12 @@ mod resources;
 struct Application {
     target_delta: f64,
     pub game_time: f64,
-    display: glium::backend::glutin_backend::GlutinFacade,
+    display: Display,
     pub resources: ResourceManager
 }
 
 impl Application {
     fn new() -> Application {
-        use glium::DisplayBuild;
-        
         let display = glium::glutin::WindowBuilder::new()
             .with_dimensions(1280, 720)
             .with_title(format!("Hello world"))
@@ -36,10 +35,7 @@ impl Application {
     }
 
     fn render(&self) {
-        use glium::Surface;
-
         let mut frame = self.display.draw();
-
         frame.clear_color_and_depth((0.5, 0.5, 0.5, 1.0), 0.0);
 
         frame.finish();
@@ -51,9 +47,10 @@ impl Application {
 
     fn run(&mut self) {
         // startup
-        
+
+        // main loop
         'main: for time in vtime::seconds() {
-            let mut frame_time: f64 = time.current() - time.previous();
+            let mut frame_time: f64 = time.delta();
 
             // Gather input and dispatch commands
             for event in self.display.poll_events() {
