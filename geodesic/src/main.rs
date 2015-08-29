@@ -9,11 +9,14 @@ use glium::glutin::ElementState as State;
 use glium::glutin::VirtualKeyCode as KeyCode;
 use glium::glutin::{GlProfile, GlRequest, WindowBuilder};
 use glium::index::PrimitiveType;
-use na::{Iso3, Mat4, Pnt3, PerspMat3, Vec3};
+use na::{Mat4, Pnt3};
 
+mod camera;
 mod color;
 mod icosahedron;
 mod math;
+
+use camera::Camera;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -39,13 +42,12 @@ struct Model {
 
 impl Model {
     fn draw(&self, target: &mut glium::Frame, program: &glium::Program,
-            view: &Mat4<f32>, proj: &Mat4<f32>, draw_params: &glium::DrawParameters,
+            camera_mat: &Mat4<f32>, draw_params: &glium::DrawParameters,
     ) -> Result<(), glium::DrawError> {
         let uniforms = uniform! {
             color: self.color,
             model: self.model,
-            view: *view,
-            proj: *proj,
+            camera: *camera_mat,
         };
         target.draw(&self.vertex_buffer, &self.index_buffer, program, &uniforms, draw_params)
     }
@@ -83,9 +85,10 @@ fn main() {
         },
     ).unwrap();
 
-    let mut view = na::one::<Iso3<f32>>();
-    let fov = 45.0 * (std::f32::consts::PI / 180.0);
-    let mut proj = PerspMat3::new(get_aspect_ratio(&display), fov, 0.1, 300.0);
+    let mut camera = Camera {
+        position: Pnt3::new(5.0, 5.0, 5.0),
+        ..camera::DEFAULT
+    };
 
     let vertex_data = Vertex::icosahedron();
     let edge_indices = flatten_slices(icosahedron::edges().iter());
@@ -114,15 +117,11 @@ fn main() {
             }
         }
 
-        // Update view matrix
-        let x = f32::sin(time.current() as f32);
-        let y = f32::cos(time.current() as f32);
-        view.look_at_z(&Pnt3::new(x * 5.0, y * 5.0, 5.0), &na::orig(), &Vec3::z());
-        proj.set_aspect(get_aspect_ratio(&display));
-
-        // Get matrices
-        let view_mat = na::to_homogeneous(&na::inv(&view).unwrap());
-        let proj_mat = proj.to_mat();
+        // Update camera
+        camera.position.x = f32::sin(time.current() as f32) * 5.0;
+        camera.position.y = f32::cos(time.current() as f32) * 5.0;
+        camera.aspect_ratio = get_aspect_ratio(&display);
+        let camera_mat = camera.to_mat();
 
         // Draw params
         let draw_params = glium::DrawParameters {
@@ -134,8 +133,8 @@ fn main() {
         // Draw the frame
         let mut target = display.draw();
         target.clear_color_and_depth(color::DARK_GREY, 1.0);
-        faces.draw(&mut target, &program, &view_mat, &proj_mat, &draw_params).unwrap();
-        wireframe.draw(&mut target, &program, &view_mat, &proj_mat, &draw_params).unwrap();
+        faces.draw(&mut target, &program, &camera_mat, &draw_params).unwrap();
+        wireframe.draw(&mut target, &program, &camera_mat, &draw_params).unwrap();
         target.finish().unwrap();
     }
 }
