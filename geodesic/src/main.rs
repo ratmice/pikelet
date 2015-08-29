@@ -20,7 +20,7 @@ use camera::Camera;
 
 #[derive(Copy, Clone)]
 struct Vertex {
-    position: [f32; 3],
+    position: Pnt3<f32>,
 }
 
 implement_vertex!(Vertex, position);

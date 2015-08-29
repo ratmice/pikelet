@@ -1,26 +1,28 @@
 //! The base geometry of a regular icosahedron
 
+use na::Pnt3;
+
 /// Generates the cartesian coordinates of a [regular iocosahedron]
 /// (https://en.wikipedia.org/wiki/Regular_icosahedron) with an edge length of 2.
-pub fn points() -> [[f32; 3]; 12] {
+pub fn points() -> [Pnt3<f32>; 12] {
     // The cartesian coordinates of the iocosahedron are are described by the
     // cyclic permutations of (±ϕ, ±1, 0), where ϕ is the [Golden Ratio]
     // (https://en.wikipedia.org/wiki/Golden_ratio).
 
     let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
     [
-        [ phi,  1.0,  0.0],
-        [ phi, -1.0,  0.0],
-        [-phi,  1.0,  0.0],
-        [-phi, -1.0,  0.0],
-        [ 0.0,  phi,  1.0],
-        [ 0.0,  phi, -1.0],
-        [ 0.0, -phi,  1.0],
-        [ 0.0, -phi, -1.0],
-        [ 1.0,  0.0,  phi],
-        [-1.0,  0.0,  phi],
-        [ 1.0,  0.0, -phi],
-        [-1.0,  0.0, -phi],
+        Pnt3::new( phi,  1.0,  0.0),
+        Pnt3::new( phi, -1.0,  0.0),
+        Pnt3::new(-phi,  1.0,  0.0),
+        Pnt3::new(-phi, -1.0,  0.0),
+        Pnt3::new( 0.0,  phi,  1.0),
+        Pnt3::new( 0.0,  phi, -1.0),
+        Pnt3::new( 0.0, -phi,  1.0),
+        Pnt3::new( 0.0, -phi, -1.0),
+        Pnt3::new( 1.0,  0.0,  phi),
+        Pnt3::new(-1.0,  0.0,  phi),
+        Pnt3::new( 1.0,  0.0, -phi),
+        Pnt3::new(-1.0,  0.0, -phi),
     ]
 }
 
