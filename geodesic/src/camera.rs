@@ -20,13 +20,17 @@ pub const DEFAULT: Camera = Camera {
 };
 
 impl Camera {
-    pub fn to_mat(&self) -> Mat4<f32> {
-        let mut view = na::one::<Iso3<f32>>();
+    pub fn view_mat(&self) -> Mat4<f32> {
+        let mut view: Iso3<f32> = na::one();
         view.look_at_z(&self.position, &self.target, &Vec3::z());
+        na::to_homogeneous(&na::inv(&view).unwrap())
+    }
 
-        let view_mat = na::to_homogeneous(&na::inv(&view).unwrap());
-        let proj_mat = PerspMat3::new(self.aspect_ratio, self.fov, self.near, self.far).to_mat();
+    pub fn projection_mat(&self) -> Mat4<f32> {
+        PerspMat3::new(self.aspect_ratio, self.fov, self.near, self.far).to_mat()
+    }
 
-        proj_mat * view_mat
+    pub fn to_mat(&self) -> Mat4<f32> {
+        self.projection_mat() * self.view_mat()
     }
 }
