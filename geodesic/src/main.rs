@@ -25,14 +25,6 @@ struct Vertex {
 
 implement_vertex!(Vertex, position);
 
-impl Vertex {
-    fn icosahedron() -> Vec<Vertex> {
-        icosahedron::points().iter()
-            .map(|p| Vertex { position: *p })
-            .collect()
-    }
-}
-
 struct Model {
     color: color::Color,
     model: Mat4<f32>,
@@ -56,14 +48,6 @@ impl Model {
 fn get_aspect_ratio(display: &glium::Display) -> f32 {
     let (w, h) = display.get_framebuffer_dimensions();
     w as f32 / h as f32
-}
-
-fn flatten_slices<'a, T, Slice, It>(it: It) -> Vec<T> where
-    T: 'a + Clone,
-    It: Iterator<Item = Slice>,
-    Slice: IntoIterator<Item = &'a T, IntoIter = std::slice::Iter<'a, T>>,
-{
-    it.flat_map(IntoIterator::into_iter).map(Clone::clone).collect()
 }
 
 fn main() {
@@ -90,9 +74,9 @@ fn main() {
         ..camera::DEFAULT
     };
 
-    let vertex_data = Vertex::icosahedron();
-    let edge_indices = flatten_slices(icosahedron::edges().iter());
-    let face_indices = flatten_slices(icosahedron::faces().iter());
+    let vertex_data: Vec<_> = icosahedron::points().iter().map(|&p| Vertex { position: p }).collect();
+    let edge_indices: Vec<_> = icosahedron::edges().iter().flat_map(|e| e.iter()).map(|&i| i).collect();
+    let face_indices: Vec<_> = icosahedron::faces().iter().flat_map(|f| f.iter()).map(|&i| i).collect();
 
     let wireframe = Model {
         color: color::BLACK,
