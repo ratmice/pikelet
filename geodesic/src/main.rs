@@ -24,7 +24,9 @@ implement_vertex!(Vertex, position);
 
 impl Vertex {
     fn icosahedron() -> Vec<Vertex> {
-        icosahedron::points().iter().map(|p| Vertex { position: *p }).collect()
+        icosahedron::points().iter()
+            .map(|p| Vertex { position: *p })
+            .collect()
     }
 }
 
