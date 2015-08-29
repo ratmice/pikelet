@@ -46,8 +46,8 @@ impl Model {
 }
 
 fn get_aspect_ratio(display: &glium::Display) -> f32 {
-    let (w, h) = display.get_framebuffer_dimensions();
-    w as f32 / h as f32
+    let (width, height) = display.get_framebuffer_dimensions();
+    width as f32 / height as f32
 }
 
 fn main() {
@@ -74,7 +74,7 @@ fn main() {
         ..camera::DEFAULT
     };
 
-    let vertex_data: Vec<_> = icosahedron::points().iter().map(|&p| Vertex { position: p }).collect();
+    let vertices: Vec<_> = icosahedron::points().iter().map(|&p| Vertex { position: p }).collect();
     let edge_indices: Vec<_> = icosahedron::edges().iter().flat_map(|e| e.iter()).map(|&i| i).collect();
     let face_indices: Vec<_> = icosahedron::faces().iter().flat_map(|f| f.iter()).map(|&i| i).collect();
 
@@ -82,14 +82,14 @@ fn main() {
         color: color::BLACK,
         model: math::scale_mat4(1.002), // Scaled to prevent depth-fighting,
         index_buffer: IndexBuffer::new(&display, PrimitiveType::LinesList, &edge_indices).unwrap(),
-        vertex_buffer: VertexBuffer::new(&display, &vertex_data).unwrap(),
+        vertex_buffer: VertexBuffer::new(&display, &vertices).unwrap(),
     };
 
     let faces = Model {
         color: color::WHITE,
         model: na::one(),
         index_buffer: IndexBuffer::new(&display, PrimitiveType::TrianglesList, &face_indices).unwrap(),
-        vertex_buffer: VertexBuffer::new(&display, &vertex_data).unwrap(),
+        vertex_buffer: VertexBuffer::new(&display, &vertices).unwrap(),
     };
 
     'main: for time in vtime::seconds() {
