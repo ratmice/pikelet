@@ -18,14 +18,14 @@ name = "vtime"
 path = "time/src/lib.rs"
 
 [dependencies]
-gfx = "*"
-gfx_gl = "*"
-gfx_window_glutin = "*"
-glium = "*"
 glutin = "*"
 nalgebra = "*"
 rustc-serialize = "*"
 time = "*"
+
+[dependencies.glium]
+version = "*"
+features = ["glutin", "nalgebra"]
 
 [dependencies.imgui]
 path = "imgui"

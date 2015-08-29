@@ -1,59 +1,57 @@
 #[macro_use]
-extern crate gfx;
-extern crate gfx_window_glutin;
-extern crate glutin;
+extern crate glium;
 extern crate nalgebra as na;
 extern crate vtime;
 
-use glutin::Event;
-use glutin::ElementState as State;
-use glutin::VirtualKeyCode as KeyCode;
-use glutin::{GlProfile, GlRequest, WindowBuilder};
-use gfx::traits::*;
-use gfx::state::Comparison;
-use gfx::PrimitiveType as Primitive;
-use gfx::batch::Full as FullBatch;
+use glium::{Surface, IndexBuffer, VertexBuffer};
+use glium::glutin::Event;
+use glium::glutin::ElementState as State;
+use glium::glutin::VirtualKeyCode as KeyCode;
+use glium::glutin::{GlProfile, GlRequest, WindowBuilder};
+use glium::index::PrimitiveType;
 use na::{Iso3, Mat4, Pnt3, PerspMat3, Vec3};
 
 mod color;
 mod icosahedron;
 mod math;
 
-gfx_vertex!(Vertex {
-    a_Pos @ pos: [f32; 3],
-});
+#[derive(Copy, Clone)]
+struct Vertex {
+    position: [f32; 3],
+}
+
+implement_vertex!(Vertex, position);
 
 impl Vertex {
     fn icosahedron() -> Vec<Vertex> {
-        icosahedron::points().iter().map(|p| Vertex { pos: *p }).collect()
+        icosahedron::points().iter().map(|p| Vertex { position: *p }).collect()
     }
 }
 
-gfx_parameters!(Params {
-    u_Color @ color: [f32; 4],
-    u_Model @ model: [[f32; 4]; 4],
-    u_View @ view: [[f32; 4]; 4],
-    u_Proj @ proj: [[f32; 4]; 4],
-});
+struct Model {
+    color: color::Color,
+    model: Mat4<f32>,
+    index_buffer: IndexBuffer<u8>,
+    vertex_buffer: VertexBuffer<Vertex>,
+}
 
-impl<T: gfx::Resources> Params<T> {
-    fn new(color: [f32; 4], model: &Mat4<f32>, view: &Iso3<f32>, proj: &PerspMat3<f32>) -> Params<T> {
-        Params {
-            color: color,
-            model: *model.as_array(),
-            view: *na::to_homogeneous(&na::inv(view).unwrap()).as_array(),
-            proj: *proj.to_mat().as_array(),
-            _r: std::marker::PhantomData
-        }
+impl Model {
+    fn draw(&self, target: &mut glium::Frame, program: &glium::Program,
+            view: &Mat4<f32>, proj: &Mat4<f32>, draw_params: &glium::DrawParameters,
+    ) -> Result<(), glium::DrawError> {
+        let uniforms = uniform! {
+            color: self.color,
+            model: self.model,
+            view: *view,
+            proj: *proj,
+        };
+        target.draw(&self.vertex_buffer, &self.index_buffer, program, &uniforms, draw_params)
     }
+}
 
-    fn set_view(&mut self, view: &Iso3<f32>) {
-        self.view = *na::to_homogeneous(&na::inv(view).unwrap()).as_array();
-    }
-
-    fn set_proj(&mut self, proj: &PerspMat3<f32>) {
-        self.proj = *proj.to_mat().as_array();
-    }
+fn get_aspect_ratio(display: &glium::Display) -> f32 {
+    let (w, h) = display.get_framebuffer_dimensions();
+    w as f32 / h as f32
 }
 
 fn flatten_slices<'a, T, Slice, It>(it: It) -> Vec<T> where
@@ -65,55 +63,48 @@ fn flatten_slices<'a, T, Slice, It>(it: It) -> Vec<T> where
 }
 
 fn main() {
-    let window = WindowBuilder::new()
+    use glium::DisplayBuild;
+
+    let display = WindowBuilder::new()
         .with_title("Geodesic Experiment".to_string())
         .with_dimensions(800, 500)
         .with_gl(GlRequest::Latest)
         .with_gl_profile(GlProfile::Core)
-        .build().unwrap();
+        .with_depth_buffer(24)
+        .build_glium()
+        .unwrap();
 
-    let (mut stream, mut device, mut factory) = gfx_window_glutin::init(window);
-
-    let program = factory.link_program_source(
-        gfx::ShaderSource {
-            glsl_150: Some(include_bytes!("triangle_150.v.glsl")),
-            .. gfx::ShaderSource::empty()
+    let program = program!(&display,
+        150 => {
+            vertex: include_str!("triangle_150.v.glsl"),
+            fragment: include_str!("triangle_150.f.glsl"),
         },
-        gfx::ShaderSource {
-           glsl_150: Some(include_bytes!("triangle_150.f.glsl")),
-           .. gfx::ShaderSource::empty()
-       },
     ).unwrap();
 
-    let model = na::one::<Mat4<f32>>();
     let mut view = na::one::<Iso3<f32>>();
     let fov = 45.0 * (std::f32::consts::PI / 180.0);
-    let mut proj = PerspMat3::new(stream.get_aspect_ratio(), fov, 0.1, 300.0);
+    let mut proj = PerspMat3::new(get_aspect_ratio(&display), fov, 0.1, 300.0);
 
     let vertex_data = Vertex::icosahedron();
-    let mesh = factory.create_mesh(&vertex_data);
+    let edge_indices = flatten_slices(icosahedron::edges().iter());
+    let face_indices = flatten_slices(icosahedron::faces().iter());
 
-    let mut wireframe_batch = {
-        let index_data = flatten_slices(icosahedron::edges().iter());
-        let model = math::scale_mat4(1.002); // Scaled to prevent depth-fighting
-        let params = Params::new(color::BLACK, &model, &view, &proj);
-        let mut batch = FullBatch::new(mesh.clone(), program.clone(), params).unwrap();
-        batch.slice = index_data.to_slice(&mut factory, Primitive::Line);
-        batch.state = batch.state.depth(Comparison::LessEqual, true);
-        batch
+    let wireframe = Model {
+        color: color::BLACK,
+        model: math::scale_mat4(1.002), // Scaled to prevent depth-fighting,
+        index_buffer: IndexBuffer::new(&display, PrimitiveType::LinesList, &edge_indices).unwrap(),
+        vertex_buffer: VertexBuffer::new(&display, &vertex_data).unwrap(),
     };
 
-    let mut face_batch = {
-        let index_data = flatten_slices(icosahedron::faces().iter());
-        let params = Params::new(color::WHITE, &model, &view, &proj);
-        let mut batch = FullBatch::new(mesh.clone(), program.clone(), params).unwrap();
-        batch.slice = index_data.to_slice(&mut factory, Primitive::TriangleList);
-        batch.state = batch.state.depth(Comparison::LessEqual, true);
-        batch
+    let faces = Model {
+        color: color::WHITE,
+        model: na::one(),
+        index_buffer: IndexBuffer::new(&display, PrimitiveType::TrianglesList, &face_indices).unwrap(),
+        vertex_buffer: VertexBuffer::new(&display, &vertex_data).unwrap(),
     };
 
     'main: for time in vtime::seconds() {
-        for event in stream.out.window.poll_events() {
+        for event in display.poll_events() {
             match event {
                 Event::Closed => break 'main,
                 Event::KeyboardInput(State::Pressed, _, Some(KeyCode::Escape)) => break 'main,
@@ -125,22 +116,24 @@ fn main() {
         let x = f32::sin(time.current() as f32);
         let y = f32::cos(time.current() as f32);
         view.look_at_z(&Pnt3::new(x * 5.0, y * 5.0, 5.0), &na::orig(), &Vec3::z());
-        proj.set_aspect(stream.get_aspect_ratio());
+        proj.set_aspect(get_aspect_ratio(&display));
 
-        wireframe_batch.params.set_view(&view);
-        wireframe_batch.params.set_proj(&proj);
+        // Get matrices
+        let view_mat = na::to_homogeneous(&na::inv(&view).unwrap());
+        let proj_mat = proj.to_mat();
 
-        face_batch.params.set_view(&view);
-        face_batch.params.set_proj(&proj);
+        // Draw params
+        let draw_params = glium::DrawParameters {
+            depth_test: glium::DepthTest::IfLess,
+            depth_write: true,
+            .. Default::default()
+        };
 
-        stream.clear(gfx::ClearData {
-            color: color::GREY,
-            depth: 1.0,
-            stencil: 0,
-        });
-
-        stream.draw(&face_batch).unwrap();
-        stream.draw(&wireframe_batch).unwrap();
-        stream.present(&mut device);
+        // Draw the frame
+        let mut target = display.draw();
+        target.clear_color_and_depth(color::DARK_GREY, 1.0);
+        faces.draw(&mut target, &program, &view_mat, &proj_mat, &draw_params).unwrap();
+        wireframe.draw(&mut target, &program, &view_mat, &proj_mat, &draw_params).unwrap();
+        target.finish().unwrap();
     }
 }

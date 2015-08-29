@@ -1,5 +1,7 @@
 //! Some useful colors
 
-pub const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-pub const GREY: [f32; 4] = [0.3, 0.3, 0.3, 1.0];
-pub const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+pub type Color = (f32, f32, f32, f32);
+
+pub const WHITE: Color = (1.0, 1.0, 1.0, 1.0);
+pub const DARK_GREY: Color = (0.1, 0.1, 0.1, 1.0);
+pub const BLACK: Color = (0.0, 0.0, 0.0, 1.0);
