@@ -18,7 +18,6 @@ name = "vtime"
 path = "time/src/lib.rs"
 
 [dependencies]
-glutin = "*"
 nalgebra = "*"
 rustc-serialize = "*"
 time = "*"
