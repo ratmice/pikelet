@@ -9,7 +9,8 @@ use glium::glutin::ElementState as State;
 use glium::glutin::VirtualKeyCode as KeyCode;
 use glium::glutin::{GlProfile, GlRequest, WindowBuilder};
 use glium::index::PrimitiveType;
-use na::{Mat4, Pnt3};
+use na::{Mat4, PerspMat3, Pnt3};
+use std::f32;
 
 mod camera;
 mod color;
@@ -70,8 +71,9 @@ fn main() {
     ).unwrap();
 
     let mut camera = Camera {
+        target: na::orig(),
         position: Pnt3::new(5.0, 5.0, 5.0),
-        ..camera::DEFAULT
+        projection: PerspMat3::new(get_aspect_ratio(&display), f32::consts::PI / 4.0, 0.1, 300.0),
     };
 
     let vertices: Vec<_> = icosahedron::points().iter().map(|&p| Vertex { position: p }).collect();
@@ -104,7 +106,7 @@ fn main() {
         // Update camera
         camera.position.x = f32::sin(time.current() as f32) * 5.0;
         camera.position.y = f32::cos(time.current() as f32) * 5.0;
-        camera.aspect_ratio = get_aspect_ratio(&display);
+        camera.projection.set_aspect(get_aspect_ratio(&display));
         let camera_mat = camera.to_mat();
 
         // Draw params
