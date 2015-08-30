@@ -14,10 +14,11 @@ use std::f32;
 
 mod camera;
 mod color;
-mod icosahedron;
 mod math;
+mod polyhedra;
 
 use camera::Camera;
+use polyhedra::octahedron;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -76,9 +77,9 @@ fn main() {
         projection: PerspMat3::new(get_aspect_ratio(&display), f32::consts::PI / 4.0, 0.1, 300.0),
     };
 
-    let vertices: Vec<_> = icosahedron::points().iter().map(|&p| Vertex { position: p }).collect();
-    let edge_indices: Vec<_> = icosahedron::edges().iter().flat_map(|e| e.iter()).map(|&i| i).collect();
-    let face_indices: Vec<_> = icosahedron::faces().iter().flat_map(|f| f.iter()).map(|&i| i).collect();
+    let vertices: Vec<_> = octahedron::points().iter().map(|&p| Vertex { position: p }).collect();
+    let edge_indices: Vec<_> = octahedron::edges().iter().flat_map(|e| e.iter()).map(|&i| i).collect();
+    let face_indices: Vec<_> = octahedron::faces().iter().flat_map(|f| f.iter()).map(|&i| i).collect();
 
     let wireframe = Model {
         color: color::BLACK,
