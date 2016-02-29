@@ -16,12 +16,12 @@ impl<T: Copy + Sub<T, Output = T>> State<T> {
     pub fn delta(&self) -> T { self.current - self.previous }
 }
 
-pub struct States<T: Copy + Sub<T, Output = T>> {
+pub struct Times<T: Copy + Sub<T, Output = T>> {
     get_time: fn() -> T,
     previous: T,
 }
 
-impl<T: Copy + Sub<T, Output = T>> Iterator for States<T> {
+impl<T: Copy + Sub<T, Output = T>> Iterator for Times<T> {
     type Item = State<T>;
 
     fn next(&mut self) -> Option<State<T>> {
@@ -34,15 +34,15 @@ impl<T: Copy + Sub<T, Output = T>> Iterator for States<T> {
     }
 }
 
-pub fn seconds() -> States<f64> {
-    States {
+pub fn seconds() -> Times<f64> {
+    Times {
         get_time: lib::precise_time_s,
         previous: lib::precise_time_s(),
     }
 }
 
-pub fn nanoseconds() -> States<u64> {
-    States {
+pub fn nanoseconds() -> Times<u64> {
+    Times {
         get_time: lib::precise_time_ns,
         previous: lib::precise_time_ns(),
     }

@@ -1,23 +1,21 @@
-use na::{self, Iso3, Mat4, Pnt3, PerspMat3, Vec3};
+use cgmath::{BaseFloat, Matrix4, Point3, Vector3, PerspectiveFov};
 
 pub struct Camera<T = f32> {
-    pub target: Pnt3<T>,
-    pub position: Pnt3<T>,
-    pub projection: PerspMat3<T>,
+    pub target: Point3<T>,
+    pub position: Point3<T>,
+    pub projection: PerspectiveFov<T>,
 }
 
-impl<T: na::BaseFloat> Camera<T> {
-    pub fn view_mat(&self) -> Mat4<T> {
-        let mut view: Iso3<T> = na::one();
-        view.look_at_z(&self.position, &self.target, &Vec3::z());
-        na::to_homogeneous(&na::inv(&view).unwrap())
+impl<T: BaseFloat> Camera<T> {
+    pub fn view_mat(&self) -> Matrix4<T> {
+        Matrix4::look_at(self.position, self.target, Vector3::unit_z())
     }
 
-    pub fn projection_mat(&self) -> Mat4<T> {
-        self.projection.to_mat()
+    pub fn projection_mat(&self) -> Matrix4<T> {
+        self.projection.into()
     }
 
-    pub fn to_mat(&self) -> Mat4<T> {
-        self.projection_mat() * self.view_mat()
+    pub fn to_mat(&self) -> Matrix4<T> {
+        &self.projection_mat() * &self.view_mat()
     }
 }
