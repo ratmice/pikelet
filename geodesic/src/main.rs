@@ -22,6 +22,21 @@ pub mod math;
 pub mod polyhedra;
 pub mod times;
 
+const WINDOW_TITLE: &'static str = "Geodesic Test";
+const WINDOW_WIDTH: u32 = 800;
+const WINDOW_HEIGHT: u32 = 500;
+
+const CAMERA_XZ_RADIUS: f32 = 2.0;
+const CAMERA_Y_HEIGHT: f32 = 1.0;
+const CAMERA_NEAR: f32 = 0.1;
+const CAMERA_FAR: f32 = 300.0;
+
+const POLYHEDRON_SUBDIVS: usize = 3;
+const POLYHEDRON_RADIUS: f32 = 1.0;
+
+const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
+const ROTATIONS_PER_SECOND: f32 = 0.1;
+
 #[derive(Copy, Clone)]
 struct Vertex {
     normal: [f32; 3],
@@ -30,7 +45,7 @@ struct Vertex {
 
 implement_vertex!(Vertex, normal, position);
 
-fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], radius: f32, subdivs: usize) -> Vec<Vertex> {
+fn create_polyhedron(seed_points: &[Point3<f32>], seed_faces: &[[u8; 3]], radius: f32, subdivs: usize) -> Vec<Vertex> {
     fn subdivide(vertices: &mut Vec<Vertex>, radius: f32, subdivs: usize, (p0, p1, p2): (Point3<f32>, Point3<f32>, Point3<f32>)) {
         if subdivs == 0 {
             let normal = math::face_normal(p0, p1, p2);
@@ -60,13 +75,13 @@ fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], radius: f32, sub
         }
     }
 
-    let num_faces = usize::pow(4, faces.len() as u32);
+    let num_faces = usize::pow(4, seed_faces.len() as u32);
     let mut vertices = Vec::with_capacity(num_faces * 3);
 
-    for face in faces {
-        let p0 = math::project_to_radius(points[face[0] as usize], radius);
-        let p1 = math::project_to_radius(points[face[1] as usize], radius);
-        let p2 = math::project_to_radius(points[face[2] as usize], radius);
+    for face in seed_faces {
+        let p0 = math::project_to_radius(seed_points[face[0] as usize], radius);
+        let p1 = math::project_to_radius(seed_points[face[1] as usize], radius);
+        let p2 = math::project_to_radius(seed_points[face[2] as usize], radius);
         subdivide(&mut vertices, radius, subdivs, (p0, p1, p2));
     }
 
@@ -76,16 +91,16 @@ fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], radius: f32, sub
 fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32)) -> Camera {
     Camera {
         position: Point3 {
-            x: Rad::sin(rotation) * 2.0,
-            y: Rad::cos(rotation) * 2.0,
-            z: 1.0,
+            x: Rad::sin(rotation) * CAMERA_XZ_RADIUS,
+            y: Rad::cos(rotation) * CAMERA_XZ_RADIUS,
+            z: CAMERA_Y_HEIGHT,
         },
         target: Point3::origin(),
         projection: PerspectiveFov {
             aspect: width as f32 / height as f32,
             fovy: Rad::full_turn() / 6.0,
-            near: 0.1,
-            far: 300.0,
+            near: CAMERA_NEAR,
+            far: CAMERA_FAR,
         },
     }
 }
@@ -105,13 +120,16 @@ fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
 
 fn main() {
     let display = WindowBuilder::new()
-        .with_title("Geodesic".to_string())
-        .with_dimensions(800, 500)
+        .with_title(WINDOW_TITLE.to_string())
+        .with_dimensions(WINDOW_WIDTH, WINDOW_HEIGHT)
         .with_depth_buffer(24)
         .build_glium()
         .unwrap();
 
-    let vertices = create_polyhedron(&icosahedron::points(), &icosahedron::faces(), 1.0, 3);
+    let vertices = create_polyhedron(&icosahedron::points(),
+                                     &icosahedron::faces(),
+                                     POLYHEDRON_RADIUS,
+                                     POLYHEDRON_SUBDIVS);
     let vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
@@ -133,16 +151,14 @@ fn main() {
 
     'main: for time in times::in_seconds() {
         if let Some(window) = display.get_window() {
-            window.set_title(&format!("FPS: {:.2}",  1.0 / time.delta()));
+            window.set_title(&format!("{} | FPS: {:.2}",  WINDOW_TITLE, 1.0 / time.delta()));
         }
 
         let mut target = display.draw();
 
         target.clear_color_and_depth(color::DARK_GREY, 1.0);
 
-
-        let light_dir = Vector3::new(0.0, 0.5, 1.0);
-        let rotation_delta = Rad::new(time.delta() as f32) * 0.5;
+        let rotation_delta = Rad::full_turn() * ROTATIONS_PER_SECOND * time.delta() as f32;
         camera_rotation = camera_rotation + rotation_delta;
         let camera = create_camera(camera_rotation, target.get_dimensions());
         let view_proj = camera.to_mat();
@@ -153,7 +169,7 @@ fn main() {
         target.draw(&vertex_buffer, &index_buffer, &shaded_program,
                     &uniform! {
                         color:      color::WHITE,
-                        light_dir:  vector3_array(light_dir),
+                        light_dir:  vector3_array(LIGHT_DIR),
                         model:      matrix4_array(Matrix4::identity()),
                         view_proj:  matrix4_array(view_proj),
                     },
