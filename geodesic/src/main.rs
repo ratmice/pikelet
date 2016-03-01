@@ -30,23 +30,58 @@ struct Vertex {
 
 implement_vertex!(Vertex, normal, position);
 
-fn face_normal(p0: Point3<f32>, p1: Point3<f32>, p2: Point3<f32>) -> Vector3<f32> {
-    let cross = (p1 - p0).cross(p2 - p0);
-    cross / cross.length()
+
+fn midpoint(p0: Point3<f32>, p1: Point3<f32>) -> Point3<f32> {
+    Point3 {
+        x: p0.x + p1.x,
+        y: p0.y + p1.y,
+        z: p0.z + p1.z,
+    } * 0.5
 }
 
-fn collect_vertices(points: &[Point3<f32>], faces: &[[u8; 3]]) -> Vec<Vertex> {
-    let mut vertices = Vec::with_capacity(faces.len() * 3);
+fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], subdivs: usize) -> Vec<Vertex> {
+    fn face_normal(p0: Point3<f32>, p1: Point3<f32>, p2: Point3<f32>) -> Vector3<f32> {
+        let cross = (p1 - p0).cross(p2 - p0);
+        cross / cross.length()
+    }
+
+    fn subdivide(vertices: &mut Vec<Vertex>, subdivs: usize, (p0, p1, p2): (Point3<f32>, Point3<f32>, Point3<f32>)) {
+        if subdivs == 0 {
+            let normal = face_normal(p0, p1, p2);
+
+            vertices.push(Vertex { normal: normal.into(), position: p0.into() });
+            vertices.push(Vertex { normal: normal.into(), position: p1.into() });
+            vertices.push(Vertex { normal: normal.into(), position: p2.into() });
+        } else {
+            //
+            //          p0
+            //          /\
+            //         /  \
+            // p2_p0  /____\  p0_p1
+            //       /\    /\
+            //      /  \  /  \
+            //     /____\/____\
+            //   p2    p1_p2   p1
+            //
+            let p0_p1 = midpoint(p0, p1);
+            let p1_p2 = midpoint(p1, p2);
+            let p2_p0 = midpoint(p2, p0);
+
+            subdivide(vertices, subdivs - 1, (p0, p0_p1, p2_p0));
+            subdivide(vertices, subdivs - 1, (p0_p1, p1, p1_p2));
+            subdivide(vertices, subdivs - 1, (p2_p0, p1_p2, p2));
+            subdivide(vertices, subdivs - 1, (p2_p0, p0_p1, p1_p2));
+        }
+    }
+
+    let num_faces = usize::pow(4, faces.len() as u32);
+    let mut vertices = Vec::with_capacity(num_faces * 3);
 
     for face in faces {
         let p0 = points[face[0] as usize];
         let p1 = points[face[1] as usize];
         let p2 = points[face[2] as usize];
-        let normal = face_normal(p0, p1, p2);
-
-        vertices.push(Vertex { normal: normal.into(), position: p0.into() });
-        vertices.push(Vertex { normal: normal.into(), position: p1.into() });
-        vertices.push(Vertex { normal: normal.into(), position: p2.into() });
+        subdivide(&mut vertices, subdivs, (p0, p1, p2));
     }
 
     vertices
@@ -92,7 +127,7 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let vertices = collect_vertices(&octahedron::points(), &octahedron::faces());
+    let vertices = create_polyhedron(&octahedron::points(), &octahedron::faces(), 2);
     let vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
