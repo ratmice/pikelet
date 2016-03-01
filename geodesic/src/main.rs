@@ -32,20 +32,20 @@ implement_vertex!(Vertex, normal, position);
 
 
 fn midpoint(p0: Point3<f32>, p1: Point3<f32>) -> Point3<f32> {
-    Point3 {
-        x: p0.x + p1.x,
-        y: p0.y + p1.y,
-        z: p0.z + p1.z,
-    } * 0.5
+    Point3::from_vec(p0.to_vec() + p1.to_vec()) * 0.5
 }
 
-fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], subdivs: usize) -> Vec<Vertex> {
+fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], radius: f32, subdivs: usize) -> Vec<Vertex> {
     fn face_normal(p0: Point3<f32>, p1: Point3<f32>, p2: Point3<f32>) -> Vector3<f32> {
         let cross = (p1 - p0).cross(p2 - p0);
         cross / cross.length()
     }
 
-    fn subdivide(vertices: &mut Vec<Vertex>, subdivs: usize, (p0, p1, p2): (Point3<f32>, Point3<f32>, Point3<f32>)) {
+    fn project_to_radius(point: Point3<f32>, radius: f32) -> Point3<f32> {
+        Point3::from_vec(point.to_vec().normalize_to(radius))
+    }
+
+    fn subdivide(vertices: &mut Vec<Vertex>, radius: f32, subdivs: usize, (p0, p1, p2): (Point3<f32>, Point3<f32>, Point3<f32>)) {
         if subdivs == 0 {
             let normal = face_normal(p0, p1, p2);
 
@@ -63,14 +63,14 @@ fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], subdivs: usize) 
             //     /____\/____\
             //   p2    p1_p2   p1
             //
-            let p0_p1 = midpoint(p0, p1);
-            let p1_p2 = midpoint(p1, p2);
-            let p2_p0 = midpoint(p2, p0);
+            let p0_p1 = project_to_radius(midpoint(p0, p1), radius);
+            let p1_p2 = project_to_radius(midpoint(p1, p2), radius);
+            let p2_p0 = project_to_radius(midpoint(p2, p0), radius);
 
-            subdivide(vertices, subdivs - 1, (p0, p0_p1, p2_p0));
-            subdivide(vertices, subdivs - 1, (p0_p1, p1, p1_p2));
-            subdivide(vertices, subdivs - 1, (p2_p0, p1_p2, p2));
-            subdivide(vertices, subdivs - 1, (p2_p0, p0_p1, p1_p2));
+            subdivide(vertices, radius, subdivs - 1, (p0, p0_p1, p2_p0));
+            subdivide(vertices, radius, subdivs - 1, (p0_p1, p1, p1_p2));
+            subdivide(vertices, radius, subdivs - 1, (p2_p0, p1_p2, p2));
+            subdivide(vertices, radius, subdivs - 1, (p2_p0, p0_p1, p1_p2));
         }
     }
 
@@ -81,7 +81,7 @@ fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], subdivs: usize) 
         let p0 = points[face[0] as usize];
         let p1 = points[face[1] as usize];
         let p2 = points[face[2] as usize];
-        subdivide(&mut vertices, subdivs, (p0, p1, p2));
+        subdivide(&mut vertices, radius, subdivs, (p0, p1, p2));
     }
 
     vertices
@@ -125,7 +125,7 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let vertices = create_polyhedron(&octahedron::points(), &octahedron::faces(), 2);
+    let vertices = create_polyhedron(&octahedron::points(), &octahedron::faces(), 1.0, 3);
     let vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
