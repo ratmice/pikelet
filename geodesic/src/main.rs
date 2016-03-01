@@ -6,8 +6,7 @@ pub use glium::glutin;
 
 use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::{Matrix4, SquareMatrix};
-use cgmath::{Point3, Point};
-use cgmath::{Vector3, EuclideanVector};
+use cgmath::{Point3, Point, Vector3};
 use glium::{BackfaceCullingMode, Depth, DepthTest, DrawParameters};
 use glium::{DisplayBuild, PolygonMode, Program, Surface, VertexBuffer};
 use glium::index::{PrimitiveType, NoIndices};
@@ -19,6 +18,7 @@ use polyhedra::octahedron;
 
 pub mod camera;
 pub mod color;
+pub mod math;
 pub mod polyhedra;
 pub mod times;
 
@@ -30,24 +30,10 @@ struct Vertex {
 
 implement_vertex!(Vertex, normal, position);
 
-
-fn midpoint(p0: Point3<f32>, p1: Point3<f32>) -> Point3<f32> {
-    Point3::from_vec(p0.to_vec() + p1.to_vec()) * 0.5
-}
-
 fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], radius: f32, subdivs: usize) -> Vec<Vertex> {
-    fn face_normal(p0: Point3<f32>, p1: Point3<f32>, p2: Point3<f32>) -> Vector3<f32> {
-        let cross = (p1 - p0).cross(p2 - p0);
-        cross / cross.length()
-    }
-
-    fn project_to_radius(point: Point3<f32>, radius: f32) -> Point3<f32> {
-        Point3::from_vec(point.to_vec().normalize_to(radius))
-    }
-
     fn subdivide(vertices: &mut Vec<Vertex>, radius: f32, subdivs: usize, (p0, p1, p2): (Point3<f32>, Point3<f32>, Point3<f32>)) {
         if subdivs == 0 {
-            let normal = face_normal(p0, p1, p2);
+            let normal = math::face_normal(p0, p1, p2);
 
             vertices.push(Vertex { normal: normal.into(), position: p0.into() });
             vertices.push(Vertex { normal: normal.into(), position: p1.into() });
@@ -63,9 +49,9 @@ fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], radius: f32, sub
             //     /____\/____\
             //   p2    p1_p2   p1
             //
-            let p0_p1 = project_to_radius(midpoint(p0, p1), radius);
-            let p1_p2 = project_to_radius(midpoint(p1, p2), radius);
-            let p2_p0 = project_to_radius(midpoint(p2, p0), radius);
+            let p0_p1 = math::project_to_radius(math::midpoint(p0, p1), radius);
+            let p1_p2 = math::project_to_radius(math::midpoint(p1, p2), radius);
+            let p2_p0 = math::project_to_radius(math::midpoint(p2, p0), radius);
 
             subdivide(vertices, radius, subdivs - 1, (p0, p0_p1, p2_p0));
             subdivide(vertices, radius, subdivs - 1, (p0_p1, p1, p1_p2));
