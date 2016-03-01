@@ -7,10 +7,11 @@ pub use glium::glutin;
 
 use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::{Matrix4, SquareMatrix};
-use cgmath::{Point, Point3};
+use cgmath::{Point3, Point};
+use cgmath::{Vector3, EuclideanVector};
 use glium::{BackfaceCullingMode, Depth, DepthTest, DrawParameters};
-use glium::{DisplayBuild, IndexBuffer, PolygonMode, Program, Surface, VertexBuffer};
-use glium::index::{PrimitiveType};
+use glium::{DisplayBuild, PolygonMode, Program, Surface, VertexBuffer};
+use glium::index::{PrimitiveType, NoIndices};
 use glutin::{ElementState, Event, GlProfile, GlRequest, WindowBuilder};
 use glutin::VirtualKeyCode as Key;
 
@@ -23,27 +24,39 @@ pub mod polyhedra;
 
 #[derive(Copy, Clone)]
 struct Vertex {
+    normal: [f32; 3],
     position: [f32; 3],
 }
 
-implement_vertex!(Vertex, position);
+implement_vertex!(Vertex, normal, position);
 
-fn collect_vertices(vs: &[Point3<f32>]) -> Vec<Vertex> {
-    vs.iter().map(|&p| Vertex { position: p.into() }).collect()
+fn face_normal(p0: Point3<f32>, p1: Point3<f32>, p2: Point3<f32>) -> Vector3<f32> {
+    let cross = (p1 - p0).cross(p2 - p0);
+    cross / cross.length()
 }
 
-fn collect_indices<T: Clone, Ts>(xss: &[Ts]) -> Vec<T> where for<'a> &'a Ts: IntoIterator<Item = &'a T> {
-    xss.iter()
-        .flat_map(<_>::into_iter)
-        .map(<_>::clone)
-        .collect()
+fn collect_vertices(points: &[Point3<f32>], faces: &[[u8; 3]]) -> Vec<Vertex> {
+    let mut vertices = Vec::with_capacity(faces.len() * 3);
+
+    for face in faces {
+        let p0 = points[face[0] as usize];
+        let p1 = points[face[1] as usize];
+        let p2 = points[face[2] as usize];
+        let normal = face_normal(p0, p1, p2);
+
+        vertices.push(Vertex { normal: normal.into(), position: p0.into() });
+        vertices.push(Vertex { normal: normal.into(), position: p1.into() });
+        vertices.push(Vertex { normal: normal.into(), position: p2.into() });
+    }
+
+    vertices
 }
 
-fn make_camera(time: f64, (width, height): (u32, u32), ) -> Camera {
+fn create_camera(time: f64, (width, height): (u32, u32), ) -> Camera {
     Camera {
         position: Point3 {
-            x: f32::sin(time as f32 * 0.1) * 2.0,
-            y: f32::cos(time as f32 * 0.1) * 2.0,
+            x: f32::sin(time as f32 * 0.5) * 2.0,
+            y: f32::cos(time as f32 * 0.5) * 2.0,
             z: 1.0,
         },
         target: Point3::origin(),
@@ -79,16 +92,21 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let vertices = collect_vertices(&octahedron::points());
-    let indices = collect_indices(&octahedron::faces());
-
+    let vertices = collect_vertices(&octahedron::points(), &octahedron::faces());
     let vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
-    let index_buffer = IndexBuffer::new(&display, PrimitiveType::TrianglesList, &indices).unwrap();
+    let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
-    let program = Program::from_source(&display,
-                                       include_str!("shader/solid_150.v.glsl"),
-                                       include_str!("shader/solid_150.f.glsl"),
-                                       None).unwrap();
+    let shaded_program =
+        Program::from_source(&display,
+                             include_str!("shader/shaded.v.glsl"),
+                             include_str!("shader/shaded.f.glsl"),
+                             None).unwrap();
+
+    let flat_program =
+        Program::from_source(&display,
+                             include_str!("shader/flat.v.glsl"),
+                             include_str!("shader/flat.f.glsl"),
+                             None).unwrap();
 
     'main: for time in vtime::seconds() {
         if let Some(window) = display.get_window() {
@@ -99,25 +117,28 @@ fn main() {
 
         target.clear_color_and_depth(color::DARK_GREY, 1.0);
 
-        let camera = make_camera(time.current(), target.get_dimensions());
+        let light_dir = Vector3::new(0.0, 0.5, 1.0);
+        let camera = create_camera(time.current(), target.get_dimensions());
         let view_proj = camera.to_mat();
 
-        let to_array_mat: fn(Matrix4<f32>) -> [[f32; 4]; 4] = Matrix4::into;
+        let vector3_array: fn(Vector3<f32>) -> [f32; 3] = Vector3::into;
+        let matrix4_array: fn(Matrix4<f32>) -> [[f32; 4]; 4] = Matrix4::into;
 
-        target.draw(&vertex_buffer, &index_buffer, &program,
+        target.draw(&vertex_buffer, &index_buffer, &shaded_program,
                     &uniform! {
-                        color: color::WHITE,
-                        model: to_array_mat(Matrix4::identity()),
-                        view_proj: to_array_mat(view_proj),
+                        color:      color::WHITE,
+                        light_dir:  vector3_array(light_dir),
+                        model:      matrix4_array(Matrix4::identity()),
+                        view_proj:  matrix4_array(view_proj),
                     },
                     &draw_params(PolygonMode::Fill)).unwrap();
 
-        target.draw(&vertex_buffer, &index_buffer, &program,
+        target.draw(&vertex_buffer, &index_buffer, &flat_program,
                     &uniform! {
-                        color: color::BLACK,
+                        color:      color::BLACK,
                         // Scaled to prevent depth-fighting
-                        model: to_array_mat(Matrix4::from_scale(1.001)),
-                        view_proj: to_array_mat(view_proj),
+                        model:      matrix4_array(Matrix4::from_scale(1.001)),
+                        view_proj:  matrix4_array(view_proj),
                     },
                     &draw_params(PolygonMode::Line)).unwrap();
 
