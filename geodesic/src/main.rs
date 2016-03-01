@@ -14,7 +14,7 @@ use glutin::{ElementState, Event, WindowBuilder};
 use glutin::VirtualKeyCode as Key;
 
 use camera::Camera;
-use polyhedra::octahedron;
+use polyhedra::icosahedron;
 
 pub mod camera;
 pub mod color;
@@ -64,9 +64,9 @@ fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], radius: f32, sub
     let mut vertices = Vec::with_capacity(num_faces * 3);
 
     for face in faces {
-        let p0 = points[face[0] as usize];
-        let p1 = points[face[1] as usize];
-        let p2 = points[face[2] as usize];
+        let p0 = math::project_to_radius(points[face[0] as usize], radius);
+        let p1 = math::project_to_radius(points[face[1] as usize], radius);
+        let p2 = math::project_to_radius(points[face[2] as usize], radius);
         subdivide(&mut vertices, radius, subdivs, (p0, p1, p2));
     }
 
@@ -111,7 +111,7 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let vertices = create_polyhedron(&octahedron::points(), &octahedron::faces(), 1.0, 3);
+    let vertices = create_polyhedron(&icosahedron::points(), &icosahedron::faces(), 1.0, 3);
     let vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
