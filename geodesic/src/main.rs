@@ -11,7 +11,7 @@ use cgmath::{Vector3, EuclideanVector};
 use glium::{BackfaceCullingMode, Depth, DepthTest, DrawParameters};
 use glium::{DisplayBuild, PolygonMode, Program, Surface, VertexBuffer};
 use glium::index::{PrimitiveType, NoIndices};
-use glutin::{ElementState, Event, GlProfile, GlRequest, WindowBuilder};
+use glutin::{ElementState, Event, WindowBuilder};
 use glutin::VirtualKeyCode as Key;
 
 use camera::Camera;
@@ -87,7 +87,7 @@ fn create_polyhedron(points: &[Point3<f32>], faces: &[[u8; 3]], subdivs: usize) 
     vertices
 }
 
-fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32), ) -> Camera {
+fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32)) -> Camera {
     Camera {
         position: Point3 {
             x: Rad::sin(rotation) * 2.0,
@@ -119,10 +119,8 @@ fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
 
 fn main() {
     let display = WindowBuilder::new()
-        .with_title("Thing".to_string())
+        .with_title("Geodesic".to_string())
         .with_dimensions(800, 500)
-        .with_gl(GlRequest::Latest)
-        .with_gl_profile(GlProfile::Core)
         .with_depth_buffer(24)
         .build_glium()
         .unwrap();

@@ -1,5 +1,5 @@
 [package]
-name = "experiment"
+name = "geodesic"
 version = "0.1.0"
 authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
 
