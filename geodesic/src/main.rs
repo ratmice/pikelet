@@ -129,6 +129,8 @@ fn main() {
 
     let mut camera_rotation = Rad::new(0.0);
 
+    let mut show_mesh = true;
+
     'main: for time in times::in_seconds() {
         if let Some(window) = display.get_window() {
             window.set_title(&format!("FPS: {:.2}",  1.0 / time.delta()));
@@ -157,21 +159,27 @@ fn main() {
                     },
                     &draw_params(PolygonMode::Fill)).unwrap();
 
-        target.draw(&vertex_buffer, &index_buffer, &flat_program,
-                    &uniform! {
-                        color:      color::BLACK,
-                        // Scaled to prevent depth-fighting
-                        model:      matrix4_array(Matrix4::from_scale(1.001)),
-                        view_proj:  matrix4_array(view_proj),
-                    },
-                    &draw_params(PolygonMode::Line)).unwrap();
+        if show_mesh {
+            target.draw(&vertex_buffer, &index_buffer, &flat_program,
+                        &uniform! {
+                            color:      color::BLACK,
+                            // Scaled to prevent depth-fighting
+                            model:      matrix4_array(Matrix4::from_scale(1.001)),
+                            view_proj:  matrix4_array(view_proj),
+                        },
+                        &draw_params(PolygonMode::Line)).unwrap();
+        }
 
         target.finish().unwrap();
 
         for ev in display.poll_events() {
             match ev {
                 Event::Closed => break 'main,
-                Event::KeyboardInput(ElementState::Pressed, _, Some(Key::Escape)) => break 'main,
+                Event::KeyboardInput(ElementState::Pressed, _, Some(key)) => match key {
+                    Key::Escape => break 'main,
+                    Key::M => show_mesh = !show_mesh,
+                    _ => {},
+                },
                 _ => {},
             }
         }
