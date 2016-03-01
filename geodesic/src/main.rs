@@ -1,7 +1,6 @@
-#[macro_use]
-extern crate glium;
 extern crate cgmath;
-extern crate vtime;
+#[macro_use] extern crate glium;
+extern crate time;
 
 pub use glium::glutin;
 
@@ -21,6 +20,7 @@ use polyhedra::octahedron;
 pub mod camera;
 pub mod color;
 pub mod polyhedra;
+pub mod times;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -52,11 +52,11 @@ fn collect_vertices(points: &[Point3<f32>], faces: &[[u8; 3]]) -> Vec<Vertex> {
     vertices
 }
 
-fn create_camera(time: f64, (width, height): (u32, u32), ) -> Camera {
+fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32), ) -> Camera {
     Camera {
         position: Point3 {
-            x: f32::sin(time as f32 * 0.5) * 2.0,
-            y: f32::cos(time as f32 * 0.5) * 2.0,
+            x: Rad::sin(rotation) * 2.0,
+            y: Rad::cos(rotation) * 2.0,
             z: 1.0,
         },
         target: Point3::origin(),
@@ -108,7 +108,9 @@ fn main() {
                              include_str!("shader/flat.f.glsl"),
                              None).unwrap();
 
-    'main: for time in vtime::seconds() {
+    let mut camera_rotation = Rad::new(0.0);
+
+    'main: for time in times::in_seconds() {
         if let Some(window) = display.get_window() {
             window.set_title(&format!("FPS: {:.2}",  1.0 / time.delta()));
         }
@@ -117,8 +119,11 @@ fn main() {
 
         target.clear_color_and_depth(color::DARK_GREY, 1.0);
 
+
         let light_dir = Vector3::new(0.0, 0.5, 1.0);
-        let camera = create_camera(time.current(), target.get_dimensions());
+        let rotation_delta = Rad::new(time.delta() as f32) * 0.5;
+        camera_rotation = camera_rotation + rotation_delta;
+        let camera = create_camera(camera_rotation, target.get_dimensions());
         let view_proj = camera.to_mat();
 
         let vector3_array: fn(Vector3<f32>) -> [f32; 3] = Vector3::into;
