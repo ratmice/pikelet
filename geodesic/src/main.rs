@@ -191,6 +191,7 @@ fn main() {
     let mut camera_rotation = Rad::new(0.0);
 
     let mut show_mesh = true;
+    let mut is_rotating = true;
 
     'main: for time in times::in_seconds() {
         if let Some(window) = display.get_window() {
@@ -199,12 +200,14 @@ fn main() {
 
         let mut target = display.draw();
 
-        target.clear_color_and_depth(color::DARK_GREY, 1.0);
-
-        let rotation_delta = Rad::full_turn() * ROTATIONS_PER_SECOND * time.delta() as f32;
-        camera_rotation = camera_rotation + rotation_delta;
+        if is_rotating {
+            let delta = Rad::full_turn() * ROTATIONS_PER_SECOND * time.delta() as f32;
+            camera_rotation = camera_rotation + delta;
+        }
         let camera = create_camera(camera_rotation, target.get_dimensions());
         let view_proj = camera.to_mat();
+
+        target.clear_color_and_depth(color::DARK_GREY, 1.0);
 
         let vector3_array: fn(Vector3<f32>) -> [f32; 3] = Vector3::into;
         let matrix4_array: fn(Matrix4<f32>) -> [[f32; 4]; 4] = Matrix4::into;
@@ -235,8 +238,9 @@ fn main() {
             match ev {
                 Event::Closed => break 'main,
                 Event::KeyboardInput(ElementState::Pressed, _, Some(key)) => match key {
-                    Key::Escape => break 'main,
                     Key::M => show_mesh = !show_mesh,
+                    Key::Space => is_rotating = !is_rotating,
+                    Key::Escape => break 'main,
                     _ => {},
                 },
                 _ => {},
