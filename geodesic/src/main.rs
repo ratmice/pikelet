@@ -14,7 +14,6 @@ use glutin::{ElementState, Event, WindowBuilder};
 use glutin::VirtualKeyCode as Key;
 
 use camera::Camera;
-use polyhedra::icosahedron;
 
 pub mod camera;
 pub mod color;
@@ -38,22 +37,33 @@ const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
 const ROTATIONS_PER_SECOND: f32 = 0.1;
 
 #[derive(Copy, Clone)]
-struct Vertex {
+pub struct Vertex {
     normal: [f32; 3],
     position: [f32; 3],
 }
 
 implement_vertex!(Vertex, normal, position);
 
-fn create_polyhedron(seed_points: &[Point3<f32>], seed_faces: &[[u8; 3]], radius: f32, subdivs: usize) -> Vec<Vertex> {
-    fn subdivide(vertices: &mut Vec<Vertex>, radius: f32, subdivs: usize, (p0, p1, p2): (Point3<f32>, Point3<f32>, Point3<f32>)) {
-        if subdivs == 0 {
-            let normal = math::face_normal(p0, p1, p2);
+#[derive(Clone, Debug)]
+pub struct Geometry {
+    pub points: Vec<Point3<f32>>,
+    pub edges: Vec<[usize; 2]>,
+    pub faces: Vec<[usize; 3]>,
+}
 
-            vertices.push(Vertex { normal: normal.into(), position: p0.into() });
-            vertices.push(Vertex { normal: normal.into(), position: p1.into() });
-            vertices.push(Vertex { normal: normal.into(), position: p2.into() });
-        } else {
+impl Geometry {
+    pub fn subdivide(&self, radius: f32, count: usize) -> Geometry {
+        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(radius))
+    }
+
+    pub fn subdivide_once(&self, radius: f32) -> Geometry {
+        let mut points = Vec::with_capacity(self.points.len() * 2);
+        let mut edges = Vec::with_capacity(self.edges.len() * 2);
+        let mut faces = Vec::with_capacity(self.faces.len() * 4);
+
+        let mut index = 0;
+
+        for face in &self.faces {
             //
             //          p0
             //          /\
@@ -64,28 +74,61 @@ fn create_polyhedron(seed_points: &[Point3<f32>], seed_faces: &[[u8; 3]], radius
             //     /____\/____\
             //   p2    p1_p2   p1
             //
+
+            let p0    = math::project_to_radius(self.points[face[0]], radius);
+            let p1    = math::project_to_radius(self.points[face[1]], radius);
+            let p2    = math::project_to_radius(self.points[face[2]], radius);
             let p0_p1 = math::project_to_radius(math::midpoint(p0, p1), radius);
             let p1_p2 = math::project_to_radius(math::midpoint(p1, p2), radius);
             let p2_p0 = math::project_to_radius(math::midpoint(p2, p0), radius);
 
-            subdivide(vertices, radius, subdivs - 1, (p0, p0_p1, p2_p0));
-            subdivide(vertices, radius, subdivs - 1, (p0_p1, p1, p1_p2));
-            subdivide(vertices, radius, subdivs - 1, (p2_p0, p1_p2, p2));
-            subdivide(vertices, radius, subdivs - 1, (p2_p0, p0_p1, p1_p2));
+            points.push(p0);    let p0    = index; index += 1;
+            points.push(p1);    let p1    = index; index += 1;
+            points.push(p2);    let p2    = index; index += 1;
+            points.push(p0_p1); let p0_p1 = index; index += 1;
+            points.push(p1_p2); let p1_p2 = index; index += 1;
+            points.push(p2_p0); let p2_p0 = index; index += 1;
+
+            edges.push([p0,    p0_p1]);
+            edges.push([p0,    p2_p0]);
+            edges.push([p2_p0, p0_p1]);
+            edges.push([p2_p0, p1_p2]);
+            edges.push([p2_p0, p2]);
+            edges.push([p2,    p1_p2]);
+            edges.push([p0_p1, p1]);
+            edges.push([p0_p1, p1_p2]);
+            edges.push([p1_p2, p1]);
+
+            faces.push([p0,    p0_p1, p2_p0]);
+            faces.push([p0_p1, p1,    p1_p2]);
+            faces.push([p2_p0, p1_p2, p2]);
+            faces.push([p2_p0, p0_p1, p1_p2]);
+        }
+
+        Geometry {
+            points: points,
+            edges: edges,
+            faces: faces,
         }
     }
 
-    let num_faces = usize::pow(4, seed_faces.len() as u32);
-    let mut vertices = Vec::with_capacity(num_faces * 3);
+    pub fn create_vertices(&self) -> Vec<Vertex> {
+        let mut vertices = Vec::with_capacity(self.points.len() * 3);
 
-    for face in seed_faces {
-        let p0 = math::project_to_radius(seed_points[face[0] as usize], radius);
-        let p1 = math::project_to_radius(seed_points[face[1] as usize], radius);
-        let p2 = math::project_to_radius(seed_points[face[2] as usize], radius);
-        subdivide(&mut vertices, radius, subdivs, (p0, p1, p2));
+        for face in &self.faces {
+            let p0 = self.points[face[0]];
+            let p1 = self.points[face[1]];
+            let p2 = self.points[face[2]];
+
+            let normal = math::face_normal(p0, p1, p2);
+
+            vertices.push(Vertex { normal: normal.into(), position: p0.into() });
+            vertices.push(Vertex { normal: normal.into(), position: p1.into() });
+            vertices.push(Vertex { normal: normal.into(), position: p2.into() });
+        }
+
+        vertices
     }
-
-    vertices
 }
 
 fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32)) -> Camera {
@@ -126,10 +169,10 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let vertices = create_polyhedron(&icosahedron::points(),
-                                     &icosahedron::faces(),
-                                     POLYHEDRON_RADIUS,
-                                     POLYHEDRON_SUBDIVS);
+    let vertices = polyhedra::icosahedron()
+        .subdivide(POLYHEDRON_RADIUS, POLYHEDRON_SUBDIVS)
+        .create_vertices();
+
     let vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
