@@ -33,8 +33,8 @@ pub struct Geometry {
     pub faces: Vec<Face>,
 }
 
-fn vec2<T>() -> Vec<T> { Vec::with_capacity(2) }
-fn vec6<T>() -> Vec<T> { Vec::with_capacity(6) }
+fn vec_len2<T>() -> Vec<T> { Vec::with_capacity(2) }
+fn vec_len6<T>() -> Vec<T> { Vec::with_capacity(6) }
 
 impl Geometry {
     pub fn subdivide(&self, radius: f32, count: usize) -> Geometry {
@@ -75,22 +75,22 @@ impl Geometry {
             let p4 = math::set_radius(math::midpoint(p1, p2), radius);
             let p5 = math::set_radius(math::midpoint(p2, p0), radius);
 
-            let n0 = push_node(&mut nodes, Node { position: p0, edges: vec6(), faces: vec6() });
-            let n1 = push_node(&mut nodes, Node { position: p1, edges: vec6(), faces: vec6() });
-            let n2 = push_node(&mut nodes, Node { position: p2, edges: vec6(), faces: vec6() });
-            let n3 = push_node(&mut nodes, Node { position: p3, edges: vec6(), faces: vec6() });
-            let n4 = push_node(&mut nodes, Node { position: p4, edges: vec6(), faces: vec6() });
-            let n5 = push_node(&mut nodes, Node { position: p5, edges: vec6(), faces: vec6() });
+            let n0 = push_node(&mut nodes, Node { position: p0, edges: vec_len6(), faces: vec_len6() });
+            let n1 = push_node(&mut nodes, Node { position: p1, edges: vec_len6(), faces: vec_len6() });
+            let n2 = push_node(&mut nodes, Node { position: p2, edges: vec_len6(), faces: vec_len6() });
+            let n3 = push_node(&mut nodes, Node { position: p3, edges: vec_len6(), faces: vec_len6() });
+            let n4 = push_node(&mut nodes, Node { position: p4, edges: vec_len6(), faces: vec_len6() });
+            let n5 = push_node(&mut nodes, Node { position: p5, edges: vec_len6(), faces: vec_len6() });
 
-            let n0_n3 = push_edge(&mut edges, Edge { nodes: [n0, n3], faces: vec2() });
-            let n0_n5 = push_edge(&mut edges, Edge { nodes: [n0, n5], faces: vec2() });
-            let n5_n3 = push_edge(&mut edges, Edge { nodes: [n5, n3], faces: vec2() });
-            let n5_n4 = push_edge(&mut edges, Edge { nodes: [n5, n4], faces: vec2() });
-            let n5_n2 = push_edge(&mut edges, Edge { nodes: [n5, n2], faces: vec2() });
-            let n2_n4 = push_edge(&mut edges, Edge { nodes: [n2, n4], faces: vec2() });
-            let n3_n1 = push_edge(&mut edges, Edge { nodes: [n3, n1], faces: vec2() });
-            let n3_n4 = push_edge(&mut edges, Edge { nodes: [n3, n4], faces: vec2() });
-            let n4_n1 = push_edge(&mut edges, Edge { nodes: [n4, n1], faces: vec2() });
+            let n0_n3 = push_edge(&mut edges, Edge { nodes: [n0, n3], faces: vec_len2() });
+            let n0_n5 = push_edge(&mut edges, Edge { nodes: [n0, n5], faces: vec_len2() });
+            let n5_n3 = push_edge(&mut edges, Edge { nodes: [n5, n3], faces: vec_len2() });
+            let n5_n4 = push_edge(&mut edges, Edge { nodes: [n5, n4], faces: vec_len2() });
+            let n5_n2 = push_edge(&mut edges, Edge { nodes: [n5, n2], faces: vec_len2() });
+            let n2_n4 = push_edge(&mut edges, Edge { nodes: [n2, n4], faces: vec_len2() });
+            let n3_n1 = push_edge(&mut edges, Edge { nodes: [n3, n1], faces: vec_len2() });
+            let n3_n4 = push_edge(&mut edges, Edge { nodes: [n3, n4], faces: vec_len2() });
+            let n4_n1 = push_edge(&mut edges, Edge { nodes: [n4, n1], faces: vec_len2() });
 
             faces.push(Face { nodes: [n0, n3, n5], edges: [n0_n3, n0_n5, n5_n3] });
             faces.push(Face { nodes: [n3, n1, n4], edges: [n3_n1, n3_n4, n4_n1] });
@@ -137,51 +137,51 @@ pub fn icosahedron() -> Geometry {
     // (https://en.wikipedia.org/wiki/Golden_ratio).
     let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
     let nodes = vec![
-        Node { position: math::set_radius(Point3::new( phi,  1.0,  0.0), 1.0), edges: vec6(), faces: vec6() },
-        Node { position: math::set_radius(Point3::new( phi, -1.0,  0.0), 1.0), edges: vec6(), faces: vec6() },
-        Node { position: math::set_radius(Point3::new(-phi,  1.0,  0.0), 1.0), edges: vec6(), faces: vec6() },
-        Node { position: math::set_radius(Point3::new(-phi, -1.0,  0.0), 1.0), edges: vec6(), faces: vec6() },
-        Node { position: math::set_radius(Point3::new( 0.0,  phi,  1.0), 1.0), edges: vec6(), faces: vec6() },
-        Node { position: math::set_radius(Point3::new( 0.0,  phi, -1.0), 1.0), edges: vec6(), faces: vec6() },
-        Node { position: math::set_radius(Point3::new( 0.0, -phi,  1.0), 1.0), edges: vec6(), faces: vec6() },
-        Node { position: math::set_radius(Point3::new( 0.0, -phi, -1.0), 1.0), edges: vec6(), faces: vec6() },
-        Node { position: math::set_radius(Point3::new( 1.0,  0.0,  phi), 1.0), edges: vec6(), faces: vec6() },
-        Node { position: math::set_radius(Point3::new(-1.0,  0.0,  phi), 1.0), edges: vec6(), faces: vec6() },
-        Node { position: math::set_radius(Point3::new( 1.0,  0.0, -phi), 1.0), edges: vec6(), faces: vec6() },
-        Node { position: math::set_radius(Point3::new(-1.0,  0.0, -phi), 1.0), edges: vec6(), faces: vec6() },
+        Node { position: math::set_radius(Point3::new( phi,  1.0,  0.0), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( phi, -1.0,  0.0), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new(-phi,  1.0,  0.0), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new(-phi, -1.0,  0.0), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 0.0,  phi,  1.0), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 0.0,  phi, -1.0), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 0.0, -phi,  1.0), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 0.0, -phi, -1.0), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 1.0,  0.0,  phi), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new(-1.0,  0.0,  phi), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 1.0,  0.0, -phi), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new(-1.0,  0.0, -phi), 1.0), edges: vec_len6(), faces: vec_len6() },
     ];
 
     let edges = vec![
-        Edge { nodes: [N( 0), N( 1)], faces: vec2() },
-        Edge { nodes: [N( 0), N( 4)], faces: vec2() },
-        Edge { nodes: [N( 0), N( 5)], faces: vec2() },
-        Edge { nodes: [N( 0), N( 8)], faces: vec2() },
-        Edge { nodes: [N( 0), N(10)], faces: vec2() },
-        Edge { nodes: [N( 1), N( 6)], faces: vec2() },
-        Edge { nodes: [N( 1), N( 7)], faces: vec2() },
-        Edge { nodes: [N( 1), N( 8)], faces: vec2() },
-        Edge { nodes: [N( 1), N(10)], faces: vec2() },
-        Edge { nodes: [N( 2), N( 3)], faces: vec2() },
-        Edge { nodes: [N( 2), N( 4)], faces: vec2() },
-        Edge { nodes: [N( 2), N( 5)], faces: vec2() },
-        Edge { nodes: [N( 2), N( 9)], faces: vec2() },
-        Edge { nodes: [N( 2), N(11)], faces: vec2() },
-        Edge { nodes: [N( 3), N( 6)], faces: vec2() },
-        Edge { nodes: [N( 3), N( 7)], faces: vec2() },
-        Edge { nodes: [N( 3), N( 9)], faces: vec2() },
-        Edge { nodes: [N( 3), N(11)], faces: vec2() },
-        Edge { nodes: [N( 4), N( 5)], faces: vec2() },
-        Edge { nodes: [N( 4), N( 8)], faces: vec2() },
-        Edge { nodes: [N( 4), N( 9)], faces: vec2() },
-        Edge { nodes: [N( 5), N(10)], faces: vec2() },
-        Edge { nodes: [N( 5), N(11)], faces: vec2() },
-        Edge { nodes: [N( 6), N( 7)], faces: vec2() },
-        Edge { nodes: [N( 6), N( 8)], faces: vec2() },
-        Edge { nodes: [N( 6), N( 9)], faces: vec2() },
-        Edge { nodes: [N( 7), N(10)], faces: vec2() },
-        Edge { nodes: [N( 7), N(11)], faces: vec2() },
-        Edge { nodes: [N( 8), N( 9)], faces: vec2() },
-        Edge { nodes: [N(10), N(11)], faces: vec2() },
+        Edge { nodes: [N( 0), N( 1)], faces: vec_len2() },
+        Edge { nodes: [N( 0), N( 4)], faces: vec_len2() },
+        Edge { nodes: [N( 0), N( 5)], faces: vec_len2() },
+        Edge { nodes: [N( 0), N( 8)], faces: vec_len2() },
+        Edge { nodes: [N( 0), N(10)], faces: vec_len2() },
+        Edge { nodes: [N( 1), N( 6)], faces: vec_len2() },
+        Edge { nodes: [N( 1), N( 7)], faces: vec_len2() },
+        Edge { nodes: [N( 1), N( 8)], faces: vec_len2() },
+        Edge { nodes: [N( 1), N(10)], faces: vec_len2() },
+        Edge { nodes: [N( 2), N( 3)], faces: vec_len2() },
+        Edge { nodes: [N( 2), N( 4)], faces: vec_len2() },
+        Edge { nodes: [N( 2), N( 5)], faces: vec_len2() },
+        Edge { nodes: [N( 2), N( 9)], faces: vec_len2() },
+        Edge { nodes: [N( 2), N(11)], faces: vec_len2() },
+        Edge { nodes: [N( 3), N( 6)], faces: vec_len2() },
+        Edge { nodes: [N( 3), N( 7)], faces: vec_len2() },
+        Edge { nodes: [N( 3), N( 9)], faces: vec_len2() },
+        Edge { nodes: [N( 3), N(11)], faces: vec_len2() },
+        Edge { nodes: [N( 4), N( 5)], faces: vec_len2() },
+        Edge { nodes: [N( 4), N( 8)], faces: vec_len2() },
+        Edge { nodes: [N( 4), N( 9)], faces: vec_len2() },
+        Edge { nodes: [N( 5), N(10)], faces: vec_len2() },
+        Edge { nodes: [N( 5), N(11)], faces: vec_len2() },
+        Edge { nodes: [N( 6), N( 7)], faces: vec_len2() },
+        Edge { nodes: [N( 6), N( 8)], faces: vec_len2() },
+        Edge { nodes: [N( 6), N( 9)], faces: vec_len2() },
+        Edge { nodes: [N( 7), N(10)], faces: vec_len2() },
+        Edge { nodes: [N( 7), N(11)], faces: vec_len2() },
+        Edge { nodes: [N( 8), N( 9)], faces: vec_len2() },
+        Edge { nodes: [N(10), N(11)], faces: vec_len2() },
     ];
 
     let faces = vec![
@@ -212,4 +212,56 @@ pub fn icosahedron() -> Geometry {
         edges: edges,
         faces: faces,
     }.add_indices_from_faces()
+}
+
+#[cfg(test)]
+mod tests {
+    use index;
+    use super::*;
+    use super::EdgeIndex as E;
+    use super::FaceIndex as F;
+    use super::NodeIndex as N;
+
+    macro_rules! assert_valid_topology {
+        ($geom:expr) => {{
+            let geom = $geom;
+
+            for (n, node) in geom.nodes.iter().enumerate() {
+                for e in &node.edges {
+                    assert!(index::get(&geom.edges, *e).nodes.contains(&N(n)));
+                }
+                for f in &node.faces {
+                    assert!(index::get(&geom.faces, *f).nodes.contains(&N(n)));
+                }
+            }
+
+            for (e, edge) in geom.edges.iter().enumerate() {
+                for n in &edge.nodes {
+                    assert!(index::get(&geom.nodes, *n).edges.contains(&E(e)));
+                }
+                for f in &edge.faces {
+                    assert!(index::get(&geom.faces, *f).edges.contains(&E(e)));
+                }
+            }
+
+            for (f, face) in geom.faces.iter().enumerate() {
+                for n in &face.nodes {
+                    assert!(index::get(&geom.nodes, *n).faces.contains(&F(f)));
+                }
+                for e in &face.edges {
+                    assert!(index::get(&geom.edges, *e).faces.contains(&F(f)));
+                }
+            }
+        }}
+    }
+
+    #[test]
+    fn test_icosahedron_topology() {
+        assert_valid_topology!(icosahedron());
+    }
+
+    #[test]
+    fn test_subdivided_topology() {
+        assert_valid_topology!(icosahedron().subdivide(1.0, 3));
+    }
 }
