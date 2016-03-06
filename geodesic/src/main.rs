@@ -11,14 +11,15 @@ use glium::{DisplayBuild, DrawParameters, PolygonMode, Program, Surface, VertexB
 use glium::index::{PrimitiveType, NoIndices};
 use glutin::{ElementState, Event, WindowBuilder};
 use glutin::VirtualKeyCode as Key;
-use std::ops::{Index, IndexMut};
 
 use camera::Camera;
+use geom::Geometry;
 
 pub mod camera;
 pub mod color;
+pub mod geom;
+pub mod index;
 pub mod math;
-pub mod polyhedra;
 pub mod times;
 
 const WINDOW_TITLE: &'static str = "Geodesic Test";
@@ -44,161 +45,14 @@ pub struct Vertex {
 
 implement_vertex!(Vertex, normal, position);
 
-pub trait Indexer {
-    type Element;
-
-    fn index(self) -> usize;
-}
-
-pub fn get<I: Indexer, Elements>(elements: &Elements, index: I) -> &I::Element where
-    Elements: Index<usize, Output = I::Element>,
-{
-    &elements[index.index()]
-}
-
-pub fn get_mut<I: Indexer, Elements>(elements: &mut Elements, index: I) -> &mut I::Element where
-    Elements: IndexMut<usize, Output = I::Element>,
-{
-    &mut elements[index.index()]
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)] pub struct NodeIndex(pub usize);
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)] pub struct EdgeIndex(pub usize);
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)] pub struct FaceIndex(pub usize);
-
-impl Indexer for NodeIndex { type Element = Node; fn index(self) -> usize { self.0 } }
-impl Indexer for EdgeIndex { type Element = Edge; fn index(self) -> usize { self.0 } }
-impl Indexer for FaceIndex { type Element = Face; fn index(self) -> usize { self.0 } }
-
-#[derive(Clone, Debug)]
-pub struct Node {
-    pub position: Point3<f32>,
-    pub edges: Vec<EdgeIndex>,
-    pub faces: Vec<FaceIndex>,
-
-    // Pentagon
-    // pub edges: [EdgeIndex; 5],
-    // pub faces: [FaceIndex; 5],
-
-    // Hexagon
-    // pub edges: [EdgeIndex; 6],
-    // pub faces: [FaceIndex; 6],
-}
-
-#[derive(Clone, Debug)]
-pub struct Edge {
-    pub nodes: [NodeIndex; 2],
-    pub faces: Vec<FaceIndex>,
-    // pub faces: [EdgeIndex; 2],
-}
-
-#[derive(Clone, Debug)]
-pub struct Face {
-    pub nodes: [NodeIndex; 3],
-    pub edges: Vec<EdgeIndex>,
-    // pub edges: [EdgeIndex; 3],
-}
-
-#[derive(Clone, Debug)]
-pub struct Geometry {
-    pub nodes: Vec<Node>,
-    pub edges: Vec<Edge>,
-    pub faces: Vec<Face>,
-}
-
 impl Geometry {
-    pub fn subdivide(&self, radius: f32, count: usize) -> Geometry {
-        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(radius))
-    }
-
-    pub fn subdivide_once(&self, radius: f32) -> Geometry {
-        let mut nodes = Vec::with_capacity(self.nodes.len() * 2);
-        let mut edges = Vec::with_capacity(self.edges.len() * 2);
-        let mut faces = Vec::with_capacity(self.faces.len() * 4);
-
-        let push_node = |nodes: &mut Vec<_>, node| {
-            nodes.push(node);
-            NodeIndex(nodes.len() - 1)
-        };
-
-        let push_edge = |edges: &mut Vec<_>, edge| {
-            edges.push(edge);
-            EdgeIndex(edges.len() - 1)
-        };
-
-        for face in &self.faces {
-            //
-            //          n0
-            //          /\
-            //         /  \
-            //    n5  /____\  n3
-            //       /\    /\
-            //      /  \  /  \
-            //     /____\/____\
-            //   n2     n4     n1
-            //
-
-            let p0 = math::set_radius(get(&self.nodes, face.nodes[0]).position, radius);
-            let p1 = math::set_radius(get(&self.nodes, face.nodes[1]).position, radius);
-            let p2 = math::set_radius(get(&self.nodes, face.nodes[2]).position, radius);
-            let p3 = math::set_radius(math::midpoint(p0, p1), radius);
-            let p4 = math::set_radius(math::midpoint(p1, p2), radius);
-            let p5 = math::set_radius(math::midpoint(p2, p0), radius);
-
-            let n0 = push_node(&mut nodes, Node { position: p0, edges: vec![], faces: vec![] });
-            let n1 = push_node(&mut nodes, Node { position: p1, edges: vec![], faces: vec![] });
-            let n2 = push_node(&mut nodes, Node { position: p2, edges: vec![], faces: vec![] });
-            let n3 = push_node(&mut nodes, Node { position: p3, edges: vec![], faces: vec![] });
-            let n4 = push_node(&mut nodes, Node { position: p4, edges: vec![], faces: vec![] });
-            let n5 = push_node(&mut nodes, Node { position: p5, edges: vec![], faces: vec![] });
-
-            let n0_n3 = push_edge(&mut edges, Edge { nodes: [n0, n3], faces: vec![] });
-            let n0_n5 = push_edge(&mut edges, Edge { nodes: [n0, n5], faces: vec![] });
-            let n5_n3 = push_edge(&mut edges, Edge { nodes: [n5, n3], faces: vec![] });
-            let n5_n4 = push_edge(&mut edges, Edge { nodes: [n5, n4], faces: vec![] });
-            let n5_n2 = push_edge(&mut edges, Edge { nodes: [n5, n2], faces: vec![] });
-            let n2_n4 = push_edge(&mut edges, Edge { nodes: [n2, n4], faces: vec![] });
-            let n3_n1 = push_edge(&mut edges, Edge { nodes: [n3, n1], faces: vec![] });
-            let n3_n4 = push_edge(&mut edges, Edge { nodes: [n3, n4], faces: vec![] });
-            let n4_n1 = push_edge(&mut edges, Edge { nodes: [n4, n1], faces: vec![] });
-
-            faces.push(Face { nodes: [n0, n3, n5], edges: vec![n0_n3, n0_n5, n5_n3] });
-            faces.push(Face { nodes: [n3, n1, n4], edges: vec![n3_n1, n3_n4, n4_n1] });
-            faces.push(Face { nodes: [n5, n4, n2], edges: vec![n5_n4, n5_n2, n2_n4] });
-            faces.push(Face { nodes: [n5, n3, n4], edges: vec![n5_n3, n5_n4, n3_n4] });
-        }
-
-        for (index, edge) in edges.iter().enumerate() {
-            get_mut(&mut nodes, edge.nodes[0]).edges.push(EdgeIndex(index));
-            get_mut(&mut nodes, edge.nodes[1]).edges.push(EdgeIndex(index));
-        }
-
-        for (index, face) in faces.iter().enumerate() {
-            get_mut(&mut nodes, face.nodes[0]).faces.push(FaceIndex(index));
-            get_mut(&mut nodes, face.nodes[1]).faces.push(FaceIndex(index));
-            get_mut(&mut nodes, face.nodes[2]).faces.push(FaceIndex(index));
-        }
-
-        for (index, face) in faces.iter().enumerate() {
-            get_mut(&mut edges, face.edges[0]).faces.push(FaceIndex(index));
-            get_mut(&mut edges, face.edges[1]).faces.push(FaceIndex(index));
-            get_mut(&mut edges, face.edges[2]).faces.push(FaceIndex(index));
-        }
-
-        Geometry {
-            nodes: nodes,
-            edges: edges,
-            faces: faces,
-        }
-    }
-
     pub fn create_vertices(&self) -> Vec<Vertex> {
         let mut vertices = Vec::with_capacity(self.nodes.len() * 3);
 
         for face in &self.faces {
-            let n0 = get(&self.nodes, face.nodes[0]).position;
-            let n1 = get(&self.nodes, face.nodes[1]).position;
-            let n2 = get(&self.nodes, face.nodes[2]).position;
+            let n0 = index::get(&self.nodes, face.nodes[0]).position;
+            let n1 = index::get(&self.nodes, face.nodes[1]).position;
+            let n2 = index::get(&self.nodes, face.nodes[2]).position;
 
             let normal = math::face_normal(n0, n1, n2);
 
@@ -251,7 +105,7 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let vertices = polyhedra::icosahedron()
+    let vertices = geom::icosahedron()
         .subdivide(POLYHEDRON_RADIUS, POLYHEDRON_SUBDIVS)
         .create_vertices();
 
