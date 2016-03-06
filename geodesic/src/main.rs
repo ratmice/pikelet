@@ -15,6 +15,8 @@ use glutin::VirtualKeyCode as Key;
 use camera::Camera;
 use geom::Geometry;
 
+mod macros;
+
 pub mod camera;
 pub mod color;
 pub mod geom;

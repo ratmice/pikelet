@@ -3,13 +3,9 @@ use cgmath::Point3;
 use index::{self, ElementIndex};
 use math;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)] pub struct NodeIndex(pub usize);
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)] pub struct EdgeIndex(pub usize);
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)] pub struct FaceIndex(pub usize);
-
-impl ElementIndex for NodeIndex { type Element = Node; fn index(self) -> usize { self.0 } }
-impl ElementIndex for EdgeIndex { type Element = Edge; fn index(self) -> usize { self.0 } }
-impl ElementIndex for FaceIndex { type Element = Face; fn index(self) -> usize { self.0 } }
+element_index!(NodeIndex, Node);
+element_index!(EdgeIndex, Edge);
+element_index!(FaceIndex, Face);
 
 #[derive(Clone, Debug)]
 pub struct Node {
