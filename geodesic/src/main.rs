@@ -44,81 +44,108 @@ pub struct Vertex {
 
 implement_vertex!(Vertex, normal, position);
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)] pub struct NodeIndex(pub usize);
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)] pub struct EdgeIndex(pub usize);
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)] pub struct FaceIndex(pub usize);
+
+#[derive(Clone, Debug)]
+pub struct Node {
+    position: Point3<f32>,
+}
+
+pub type Edge = [NodeIndex; 2];
+pub type Face = [NodeIndex; 3];
+
 #[derive(Clone, Debug)]
 pub struct Geometry {
-    pub points: Vec<Point3<f32>>,
-    pub edges: Vec<[usize; 2]>,
-    pub faces: Vec<[usize; 3]>,
+    pub nodes: Vec<Node>,
+    pub edges: Vec<Edge>,
+    pub faces: Vec<Face>,
 }
 
 impl Geometry {
+    pub fn node(&self, index: NodeIndex) -> &Node {
+        &self.nodes[index.0]
+    }
+
+    pub fn edge(&self, index: EdgeIndex) -> &Edge {
+        &self.edges[index.0]
+    }
+
+    pub fn face(&self, index: FaceIndex) -> &Face {
+        &self.faces[index.0]
+    }
+
     pub fn subdivide(&self, radius: f32, count: usize) -> Geometry {
         (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(radius))
     }
 
     pub fn subdivide_once(&self, radius: f32) -> Geometry {
-        let mut points = Vec::with_capacity(self.points.len() * 2);
+        let mut nodes = Vec::with_capacity(self.nodes.len() * 2);
         let mut edges = Vec::with_capacity(self.edges.len() * 2);
         let mut faces = Vec::with_capacity(self.faces.len() * 4);
 
-        let mut index = 0;
+        let push_node = |nodes: &mut Vec<_>, node| {
+            nodes.push(node);
+            NodeIndex(nodes.len() - 1)
+        };
 
         for face in &self.faces {
             //
-            //          p0
+            //          n0
             //          /\
             //         /  \
-            // p2_p0  /____\  p0_p1
+            // n2_n0  /____\  n0_n1
             //       /\    /\
             //      /  \  /  \
             //     /____\/____\
-            //   p2    p1_p2   p1
+            //   n2    n1_n2   n1
             //
 
-            let p0    = math::project_to_radius(self.points[face[0]], radius);
-            let p1    = math::project_to_radius(self.points[face[1]], radius);
-            let p2    = math::project_to_radius(self.points[face[2]], radius);
-            let p0_p1 = math::project_to_radius(math::midpoint(p0, p1), radius);
-            let p1_p2 = math::project_to_radius(math::midpoint(p1, p2), radius);
-            let p2_p0 = math::project_to_radius(math::midpoint(p2, p0), radius);
+            let p0    = math::set_radius(self.node(face[0]).position, radius);
+            let p1    = math::set_radius(self.node(face[1]).position, radius);
+            let p2    = math::set_radius(self.node(face[2]).position, radius);
+            let p0_p1 = math::set_radius(math::midpoint(p0, p1), radius);
+            let p1_p2 = math::set_radius(math::midpoint(p1, p2), radius);
+            let p2_p0 = math::set_radius(math::midpoint(p2, p0), radius);
 
-            points.push(p0);    let p0    = index; index += 1;
-            points.push(p1);    let p1    = index; index += 1;
-            points.push(p2);    let p2    = index; index += 1;
-            points.push(p0_p1); let p0_p1 = index; index += 1;
-            points.push(p1_p2); let p1_p2 = index; index += 1;
-            points.push(p2_p0); let p2_p0 = index; index += 1;
+            let n0    = push_node(&mut nodes, Node { position: p0 });
+            let n1    = push_node(&mut nodes, Node { position: p1 });
+            let n2    = push_node(&mut nodes, Node { position: p2 });
+            let n0_n1 = push_node(&mut nodes, Node { position: p0_p1 });
+            let n1_n2 = push_node(&mut nodes, Node { position: p1_p2 });
+            let n2_n0 = push_node(&mut nodes, Node { position: p2_p0 });
 
-            edges.push([p0,    p0_p1]);
-            edges.push([p0,    p2_p0]);
-            edges.push([p2_p0, p0_p1]);
-            edges.push([p2_p0, p1_p2]);
-            edges.push([p2_p0, p2]);
-            edges.push([p2,    p1_p2]);
-            edges.push([p0_p1, p1]);
-            edges.push([p0_p1, p1_p2]);
-            edges.push([p1_p2, p1]);
+            edges.push([n0,    n0_n1]);
+            edges.push([n0,    n2_n0]);
+            edges.push([n2_n0, n0_n1]);
+            edges.push([n2_n0, n1_n2]);
+            edges.push([n2_n0, n2]);
+            edges.push([n2,    n1_n2]);
+            edges.push([n0_n1, n1]);
+            edges.push([n0_n1, n1_n2]);
+            edges.push([n1_n2, n1]);
 
-            faces.push([p0,    p0_p1, p2_p0]);
-            faces.push([p0_p1, p1,    p1_p2]);
-            faces.push([p2_p0, p1_p2, p2]);
-            faces.push([p2_p0, p0_p1, p1_p2]);
+            faces.push([n0,    n0_n1, n2_n0]);
+            faces.push([n0_n1, n1,    n1_n2]);
+            faces.push([n2_n0, n1_n2, n2]);
+            faces.push([n2_n0, n0_n1, n1_n2]);
         }
 
         Geometry {
-            points: points,
+            nodes: nodes,
             edges: edges,
             faces: faces,
         }
     }
 
     pub fn create_vertices(&self) -> Vec<Vertex> {
-        let mut vertices = Vec::with_capacity(self.points.len() * 3);
+        let mut vertices = Vec::with_capacity(self.nodes.len() * 3);
 
         for face in &self.faces {
-            let p0 = self.points[face[0]];
-            let p1 = self.points[face[1]];
-            let p2 = self.points[face[2]];
+            let p0 = self.node(face[0]).position;
+            let p1 = self.node(face[1]).position;
+            let p2 = self.node(face[2]).position;
 
             let normal = math::face_normal(p0, p1, p2);
 
