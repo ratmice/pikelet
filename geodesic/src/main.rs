@@ -236,15 +236,12 @@ fn main() {
 
         target.clear_color_and_depth(color::DARK_GREY, 1.0);
 
-        let vector3_array: fn(Vector3<f32>) -> [f32; 3] = Vector3::into;
-        let matrix4_array: fn(Matrix4<f32>) -> [[f32; 4]; 4] = Matrix4::into;
-
         target.draw(&vertex_buffer, &index_buffer, &shaded_program,
                     &uniform! {
                         color:      color::WHITE,
-                        light_dir:  vector3_array(LIGHT_DIR),
-                        model:      matrix4_array(Matrix4::identity()),
-                        view_proj:  matrix4_array(view_proj),
+                        light_dir:  math::array_v3(LIGHT_DIR),
+                        model:      math::array_m4(Matrix4::identity()),
+                        view_proj:  math::array_m4(view_proj),
                     },
                     &draw_params(PolygonMode::Fill)).unwrap();
 
@@ -253,8 +250,8 @@ fn main() {
                         &uniform! {
                             color:      color::BLACK,
                             // Scaled to prevent depth-fighting
-                            model:      matrix4_array(Matrix4::from_scale(1.001)),
-                            view_proj:  matrix4_array(view_proj),
+                            model:      math::array_m4(Matrix4::from_scale(1.001)),
+                            view_proj:  math::array_m4(view_proj),
                         },
                         &draw_params(PolygonMode::Line)).unwrap();
         }
