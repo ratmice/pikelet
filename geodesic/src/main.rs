@@ -7,8 +7,7 @@ pub use glium::glutin;
 use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::{Matrix4, SquareMatrix};
 use cgmath::{Point3, Point, Vector3};
-use glium::{BackfaceCullingMode, Depth, DepthTest, DrawParameters};
-use glium::{DisplayBuild, PolygonMode, Program, Surface, VertexBuffer};
+use glium::{DisplayBuild, DrawParameters, PolygonMode, Program, Surface, VertexBuffer};
 use glium::index::{PrimitiveType, NoIndices};
 use glutin::{ElementState, Event, WindowBuilder};
 use glutin::VirtualKeyCode as Key;
@@ -176,12 +175,14 @@ fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32)) -> Camera {
 }
 
 fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
+    use glium::{BackfaceCullingMode, Depth, DepthTest};
+
     DrawParameters {
         backface_culling: BackfaceCullingMode::CullClockwise,
         depth: Depth {
             test: DepthTest::IfLess,
             write: true,
-            ..Default::default()
+            ..Depth::default()
         },
         polygon_mode: polygon_mode,
         ..DrawParameters::default()
