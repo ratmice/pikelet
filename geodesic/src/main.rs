@@ -47,24 +47,22 @@ pub struct Vertex {
 
 implement_vertex!(Vertex, normal, position);
 
-impl Geometry {
-    pub fn create_vertices(&self) -> Vec<Vertex> {
-        let mut vertices = Vec::with_capacity(self.nodes.len() * 3);
+pub fn create_vertices(geometry: &Geometry) -> Vec<Vertex> {
+    let mut vertices = Vec::with_capacity(geometry.nodes.len() * 3);
 
-        for face in &self.faces {
-            let n0 = index::get(&self.nodes, face.nodes[0]).position;
-            let n1 = index::get(&self.nodes, face.nodes[1]).position;
-            let n2 = index::get(&self.nodes, face.nodes[2]).position;
+    for face in &geometry.faces {
+        let n0 = index::get(&geometry.nodes, face.nodes[0]).position;
+        let n1 = index::get(&geometry.nodes, face.nodes[1]).position;
+        let n2 = index::get(&geometry.nodes, face.nodes[2]).position;
 
-            let normal = math::face_normal(n0, n1, n2);
+        let normal = math::face_normal(n0, n1, n2);
 
-            vertices.push(Vertex { normal: normal.into(), position: n0.into() });
-            vertices.push(Vertex { normal: normal.into(), position: n1.into() });
-            vertices.push(Vertex { normal: normal.into(), position: n2.into() });
-        }
-
-        vertices
+        vertices.push(Vertex { normal: normal.into(), position: n0.into() });
+        vertices.push(Vertex { normal: normal.into(), position: n1.into() });
+        vertices.push(Vertex { normal: normal.into(), position: n2.into() });
     }
+
+    vertices
 }
 
 fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32)) -> Camera {
@@ -107,11 +105,15 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let vertices = geom::icosahedron()
-        .subdivide(POLYHEDRON_RADIUS, POLYHEDRON_SUBDIVS)
-        .create_vertices();
 
-    let vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
+    // Initialise state and resources
+
+    let mut show_mesh = true;
+    let mut is_rotating = true;
+    let mut camera_rotation = Rad::new(0.0);
+
+    let planet = geom::icosahedron().subdivide(POLYHEDRON_RADIUS, POLYHEDRON_SUBDIVS);
+    let vertex_buffer = VertexBuffer::new(&display, &create_vertices(planet)).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
     let shaded_program =
@@ -126,22 +128,26 @@ fn main() {
                              include_str!("shader/flat.f.glsl"),
                              None).unwrap();
 
-    let mut camera_rotation = Rad::new(0.0);
 
-    let mut show_mesh = true;
-    let mut is_rotating = true;
+    // Main loop
 
     'main: for time in times::in_seconds() {
         if let Some(window) = display.get_window() {
             window.set_title(&format!("{} | FPS: {:.2}",  WINDOW_TITLE, 1.0 / time.delta()));
         }
 
-        let mut target = display.draw();
+
+        // Update state
 
         if is_rotating {
             let delta = Rad::full_turn() * ROTATIONS_PER_SECOND * time.delta() as f32;
             camera_rotation = camera_rotation + delta;
         }
+
+
+        // Render scene
+
+        let mut target = display.draw();
         let camera = create_camera(camera_rotation, target.get_dimensions());
         let view_proj = camera.to_mat();
 
@@ -168,6 +174,9 @@ fn main() {
         }
 
         target.finish().unwrap();
+
+
+        // Event handling
 
         for ev in display.poll_events() {
             match ev {

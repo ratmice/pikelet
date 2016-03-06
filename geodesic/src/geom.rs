@@ -216,52 +216,116 @@ pub fn icosahedron() -> Geometry {
 
 #[cfg(test)]
 mod tests {
-    use index;
-    use super::*;
-    use super::EdgeIndex as E;
-    use super::FaceIndex as F;
-    use super::NodeIndex as N;
+    use std::collections::HashMap;
+    use std::collections::hash_map::Entry;
+    use std::hash::Hash;
 
-    macro_rules! assert_valid_topology {
-        ($geom:expr) => {{
-            let geom = $geom;
+    #[derive(Debug)]
+    struct CountingMap<T: Hash + Eq>(HashMap<T, usize>);
 
-            for (n, node) in geom.nodes.iter().enumerate() {
-                for e in &node.edges {
-                    assert!(index::get(&geom.edges, *e).nodes.contains(&N(n)));
-                }
-                for f in &node.faces {
-                    assert!(index::get(&geom.faces, *f).nodes.contains(&N(n)));
-                }
+    impl<T: Hash + Eq> CountingMap<T> {
+        fn new() -> CountingMap<T> {
+            CountingMap(HashMap::new())
+        }
+
+        fn add(&mut self, key: T) {
+            match self.0.entry(key) {
+                Entry::Occupied(mut ent) => { *ent.get_mut() += 1; },
+                Entry::Vacant(ent) => { ent.insert(1); },
             }
+        }
 
-            for (e, edge) in geom.edges.iter().enumerate() {
-                for n in &edge.nodes {
-                    assert!(index::get(&geom.nodes, *n).edges.contains(&E(e)));
-                }
-                for f in &edge.faces {
-                    assert!(index::get(&geom.faces, *f).edges.contains(&E(e)));
-                }
+        fn get(&self, key: T) -> usize {
+            match self.0.get(&key) {
+                Some(&x) => x,
+                None => 0,
             }
+        }
 
-            for (f, face) in geom.faces.iter().enumerate() {
-                for n in &face.nodes {
-                    assert!(index::get(&geom.nodes, *n).faces.contains(&F(f)));
-                }
-                for e in &face.edges {
-                    assert!(index::get(&geom.edges, *e).faces.contains(&F(f)));
-                }
-            }
-        }}
+        fn total(&self) -> usize {
+            self.0.values().fold(0, |acc, x| acc + x)
+        }
     }
 
-    #[test]
-    fn test_icosahedron_topology() {
-        assert_valid_topology!(icosahedron());
+    macro_rules! test_topology {
+        ($mod_name:ident, $geom:expr) => {
+            mod $mod_name {
+                use index;
+                use geom::*;
+                use geom::EdgeIndex as E;
+                use geom::FaceIndex as F;
+                use geom::NodeIndex as N;
+
+                use super::CountingMap;
+
+                #[test]
+                fn test_topology() {
+                    let geom = $geom;
+
+                    for (n, node) in geom.nodes.iter().enumerate() {
+                        for e in &node.edges {
+                            assert!(index::get(&geom.edges, *e).nodes.contains(&N(n)));
+                        }
+                        for f in &node.faces {
+                            assert!(index::get(&geom.faces, *f).nodes.contains(&N(n)));
+                        }
+                    }
+
+                    for (e, edge) in geom.edges.iter().enumerate() {
+                        for n in &edge.nodes {
+                            assert!(index::get(&geom.nodes, *n).edges.contains(&E(e)));
+                        }
+                        for f in &edge.faces {
+                            assert!(index::get(&geom.faces, *f).edges.contains(&E(e)));
+                        }
+                    }
+
+                    for (f, face) in geom.faces.iter().enumerate() {
+                        for n in &face.nodes {
+                            assert!(index::get(&geom.nodes, *n).faces.contains(&F(f)));
+                        }
+                        for e in &face.edges {
+                            assert!(index::get(&geom.edges, *e).faces.contains(&F(f)));
+                        }
+                    }
+                }
+
+                #[test]
+                fn test_node_edge_counts() {
+                    let mut counts = CountingMap::new();
+
+                    for node in $geom.nodes.iter() {
+                        counts.add(node.edges.len());
+                    }
+
+                    assert!(counts.get(5) == 12 && counts.get(5) + counts.get(6) == counts.total(), "{:#?}", counts);
+                }
+
+                #[test]
+                fn test_node_face_counts() {
+                    let mut counts = CountingMap::new();
+
+                    for node in $geom.nodes.iter() {
+                        counts.add(node.faces.len());
+                    }
+
+                    assert!(counts.get(5) == 12 && counts.get(5) + counts.get(6) == counts.total(), "{:#?}", counts);
+                }
+
+                #[test]
+                fn test_edge_face_counts() {
+                    let mut counts = CountingMap::new();
+
+                    for edge in $geom.edges.iter() {
+                        counts.add(edge.faces.len());
+                    }
+
+                    assert!(counts.get(2) == counts.total(), "{:#?}", counts);
+                }
+            }
+        }
     }
 
-    #[test]
-    fn test_subdivided_topology() {
-        assert_valid_topology!(icosahedron().subdivide(1.0, 3));
-    }
+    test_topology!(icosahedron_tests, icosahedron());
+    test_topology!(subdivided_tests, icosahedron().subdivide(1.0, 3));
 }
