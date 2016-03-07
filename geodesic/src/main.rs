@@ -133,7 +133,7 @@ fn main() {
 
     // Initialise state and resources
 
-    let mut show_mesh = true;
+    let mut show_mesh = false;
     let mut is_rotating = true;
     let mut camera_rotation = Rad::new(0.0);
 
