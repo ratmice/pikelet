@@ -85,19 +85,25 @@ impl Geometry {
             let n5 = push_node(&mut nodes, Node { position: p5, edges: vec_len6(), faces: vec_len6() });
 
             let n0_n3 = push_edge(&mut edges, Edge { nodes: [n0, n3], faces: vec_len2() });
-            let n0_n5 = push_edge(&mut edges, Edge { nodes: [n0, n5], faces: vec_len2() });
+            let n3_n5 = push_edge(&mut edges, Edge { nodes: [n3, n5], faces: vec_len2() });
+            let n5_n0 = push_edge(&mut edges, Edge { nodes: [n5, n0], faces: vec_len2() });
+            
             let n5_n3 = push_edge(&mut edges, Edge { nodes: [n5, n3], faces: vec_len2() });
-            let n5_n4 = push_edge(&mut edges, Edge { nodes: [n5, n4], faces: vec_len2() });
-            let n5_n2 = push_edge(&mut edges, Edge { nodes: [n5, n2], faces: vec_len2() });
-            let n2_n4 = push_edge(&mut edges, Edge { nodes: [n2, n4], faces: vec_len2() });
-            let n3_n1 = push_edge(&mut edges, Edge { nodes: [n3, n1], faces: vec_len2() });
             let n3_n4 = push_edge(&mut edges, Edge { nodes: [n3, n4], faces: vec_len2() });
-            let n4_n1 = push_edge(&mut edges, Edge { nodes: [n4, n1], faces: vec_len2() });
+            let n4_n5 = push_edge(&mut edges, Edge { nodes: [n4, n5], faces: vec_len2() });
+            
+            let n3_n1 = push_edge(&mut edges, Edge { nodes: [n3, n1], faces: vec_len2() });
+            let n1_n4 = push_edge(&mut edges, Edge { nodes: [n1, n4], faces: vec_len2() });
+            let n4_n3 = push_edge(&mut edges, Edge { nodes: [n4, n3], faces: vec_len2() });
 
-            faces.push(Face { nodes: [n0, n3, n5], edges: [n0_n3, n0_n5, n5_n3] });
-            faces.push(Face { nodes: [n3, n1, n4], edges: [n3_n1, n3_n4, n4_n1] });
-            faces.push(Face { nodes: [n5, n4, n2], edges: [n5_n4, n5_n2, n2_n4] });
-            faces.push(Face { nodes: [n5, n3, n4], edges: [n5_n3, n5_n4, n3_n4] });
+            let n5_n4 = push_edge(&mut edges, Edge { nodes: [n5, n4], faces: vec_len2() });
+            let n4_n2 = push_edge(&mut edges, Edge { nodes: [n4, n2], faces: vec_len2() });
+            let n2_n5 = push_edge(&mut edges, Edge { nodes: [n2, n5], faces: vec_len2() });
+
+            faces.push(Face { nodes: [n0, n3, n5], edges: [n0_n3, n3_n5, n5_n0] });
+            faces.push(Face { nodes: [n5, n3, n4], edges: [n5_n3, n3_n4, n4_n5] });
+            faces.push(Face { nodes: [n3, n1, n4], edges: [n3_n1, n1_n4, n4_n3] });
+            faces.push(Face { nodes: [n5, n4, n2], edges: [n5_n4, n4_n2, n2_n5] });
         }
 
         Geometry {
