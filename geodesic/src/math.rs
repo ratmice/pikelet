@@ -27,6 +27,10 @@ pub fn array_v3(v: Vector3<f32>) -> [f32; 3] {
     v.into()
 }
 
+pub fn array_p3(p: Point3<f32>) -> [f32; 3] {
+    p.into()
+}
+
 pub fn array_m4(m: Matrix4<f32>) -> [[f32; 4]; 4] {
     m.into()
 }

@@ -138,7 +138,8 @@ fn main() {
     let mut camera_rotation = Rad::new(0.0);
 
     let planet = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
-    let vertex_buffer = VertexBuffer::new(&display, &create_dual_vertices(&planet)).unwrap();
+    let vertex_buffer = VertexBuffer::new(&display, &create_vertices(&planet)).unwrap();
+    //let vertex_buffer = VertexBuffer::new(&display, &create_dual_vertices(&planet)).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
     let shaded_program =
@@ -176,6 +177,7 @@ fn main() {
         let camera = create_camera(camera_rotation, target.get_dimensions());
         let view_matrix = camera.view_matrix();
         let proj_matrix = camera.projection_matrix();
+        let eye_position = camera.position;
 
         target.clear_color_and_depth(color::DARK_GREY, 1.0);
 
@@ -186,6 +188,7 @@ fn main() {
                         model:      math::array_m4(Matrix4::identity()),
                         view:       math::array_m4(view_matrix),
                         proj:       math::array_m4(proj_matrix),
+                        eye:        math::array_p3(eye_position),
                     },
                     &draw_params(PolygonMode::Fill)).unwrap();
 

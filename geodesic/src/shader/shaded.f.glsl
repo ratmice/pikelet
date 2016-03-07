@@ -4,6 +4,7 @@ uniform vec4 color;
 uniform vec3 light_dir;
 
 in vec3 v_mv_pos;
+in vec3 v_eye_relative_pos;
 
 out vec4 o_color;
 
@@ -15,8 +16,9 @@ vec3 faceNormal(vec3 pos) {
 }
 
 void main() {
-    vec3 normal = faceNormal(v_mv_pos);
+  vec3 light_dir_test = vec3(1.0, 0.0, 0.0);
+  vec3 normal = faceNormal(v_eye_relative_pos);
 
-    float intensity = max(dot(light_dir, normal), 0.0);
-    o_color = vec4(intensity * color.rgb, 1.0);
+  float intensity = max(dot(light_dir, normal), 0.0);
+  o_color = vec4(intensity * color.rgb, 1.0);
 }
