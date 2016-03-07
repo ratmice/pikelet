@@ -36,12 +36,14 @@ pub struct Geometry {
 fn vec_len2<T>() -> Vec<T> { Vec::with_capacity(2) }
 fn vec_len6<T>() -> Vec<T> { Vec::with_capacity(6) }
 
+const BASE_RADIUS: f32 = 1.0;
+
 impl Geometry {
-    pub fn subdivide(&self, radius: f32, count: usize) -> Geometry {
-        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(radius))
+    pub fn subdivide(&self, count: usize) -> Geometry {
+        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once())
     }
 
-    pub fn subdivide_once(&self, radius: f32) -> Geometry {
+    pub fn subdivide_once(&self) -> Geometry {
         let mut nodes = Vec::with_capacity(self.nodes.len() * 2);
         let mut edges = Vec::with_capacity(self.edges.len() * 2);
         let mut faces = Vec::with_capacity(self.faces.len() * 4);
@@ -68,12 +70,12 @@ impl Geometry {
             //   n2     n4     n1
             //
 
-            let p0 = math::set_radius(index::get(&self.nodes, face.nodes[0]).position, radius);
-            let p1 = math::set_radius(index::get(&self.nodes, face.nodes[1]).position, radius);
-            let p2 = math::set_radius(index::get(&self.nodes, face.nodes[2]).position, radius);
-            let p3 = math::set_radius(math::midpoint(p0, p1), radius);
-            let p4 = math::set_radius(math::midpoint(p1, p2), radius);
-            let p5 = math::set_radius(math::midpoint(p2, p0), radius);
+            let p0 = index::get(&self.nodes, face.nodes[0]).position;
+            let p1 = index::get(&self.nodes, face.nodes[1]).position;
+            let p2 = index::get(&self.nodes, face.nodes[2]).position;
+            let p3 = math::set_radius(math::midpoint(p0, p1), BASE_RADIUS);
+            let p4 = math::set_radius(math::midpoint(p1, p2), BASE_RADIUS);
+            let p5 = math::set_radius(math::midpoint(p2, p0), BASE_RADIUS);
 
             let n0 = push_node(&mut nodes, Node { position: p0, edges: vec_len6(), faces: vec_len6() });
             let n1 = push_node(&mut nodes, Node { position: p1, edges: vec_len6(), faces: vec_len6() });
@@ -137,18 +139,18 @@ pub fn icosahedron() -> Geometry {
     // (https://en.wikipedia.org/wiki/Golden_ratio).
     let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
     let nodes = vec![
-        Node { position: math::set_radius(Point3::new( phi,  1.0,  0.0), 1.0), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( phi, -1.0,  0.0), 1.0), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new(-phi,  1.0,  0.0), 1.0), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new(-phi, -1.0,  0.0), 1.0), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 0.0,  phi,  1.0), 1.0), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 0.0,  phi, -1.0), 1.0), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 0.0, -phi,  1.0), 1.0), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 0.0, -phi, -1.0), 1.0), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 1.0,  0.0,  phi), 1.0), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new(-1.0,  0.0,  phi), 1.0), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 1.0,  0.0, -phi), 1.0), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new(-1.0,  0.0, -phi), 1.0), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( phi,  1.0,  0.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( phi, -1.0,  0.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new(-phi,  1.0,  0.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new(-phi, -1.0,  0.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 0.0,  phi,  1.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 0.0,  phi, -1.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 0.0, -phi,  1.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 0.0, -phi, -1.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 1.0,  0.0,  phi), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new(-1.0,  0.0,  phi), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( 1.0,  0.0, -phi), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new(-1.0,  0.0, -phi), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
     ];
 
     let edges = vec![
@@ -326,6 +328,6 @@ mod tests {
         }
     }
 
-    test_topology!(icosahedron_tests, icosahedron());
-    test_topology!(subdivided_tests, icosahedron().subdivide(1.0, 3));
+    test_topology!(icosahedron_topology, icosahedron());
+    test_topology!(subdiv3_topology, icosahedron().subdivide(3));
 }

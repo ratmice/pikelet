@@ -34,7 +34,6 @@ const CAMERA_NEAR: f32 = 0.1;
 const CAMERA_FAR: f32 = 300.0;
 
 const POLYHEDRON_SUBDIVS: usize = 3;
-const POLYHEDRON_RADIUS: f32 = 1.0;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
 const ROTATIONS_PER_SECOND: f32 = 0.1;
@@ -112,7 +111,7 @@ fn main() {
     let mut is_rotating = true;
     let mut camera_rotation = Rad::new(0.0);
 
-    let planet = geom::icosahedron().subdivide(POLYHEDRON_RADIUS, POLYHEDRON_SUBDIVS);
+    let planet = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
     let vertex_buffer = VertexBuffer::new(&display, &create_vertices(planet)).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
