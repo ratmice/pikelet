@@ -16,9 +16,13 @@ vec3 faceNormal(vec3 pos) {
 }
 
 void main() {
-  vec3 light_dir_test = vec3(1.0, 0.0, 0.0);
+  vec3 ambient = vec3(0.0075, 0.0075, 0.0075); // avoid pure black unless you're out in space.
   vec3 normal = faceNormal(v_eye_relative_pos);
 
   float intensity = max(dot(light_dir, normal), 0.0);
-  o_color = vec4(intensity * color.rgb, 1.0);
+
+  // TODO: Gather light contributions in a loop (support another light or two).
+  vec3 lighting = min((intensity + ambient), 1.0);
+  
+  o_color = vec4(lighting * color.rgb, 1.0);
 }
