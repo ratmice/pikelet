@@ -183,7 +183,7 @@ fn main() {
         let proj_matrix = camera.projection_matrix();
         let eye_position = camera.position;
 
-        target.clear_color_and_depth(color::DARK_GREY, 1.0);
+        target.clear_color_and_depth(color::WARM_GREY, 1.0);
 
         target.draw(&delaunay_vertex_buffer, &index_buffer, &shaded_program,
                     &uniform! {
@@ -199,7 +199,7 @@ fn main() {
         if show_mesh {
             target.draw(&voronoi_vertex_buffer, &index_buffer, &flat_program,
                         &uniform! {
-                            color:      color::BLACK,
+                            color:      color::DARK_GREY,
                             model:      math::array_m4(Matrix4::identity()),
                             view:       math::array_m4(view_matrix),
                             proj:       math::array_m4(proj_matrix),
