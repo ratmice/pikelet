@@ -1,9 +1,7 @@
 [package]
+authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>", "Chip Collier <photex@gmail.com>"]
 name = "voyager"
 version = "0.0.1"
-authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>",
-           "Chip Collier <photex@gmail.com>"
-          ]
 
 [[bin]]
 name = "voyager"
@@ -13,18 +11,12 @@ path = "voyager/src/main.rs"
 name = "geodesic"
 path = "geodesic/src/main.rs"
 
+[dependencies]
+cgmath = "0.7.0"
+glium = "0.13.5"
+glutin = "0.4.9"
+time = "0.1.34"
+
 [lib]
 name = "vtime"
 path = "time/src/lib.rs"
-
-[dependencies]
-nalgebra = "*"
-rustc-serialize = "*"
-time = "*"
-
-[dependencies.glium]
-version = "*"
-features = ["glutin", "nalgebra"]
-
-[dependencies.imgui]
-path = "imgui"
