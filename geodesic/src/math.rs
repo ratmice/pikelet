@@ -1,9 +1,17 @@
 use cgmath::{Matrix4};
 use cgmath::{Point3, Point};
-use cgmath::{Vector3, EuclideanVector};
+use cgmath::{Vector3, Vector, EuclideanVector};
 
 pub fn midpoint(p0: Point3<f32>, p1: Point3<f32>) -> Point3<f32> {
     Point3::from_vec(p0.to_vec() + p1.to_vec()) * 0.5
+}
+
+pub fn centroid(points: &[Point3<f32>]) -> Point3<f32> {
+    let sum: Vector3<f32> = points.iter()
+        .map(|p| p.to_vec())
+        .fold(Vector3::zero(), |acc, v| acc + v);
+
+    Point3::from_vec(sum / points.len() as f32)
 }
 
 pub fn face_normal(p0: Point3<f32>, p1: Point3<f32>, p2: Point3<f32>) -> Vector3<f32> {

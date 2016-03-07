@@ -2,15 +2,13 @@ extern crate cgmath;
 #[macro_use] extern crate glium;
 extern crate time;
 
-pub use glium::glutin;
-
 use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::{Matrix4, SquareMatrix};
 use cgmath::{Point3, Point, Vector3};
 use glium::{DisplayBuild, DrawParameters, PolygonMode, Program, Surface, VertexBuffer};
 use glium::index::{PrimitiveType, NoIndices};
-use glutin::{ElementState, Event, WindowBuilder};
-use glutin::VirtualKeyCode as Key;
+use glium::glutin::{ElementState, Event, WindowBuilder};
+use glium::glutin::VirtualKeyCode as Key;
 
 use camera::Camera;
 use geom::Geometry;
@@ -47,7 +45,9 @@ pub struct Vertex {
 implement_vertex!(Vertex, normal, position);
 
 pub fn create_vertices(geometry: &Geometry) -> Vec<Vertex> {
-    let mut vertices = Vec::with_capacity(geometry.nodes.len() * 3);
+    const VERTICES_PER_FACE: usize = 3;
+
+    let mut vertices = Vec::with_capacity(geometry.faces.len() * VERTICES_PER_FACE);
 
     for face in &geometry.faces {
         let n0 = index::get(&geometry.nodes, face.nodes[0]).position;
@@ -59,6 +59,37 @@ pub fn create_vertices(geometry: &Geometry) -> Vec<Vertex> {
         vertices.push(Vertex { normal: normal.into(), position: n0.into() });
         vertices.push(Vertex { normal: normal.into(), position: n1.into() });
         vertices.push(Vertex { normal: normal.into(), position: n2.into() });
+    }
+
+    vertices
+}
+
+pub fn create_dual_vertices(geometry: &Geometry) -> Vec<Vertex> {
+    const MAX_FACES_PER_NODE: usize = 6;
+    const VERTICES_PER_FACE: usize = 3;
+
+    let mut vertices = Vec::with_capacity(geometry.nodes.len() * MAX_FACES_PER_NODE * VERTICES_PER_FACE);
+
+    for (i, node) in geometry.nodes.iter().enumerate() {
+        let midpoints: Vec<_> =
+            geometry.adjacent_nodes(geom::NodeIndex(i)).iter()
+                .map(|n| math::midpoint(node.position, n.position))
+                .collect();
+
+        let centroid = math::centroid(&midpoints);
+
+        let first = midpoints[0];
+        let mut prev = first;
+
+        for &curr in midpoints[1..].iter().chain(Some(&first)) {
+            let normal = math::face_normal(centroid, curr, prev);
+
+            vertices.push(Vertex { normal: normal.into(), position: centroid.into() });
+            vertices.push(Vertex { normal: normal.into(), position: curr.into() });
+            vertices.push(Vertex { normal: normal.into(), position: prev.into() });
+
+            prev = curr;
+        }
     }
 
     vertices
@@ -112,7 +143,7 @@ fn main() {
     let mut camera_rotation = Rad::new(0.0);
 
     let planet = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
-    let vertex_buffer = VertexBuffer::new(&display, &create_vertices(planet)).unwrap();
+    let vertex_buffer = VertexBuffer::new(&display, &create_dual_vertices(&planet)).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
     let shaded_program =

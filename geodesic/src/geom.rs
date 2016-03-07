@@ -127,6 +127,21 @@ impl Geometry {
 
         self
     }
+
+    pub fn adjacent_nodes(&self, n: NodeIndex) -> Vec<&Node> {
+        index::get(&self.nodes, n).edges.iter()
+            .map(|&e| {
+                let edge = index::get(&self.edges, e);
+                if n == edge.nodes[0] {
+                    index::get(&self.nodes, edge.nodes[1])
+                } else if n == edge.nodes[1] {
+                    index::get(&self.nodes, edge.nodes[0])
+                } else {
+                    panic!("Expected node index `{:?}` to be in edge `{:?}`", n, edge)
+                }
+            })
+            .collect()
+    }
 }
 
 /// The base geometry of a [regular iocosahedron](https://en.wikipedia.org/wiki/Regular_icosahedron).
@@ -325,6 +340,19 @@ mod tests {
                     }
 
                     assert!(counts.get(2) == counts.total(), "{:#?}", counts);
+                }
+
+                #[test]
+                fn test_adjacent_node_counts() {
+                    let geom = $geom;
+                    let mut counts = CountingMap::new();
+
+                    for n in (0..geom.nodes.len()).map(N) {
+                        let adjacent = geom.adjacent_nodes(n);
+                        counts.add(adjacent.len());
+                    }
+
+                    assert!(counts.get(5) == 12 && counts.get(5) + counts.get(6) == counts.total(), "{:#?}", counts);
                 }
             }
         }
