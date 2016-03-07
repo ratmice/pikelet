@@ -222,6 +222,8 @@ mod tests {
     use std::collections::hash_map::Entry;
     use std::hash::Hash;
 
+    use geom::*;
+
     #[derive(Debug)]
     struct CountingMap<T: Hash + Eq>(HashMap<T, usize>);
 
@@ -330,4 +332,20 @@ mod tests {
 
     test_topology!(icosahedron_topology, icosahedron());
     test_topology!(subdiv3_topology, icosahedron().subdivide(3));
+
+    #[test]
+    fn icosahedron_element_counts() {
+        let geom = icosahedron();
+
+        // From https://en.wikipedia.org/wiki/Regular_icosahedron
+        assert_eq!((geom.nodes.len(), geom.edges.len(), geom.faces.len()), (12, 30, 20));
+    }
+
+    #[test]
+    fn subdiv1_element_counts() {
+        let geom = icosahedron().subdivide(1);
+
+        // From https://en.wikipedia.org/wiki/Truncated_icosahedron
+        assert_eq!((geom.nodes.len(), geom.edges.len(), geom.faces.len()), (60, 90, 32));
+    }
 }
