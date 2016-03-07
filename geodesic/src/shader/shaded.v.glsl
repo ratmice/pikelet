@@ -1,14 +1,17 @@
 #version 150 core
 
 uniform mat4 model;
-uniform mat4 view_proj;
+uniform mat4 view;
+uniform mat4 proj;
 
-in vec3 normal;
 in vec3 position;
 
-out vec3 v_normal;
+out vec3 v_mv_pos;
 
 void main() {
-    v_normal = normal;
-    gl_Position = view_proj * model * vec4(position, 1.0);
+    vec4 pos = vec4(position, 1.0);
+    vec4 mv_pos = view * model * pos;
+
+    gl_Position = proj * mv_pos;
+    v_mv_pos = -mv_pos.xyz;
 }

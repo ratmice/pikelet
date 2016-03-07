@@ -38,11 +38,10 @@ const ROTATIONS_PER_SECOND: f32 = 0.1;
 
 #[derive(Copy, Clone)]
 pub struct Vertex {
-    normal: [f32; 3],
     position: [f32; 3],
 }
 
-implement_vertex!(Vertex, normal, position);
+implement_vertex!(Vertex, position);
 
 pub fn create_vertices(geometry: &Geometry) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
@@ -54,11 +53,9 @@ pub fn create_vertices(geometry: &Geometry) -> Vec<Vertex> {
         let n1 = index::get(&geometry.nodes, face.nodes[1]).position;
         let n2 = index::get(&geometry.nodes, face.nodes[2]).position;
 
-        let normal = math::face_normal(n0, n1, n2);
-
-        vertices.push(Vertex { normal: normal.into(), position: n0.into() });
-        vertices.push(Vertex { normal: normal.into(), position: n1.into() });
-        vertices.push(Vertex { normal: normal.into(), position: n2.into() });
+        vertices.push(Vertex { position: n0.into() });
+        vertices.push(Vertex { position: n1.into() });
+        vertices.push(Vertex { position: n2.into() });
     }
 
     vertices
@@ -82,11 +79,9 @@ pub fn create_dual_vertices(geometry: &Geometry) -> Vec<Vertex> {
         let mut prev = first;
 
         for &curr in midpoints[1..].iter().chain(Some(&first)) {
-            let normal = math::face_normal(centroid, curr, prev);
-
-            vertices.push(Vertex { normal: normal.into(), position: centroid.into() });
-            vertices.push(Vertex { normal: normal.into(), position: curr.into() });
-            vertices.push(Vertex { normal: normal.into(), position: prev.into() });
+            vertices.push(Vertex { position: centroid.into() });
+            vertices.push(Vertex { position: curr.into() });
+            vertices.push(Vertex { position: prev.into() });
 
             prev = curr;
         }
@@ -179,7 +174,8 @@ fn main() {
 
         let mut target = display.draw();
         let camera = create_camera(camera_rotation, target.get_dimensions());
-        let view_proj = camera.to_mat();
+        let view_matrix = camera.view_matrix();
+        let proj_matrix = camera.projection_matrix();
 
         target.clear_color_and_depth(color::DARK_GREY, 1.0);
 
@@ -188,7 +184,8 @@ fn main() {
                         color:      color::WHITE,
                         light_dir:  math::array_v3(LIGHT_DIR),
                         model:      math::array_m4(Matrix4::identity()),
-                        view_proj:  math::array_m4(view_proj),
+                        view:       math::array_m4(view_matrix),
+                        proj:       math::array_m4(proj_matrix),
                     },
                     &draw_params(PolygonMode::Fill)).unwrap();
 
@@ -198,7 +195,8 @@ fn main() {
                             color:      color::BLACK,
                             // Scaled to prevent depth-fighting
                             model:      math::array_m4(Matrix4::from_scale(1.001)),
-                            view_proj:  math::array_m4(view_proj),
+                            view:       math::array_m4(view_matrix),
+                            proj:       math::array_m4(proj_matrix),
                         },
                         &draw_params(PolygonMode::Line)).unwrap();
         }

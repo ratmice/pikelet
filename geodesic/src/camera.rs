@@ -7,15 +7,11 @@ pub struct Camera<T = f32> {
 }
 
 impl<T: BaseFloat> Camera<T> {
-    pub fn view_mat(&self) -> Matrix4<T> {
+    pub fn view_matrix(&self) -> Matrix4<T> {
         Matrix4::look_at(self.position, self.target, Vector3::unit_z())
     }
 
-    pub fn projection_mat(&self) -> Matrix4<T> {
+    pub fn projection_matrix(&self) -> Matrix4<T> {
         self.projection.into()
-    }
-
-    pub fn to_mat(&self) -> Matrix4<T> {
-        &self.projection_mat() * &self.view_mat()
     }
 }

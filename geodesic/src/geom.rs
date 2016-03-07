@@ -44,9 +44,9 @@ impl Geometry {
     }
 
     pub fn subdivide_once(&self) -> Geometry {
-        let mut nodes = Vec::with_capacity(self.nodes.len() * 2);
-        let mut edges = Vec::with_capacity(self.edges.len() * 2);
-        let mut faces = Vec::with_capacity(self.faces.len() * 4);
+        let mut nodes = Vec::with_capacity(self.nodes.len() * 2); // pentagons?
+        let mut edges = Vec::with_capacity(self.edges.len() * 2); // pentagons?
+        let mut faces = Vec::with_capacity(self.faces.len() * 4); // pentagons?
 
         let push_node = |nodes: &mut Vec<_>, node| {
             nodes.push(node);
