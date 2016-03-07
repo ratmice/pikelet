@@ -2,6 +2,8 @@ extern crate cgmath;
 #[macro_use] extern crate glium;
 extern crate time;
 
+use std::thread;
+
 use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::{Matrix4, SquareMatrix};
 use cgmath::{Point3, Point, Vector3};
@@ -31,10 +33,10 @@ const CAMERA_Y_HEIGHT: f32 = 1.0;
 const CAMERA_NEAR: f32 = 0.1;
 const CAMERA_FAR: f32 = 300.0;
 
-const POLYHEDRON_SUBDIVS: usize = 3;
+const POLYHEDRON_SUBDIVS: usize = 2;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
-const ROTATIONS_PER_SECOND: f32 = 0.1;
+const ROTATIONS_PER_SECOND: f32 = 0.025;
 
 #[derive(Copy, Clone)]
 pub struct Vertex {
@@ -109,6 +111,7 @@ fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32)) -> Camera {
 
 fn draw_params<'a>(polygon_mode: PolygonMode, depth_test: bool) -> DrawParameters<'a> {
     use glium::{BackfaceCullingMode, Depth, DepthTest};
+    use glium::draw_parameters::{Smooth};
 
     DrawParameters {
         backface_culling: BackfaceCullingMode::CullClockwise,
@@ -122,6 +125,8 @@ fn draw_params<'a>(polygon_mode: PolygonMode, depth_test: bool) -> DrawParameter
             Depth::default()
         },
         polygon_mode: polygon_mode,
+        line_width: Some(0.5),
+        smooth: Some(Smooth::Nicest),
         ..DrawParameters::default()
     }
 }
@@ -133,7 +138,6 @@ fn main() {
         .with_depth_buffer(24)
         .build_glium()
         .unwrap();
-
 
     // Initialise state and resources
 
@@ -158,14 +162,12 @@ fn main() {
                              include_str!("shader/flat.f.glsl"),
                              None).unwrap();
 
-
     // Main loop
 
     'main: for time in times::in_seconds() {
-        if let Some(window) = display.get_window() {
-            window.set_title(&format!("{} | FPS: {:.2}",  WINDOW_TITLE, 1.0 / time.delta()));
-        }
-
+        // if let Some(window) = display.get_window() {
+        //     window.set_title(&format!("{} | FPS: {:.2}",  WINDOW_TITLE, 1.0 / time.delta()));
+        // }
 
         // Update state
 
@@ -173,7 +175,6 @@ fn main() {
             let delta = Rad::full_turn() * ROTATIONS_PER_SECOND * time.delta() as f32;
             camera_rotation = camera_rotation + delta;
         }
-
 
         // Render scene
 
@@ -185,6 +186,17 @@ fn main() {
 
         target.clear_color_and_depth(color::WARM_GREY, 1.0);
 
+        if show_mesh {
+            target.draw(&voronoi_vertex_buffer, &index_buffer, &flat_program,
+                        &uniform! {
+                            color:      color::HALF_GREY,
+                            model:      math::array_m4(Matrix4::from_scale(1.025)),
+                            view:       math::array_m4(view_matrix),
+                            proj:       math::array_m4(proj_matrix),
+                        },
+                        &draw_params(PolygonMode::Line, true)).unwrap();
+        }
+        
         target.draw(&delaunay_vertex_buffer, &index_buffer, &shaded_program,
                     &uniform! {
                         color:      color::WHITE,
@@ -196,19 +208,7 @@ fn main() {
                     },
                     &draw_params(PolygonMode::Fill, true)).unwrap();
 
-        if show_mesh {
-            target.draw(&voronoi_vertex_buffer, &index_buffer, &flat_program,
-                        &uniform! {
-                            color:      color::DARK_GREY,
-                            model:      math::array_m4(Matrix4::identity()),
-                            view:       math::array_m4(view_matrix),
-                            proj:       math::array_m4(proj_matrix),
-                        },
-                        &draw_params(PolygonMode::Line, false)).unwrap();
-        }
-
         target.finish().unwrap();
-
 
         // Event handling
 
@@ -224,5 +224,7 @@ fn main() {
                 _ => {},
             }
         }
+
+        thread::sleep_ms(10); // battery saver ;)
     }
 }
