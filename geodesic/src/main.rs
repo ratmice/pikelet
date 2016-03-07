@@ -43,7 +43,7 @@ pub struct Vertex {
 
 implement_vertex!(Vertex, position);
 
-pub fn create_vertices(geometry: &Geometry) -> Vec<Vertex> {
+pub fn create_delaunay_vertices(geometry: &Geometry) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
 
     let mut vertices = Vec::with_capacity(geometry.faces.len() * VERTICES_PER_FACE);
@@ -61,7 +61,7 @@ pub fn create_vertices(geometry: &Geometry) -> Vec<Vertex> {
     vertices
 }
 
-pub fn create_dual_vertices(geometry: &Geometry) -> Vec<Vertex> {
+pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
     const MAX_FACES_PER_NODE: usize = 6;
     const VERTICES_PER_FACE: usize = 3;
 
@@ -107,15 +107,19 @@ fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32)) -> Camera {
     }
 }
 
-fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
+fn draw_params<'a>(polygon_mode: PolygonMode, depth_test: bool) -> DrawParameters<'a> {
     use glium::{BackfaceCullingMode, Depth, DepthTest};
 
     DrawParameters {
         backface_culling: BackfaceCullingMode::CullClockwise,
-        depth: Depth {
-            test: DepthTest::IfLess,
-            write: true,
-            ..Depth::default()
+        depth: if depth_test {
+            Depth {
+                test: DepthTest::IfLess,
+                write: true,
+                ..Depth::default()
+            }
+        } else {
+            Depth::default()
         },
         polygon_mode: polygon_mode,
         ..DrawParameters::default()
@@ -133,13 +137,13 @@ fn main() {
 
     // Initialise state and resources
 
-    let mut show_mesh = false;
+    let mut show_mesh = true;
     let mut is_rotating = true;
     let mut camera_rotation = Rad::new(0.0);
 
     let planet = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
-    let vertex_buffer = VertexBuffer::new(&display, &create_vertices(&planet)).unwrap();
-    //let vertex_buffer = VertexBuffer::new(&display, &create_dual_vertices(&planet)).unwrap();
+    let delaunay_vertex_buffer = VertexBuffer::new(&display, &create_delaunay_vertices(&planet)).unwrap();
+    let voronoi_vertex_buffer = VertexBuffer::new(&display, &create_voronoi_vertices(&planet)).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
     let shaded_program =
@@ -181,7 +185,7 @@ fn main() {
 
         target.clear_color_and_depth(color::DARK_GREY, 1.0);
 
-        target.draw(&vertex_buffer, &index_buffer, &shaded_program,
+        target.draw(&delaunay_vertex_buffer, &index_buffer, &shaded_program,
                     &uniform! {
                         color:      color::WHITE,
                         light_dir:  math::array_v3(LIGHT_DIR),
@@ -190,18 +194,17 @@ fn main() {
                         proj:       math::array_m4(proj_matrix),
                         eye:        math::array_p3(eye_position),
                     },
-                    &draw_params(PolygonMode::Fill)).unwrap();
+                    &draw_params(PolygonMode::Fill, true)).unwrap();
 
         if show_mesh {
-            target.draw(&vertex_buffer, &index_buffer, &flat_program,
+            target.draw(&voronoi_vertex_buffer, &index_buffer, &flat_program,
                         &uniform! {
                             color:      color::BLACK,
-                            // Scaled to prevent depth-fighting
-                            model:      math::array_m4(Matrix4::from_scale(1.001)),
+                            model:      math::array_m4(Matrix4::identity()),
                             view:       math::array_m4(view_matrix),
                             proj:       math::array_m4(proj_matrix),
                         },
-                        &draw_params(PolygonMode::Line)).unwrap();
+                        &draw_params(PolygonMode::Line, false)).unwrap();
         }
 
         target.finish().unwrap();
