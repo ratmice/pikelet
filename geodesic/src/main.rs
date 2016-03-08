@@ -150,16 +150,16 @@ fn main() {
     let voronoi_vertex_buffer = VertexBuffer::new(&display, &create_voronoi_vertices(&planet)).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
-    let shaded_program =
+    let flat_shaded_program =
         Program::from_source(&display,
-                             include_str!("shader/shaded.v.glsl"),
-                             include_str!("shader/shaded.f.glsl"),
+                             include_str!("shader/flat_shaded.v.glsl"),
+                             include_str!("shader/flat_shaded.f.glsl"),
                              None).unwrap();
 
-    let flat_program =
+    let unshaded_program =
         Program::from_source(&display,
-                             include_str!("shader/flat.v.glsl"),
-                             include_str!("shader/flat.f.glsl"),
+                             include_str!("shader/unshaded.v.glsl"),
+                             include_str!("shader/unshaded.f.glsl"),
                              None).unwrap();
 
     // Main loop
@@ -187,7 +187,7 @@ fn main() {
         target.clear_color_and_depth(color::BLUE, 1.0);
 
         if show_mesh {
-            target.draw(&voronoi_vertex_buffer, &index_buffer, &flat_program,
+            target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
                         &uniform! {
                             color:      color::WHITE,
                             model:      math::array_m4(Matrix4::from_scale(1.025)),
@@ -197,7 +197,7 @@ fn main() {
                         &draw_params(PolygonMode::Line, true)).unwrap();
         }
 
-        target.draw(&delaunay_vertex_buffer, &index_buffer, &shaded_program,
+        target.draw(&delaunay_vertex_buffer, &index_buffer, &flat_shaded_program,
                     &uniform! {
                         color:      color::GREEN,
                         light_dir:  math::array_v3(LIGHT_DIR),
