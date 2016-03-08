@@ -3,6 +3,8 @@ use cgmath::Point3;
 use index::{self, ElementIndex};
 use math;
 
+pub mod half_edge;
+
 element_index!(NodeIndex, Node);
 element_index!(EdgeIndex, Edge);
 element_index!(FaceIndex, Face);
