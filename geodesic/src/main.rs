@@ -34,7 +34,7 @@ const CAMERA_Y_HEIGHT: f32 = 1.0;
 const CAMERA_NEAR: f32 = 0.1;
 const CAMERA_FAR: f32 = 300.0;
 
-const POLYHEDRON_SUBDIVS: usize = 2;
+const POLYHEDRON_SUBDIVS: usize = 3;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
 const ROTATIONS_PER_SECOND: f32 = 0.025;
@@ -77,17 +77,18 @@ pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
                 .collect();
 
         let centroid = math::centroid(&midpoints);
+        vertices.push(Vertex { position: centroid.into() });
 
-        let first = midpoints[0];
-        let mut prev = first;
+        // let first = midpoints[0];
+        // let mut prev = first;
 
-        for &curr in midpoints[1..].iter().chain(Some(&first)) {
-            vertices.push(Vertex { position: centroid.into() });
-            vertices.push(Vertex { position: curr.into() });
-            vertices.push(Vertex { position: prev.into() });
+        // for &curr in midpoints[1..].iter().chain(Some(&first)) {
+        //     vertices.push(Vertex { position: centroid.into() });
+        //     vertices.push(Vertex { position: curr.into() });
+        //     vertices.push(Vertex { position: prev.into() });
 
-            prev = curr;
-        }
+        //     prev = curr;
+        // }
     }
 
     vertices
@@ -189,6 +190,15 @@ fn main() {
         target.clear_color_and_depth(color::WARM_GREY, 1.0);
 
         if show_mesh {
+            target.draw(&delaunay_vertex_buffer, &index_buffer, &flat_program,
+                    &uniform! {
+                        color:      color::PINK,
+                        model:      math::array_m4(Matrix4::identity()),
+                        view:       math::array_m4(view_matrix),
+                        proj:       math::array_m4(proj_matrix),
+                    },
+                    &draw_params(PolygonMode::Point, true)).unwrap();
+            
             target.draw(&voronoi_vertex_buffer, &index_buffer, &flat_program,
                         &uniform! {
                             color:      color::LIGHT_GREY,
