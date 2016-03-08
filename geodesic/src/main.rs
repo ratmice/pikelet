@@ -34,6 +34,7 @@ const CAMERA_Y_HEIGHT: f32 = 1.0;
 const CAMERA_NEAR: f32 = 0.1;
 const CAMERA_FAR: f32 = 1000.0;
 const CAMERA_ZOOM_FACTOR: f32 = 10.0;
+const CAMERA_DRAG_FACTOR: f32 = 10.0;
 
 const POLYHEDRON_SUBDIVS: usize = 1;
 
@@ -148,7 +149,7 @@ fn draw_params<'a>(polygon_mode: PolygonMode, depth_test: bool) -> DrawParameter
 
 enum DragState {
     Released { drag_delta: Vector2<i32> },
-    Dragging { start_position: Point2<i32> },
+    Dragging,
 }
 
 impl DragState {
@@ -156,17 +157,21 @@ impl DragState {
         DragState::Released { drag_delta: Vector2::zero() }
     }
 
-    fn begin_drag(&mut self, start_position: Point2<i32>) {
-        *self = DragState::Dragging { start_position: start_position };
+    fn begin_drag(&mut self) {
+        *self = DragState::Dragging;
     }
 
-    fn end_drag(&mut self, current_position: Point2<i32>) {
-        let delta = match *self {
-            DragState::Released { .. } => Vector2::zero(),
-            DragState::Dragging { start_position } => start_position - current_position,
-        };
+    fn end_drag(&mut self, mouse_delta: Vector2<i32>) {
+        if let DragState::Dragging = *self {
+            *self = DragState::Released { drag_delta: mouse_delta };
+        }
+    }
 
-        *self = DragState::Released { drag_delta: delta };
+    fn drag_delta(&self) -> Option<Vector2<i32>> {
+        match *self {
+            DragState::Released { drag_delta } => Some(drag_delta),
+            DragState::Dragging => None,
+        }
     }
 }
 
@@ -186,7 +191,7 @@ fn main() {
     let mut drag_state = DragState::new();
 
     let mut mouse_position = Point2::origin();
-    let mut mouse_delta = Vector2::zero();
+    let mut new_mouse_position = Point2::origin();
     let mut window_dimensions = (WINDOW_WIDTH, WINDOW_HEIGHT);
 
     let mut camera_rotation = Rad::new(0.0);
@@ -218,20 +223,17 @@ fn main() {
 
         // Update state
 
-        match drag_state {
-            DragState::Released { drag_delta } => {
-                let rotations_per_second = drag_delta.x as f32 / window_dimensions.0 as f32;
-                let delta = Rad::full_turn() * rotations_per_second * time.delta() as f32;
-                camera_rotation = camera_rotation - delta;
-            },
-            DragState::Dragging { .. } => {
-                // TODO: rotate with mouse
-            },
-        }
+        let mouse_delta = new_mouse_position - mouse_position;
+        mouse_position = new_mouse_position;
+
+        let drag_delta = -drag_state.drag_delta().unwrap_or(mouse_delta);
+        let rotations_per_second = (drag_delta.x as f32 / window_dimensions.0 as f32) * CAMERA_DRAG_FACTOR;
+        let rotation_delta = Rad::full_turn() * rotations_per_second * time.delta() as f32;
+        camera_rotation = camera_rotation - rotation_delta;
 
         if is_zooming {
-            let delta = mouse_delta.x as f32 * time.delta() as f32;
-            cam_distance = cam_distance - (delta * CAMERA_ZOOM_FACTOR);
+            let zoom_delta = mouse_delta.x as f32 * time.delta() as f32;
+            cam_distance = cam_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
         }
 
         // Render scene
@@ -301,18 +303,14 @@ fn main() {
                     _ => {},
                 },
                 Event::MouseInput(state, MouseButton::Left) => match state {
-                    ElementState::Pressed => drag_state.begin_drag(mouse_position),
-                    ElementState::Released => drag_state.end_drag(mouse_position),
+                    ElementState::Pressed => drag_state.begin_drag(),
+                    ElementState::Released => drag_state.end_drag(mouse_delta),
                 },
                 Event::MouseInput(state, MouseButton::Right) => match state {
                     ElementState::Pressed => is_zooming = true,
                     ElementState::Released => is_zooming = false,
                 },
-                Event::MouseMoved((x, y)) => {
-                    let new_mouse_position = Point2::new(x, y);
-                    mouse_delta = new_mouse_position - mouse_position;
-                    mouse_position = new_mouse_position;
-                },
+                Event::MouseMoved((x, y)) => new_mouse_position = Point2::new(x, y),
                 Event::Resized(width, height) => window_dimensions = (width, height),
                 _ => {},
             }
