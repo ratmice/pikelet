@@ -124,20 +124,16 @@ fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32), radius: f32) -
     }
 }
 
-fn draw_params<'a>(polygon_mode: PolygonMode, depth_test: bool) -> DrawParameters<'a> {
+fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
     use glium::{BackfaceCullingMode, Depth, DepthTest};
     use glium::draw_parameters::{Smooth};
 
     DrawParameters {
         backface_culling: BackfaceCullingMode::CullClockwise,
-        depth: if depth_test {
-            Depth {
-                test: DepthTest::IfLess,
-                write: true,
-                ..Depth::default()
-            }
-        } else {
-            Depth::default()
+        depth: Depth {
+            test: DepthTest::IfLess,
+            write: true,
+            ..Depth::default()
         },
         polygon_mode: polygon_mode,
         line_width: Some(0.5),
@@ -260,7 +256,7 @@ fn main() {
                             view:       math::array_m4(view_matrix),
                             proj:       math::array_m4(proj_matrix),
                         },
-                        &draw_params(PolygonMode::Point, true)).unwrap();
+                        &draw_params(PolygonMode::Point)).unwrap();
 
                 target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
                             &uniform! {
@@ -269,7 +265,7 @@ fn main() {
                                 view:       math::array_m4(view_matrix),
                                 proj:       math::array_m4(proj_matrix),
                             },
-                            &draw_params(PolygonMode::Point, true)).unwrap();
+                            &draw_params(PolygonMode::Point)).unwrap();
 
                 target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
                             &uniform! {
@@ -278,7 +274,7 @@ fn main() {
                                 view:       math::array_m4(view_matrix),
                                 proj:       math::array_m4(proj_matrix),
                             },
-                            &draw_params(PolygonMode::Line, true)).unwrap();
+                            &draw_params(PolygonMode::Line)).unwrap();
             }
 
             let polygon_mode = if wireframe { PolygonMode::Line } else { PolygonMode::Fill };
@@ -291,7 +287,7 @@ fn main() {
                             proj:       math::array_m4(proj_matrix),
                             eye:        math::array_p3(eye_position),
                         },
-                        &draw_params(polygon_mode, true)).unwrap();
+                        &draw_params(polygon_mode)).unwrap();
 
             target.finish().unwrap();
         }
