@@ -2,8 +2,6 @@ extern crate cgmath;
 #[macro_use] extern crate glium;
 extern crate time;
 
-use std::thread;
-
 use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::{Matrix4, SquareMatrix};
 use cgmath::{Point3, Point, Vector3};
@@ -11,6 +9,8 @@ use glium::{DisplayBuild, DrawParameters, PolygonMode, Program, Surface, VertexB
 use glium::index::{PrimitiveType, NoIndices};
 use glium::glutin::{ElementState, Event, WindowBuilder};
 use glium::glutin::VirtualKeyCode as Key;
+use std::thread;
+use std::time::Duration;
 
 use camera::Camera;
 use geom::Geometry;
@@ -225,6 +225,6 @@ fn main() {
             }
         }
 
-        thread::sleep_ms(10); // battery saver ;)
+        thread::sleep(Duration::from_millis(10)); // battery saver ;)
     }
 }
