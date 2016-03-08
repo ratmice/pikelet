@@ -184,22 +184,22 @@ fn main() {
         let proj_matrix = camera.projection_matrix();
         let eye_position = camera.position;
 
-        target.clear_color_and_depth(color::WARM_GREY, 1.0);
+        target.clear_color_and_depth(color::BLUE, 1.0);
 
         if show_mesh {
             target.draw(&voronoi_vertex_buffer, &index_buffer, &flat_program,
                         &uniform! {
-                            color:      color::HALF_GREY,
+                            color:      color::WHITE,
                             model:      math::array_m4(Matrix4::from_scale(1.025)),
                             view:       math::array_m4(view_matrix),
                             proj:       math::array_m4(proj_matrix),
                         },
                         &draw_params(PolygonMode::Line, true)).unwrap();
         }
-        
+
         target.draw(&delaunay_vertex_buffer, &index_buffer, &shaded_program,
                     &uniform! {
-                        color:      color::WHITE,
+                        color:      color::GREEN,
                         light_dir:  math::array_v3(LIGHT_DIR),
                         model:      math::array_m4(Matrix4::identity()),
                         view:       math::array_m4(view_matrix),
