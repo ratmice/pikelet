@@ -35,7 +35,7 @@ const CAMERA_FAR: f32 = 1000.0;
 const CAMERA_DRAG_FACTOR: f32 = 10.0;
 const CAMERA_ZOOM_FACTOR: f32 = 10.0;
 
-const POLYHEDRON_SUBDIVS: usize = 3;
+const POLYHEDRON_SUBDIVS: usize = 1;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
 const ROTATIONS_PER_SECOND: f32 = 0.025;
@@ -69,28 +69,40 @@ pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
     const MAX_FACES_PER_NODE: usize = 6;
     const VERTICES_PER_FACE: usize = 3;
 
-    let mut vertices = Vec::with_capacity(geometry.nodes.len() * MAX_FACES_PER_NODE * VERTICES_PER_FACE);
-
-    for (i, node) in geometry.nodes.iter().enumerate() {
-        let midpoints: Vec<_> =
-            geometry.adjacent_nodes(geom::NodeIndex(i)).iter()
-                .map(|n| math::midpoint(node.position, n.position))
-                .collect();
-
-        let centroid = math::centroid(&midpoints);
+    let mut vertices = Vec::with_capacity(geometry.faces.len());
+    
+    for face in geometry.faces.iter() {
+        let n0 = index::get(&geometry.nodes, face.nodes[0]).position;
+        let n1 = index::get(&geometry.nodes, face.nodes[1]).position;
+        let n2 = index::get(&geometry.nodes, face.nodes[2]).position;
+        let mut points = Vec::with_capacity(3);
+        points.push(n0);
+        points.push(n1);
+        points.push(n2);
+        let centroid = math::centroid(&points);
         vertices.push(Vertex { position: centroid.into() });
-
-        // let first = midpoints[0];
-        // let mut prev = first;
-
-        // for &curr in midpoints[1..].iter().chain(Some(&first)) {
-        //     vertices.push(Vertex { position: centroid.into() });
-        //     vertices.push(Vertex { position: curr.into() });
-        //     vertices.push(Vertex { position: prev.into() });
-
-        //     prev = curr;
-        // }
     }
+
+    // for (i, node) in geometry.nodes.iter().enumerate() {
+    //     let midpoints: Vec<_> =
+    //         geometry.adjacent_nodes(geom::NodeIndex(i)).iter()
+    //             .map(|n| math::midpoint(node.position, n.position))
+    //             .collect();
+
+    //     let centroid = math::centroid(&midpoints);
+    //     vertices.push(Vertex { position: centroid.into() });
+
+    //     let first = midpoints[0];
+    //     let mut prev = first;
+
+    //     for &curr in midpoints[1..].iter().chain(Some(&first)) {
+    //         vertices.push(Vertex { position: centroid.into() });
+    //         vertices.push(Vertex { position: curr.into() });
+    //         vertices.push(Vertex { position: prev.into() });
+
+    //         prev = curr;
+    //     }
+    // }
 
     vertices
 }
@@ -145,6 +157,7 @@ fn main() {
 
     // Initialise state and resources
 
+    let mut wireframe = false;
     let mut show_mesh = true;
     let mut is_rotating = false;
     let mut is_dragging = false;
@@ -218,7 +231,7 @@ fn main() {
             
             target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
                         &uniform! {
-                            color:      color::DARK_GREY,
+                            color:      color::YELLOW,
                             model:      math::array_m4(scaled),
                             view:       math::array_m4(view_matrix),
                             proj:       math::array_m4(proj_matrix),
@@ -235,6 +248,8 @@ fn main() {
                         &draw_params(PolygonMode::Line, true)).unwrap();
         }
 
+        let params = if wireframe { draw_params(PolygonMode::Line, true) } 
+                     else { draw_params(PolygonMode::Fill, true) };
         target.draw(&delaunay_vertex_buffer, &index_buffer, &flat_shaded_program,
                     &uniform! {
                         color:      color::GREEN,
@@ -244,7 +259,7 @@ fn main() {
                         proj:       math::array_m4(proj_matrix),
                         eye:        math::array_p3(eye_position),
                     },
-                    &draw_params(PolygonMode::Fill, true)).unwrap();
+                    &params).unwrap();
 
         target.finish().unwrap();
 
@@ -254,6 +269,7 @@ fn main() {
             match ev {
                 Event::Closed => break 'main,
                 Event::KeyboardInput(ElementState::Pressed, _, Some(key)) => match key {
+                    Key::W => wireframe = !wireframe,
                     Key::M => show_mesh = !show_mesh,
                     Key::Space => is_rotating = !is_rotating,
                     Key::Escape => break 'main,
