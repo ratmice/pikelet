@@ -3,6 +3,7 @@ extern crate cgmath;
 extern crate time;
 
 use std::thread;
+use std::time::Duration;
 
 use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::{Matrix4, SquareMatrix};
@@ -126,6 +127,7 @@ fn draw_params<'a>(polygon_mode: PolygonMode, depth_test: bool) -> DrawParameter
         },
         polygon_mode: polygon_mode,
         line_width: Some(0.5),
+        point_size: Some(5.0),
         smooth: Some(Smooth::Nicest),
         ..DrawParameters::default()
     }
@@ -189,6 +191,15 @@ fn main() {
         if show_mesh {
             target.draw(&voronoi_vertex_buffer, &index_buffer, &flat_program,
                         &uniform! {
+                            color:      color::LIGHT_GREY,
+                            model:      math::array_m4(Matrix4::from_scale(1.025)),
+                            view:       math::array_m4(view_matrix),
+                            proj:       math::array_m4(proj_matrix),
+                        },
+                        &draw_params(PolygonMode::Point, true)).unwrap();
+            
+            target.draw(&voronoi_vertex_buffer, &index_buffer, &flat_program,
+                        &uniform! {
                             color:      color::HALF_GREY,
                             model:      math::array_m4(Matrix4::from_scale(1.025)),
                             view:       math::array_m4(view_matrix),
@@ -225,6 +236,6 @@ fn main() {
             }
         }
 
-        thread::sleep_ms(10); // battery saver ;)
+        thread::sleep(Duration::from_millis(10 as u64)); // battery saver ;)
     }
 }
