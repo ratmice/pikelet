@@ -2,9 +2,6 @@ extern crate cgmath;
 #[macro_use] extern crate glium;
 extern crate time;
 
-use std::thread;
-use std::time::Duration;
-
 use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::{Matrix4, SquareMatrix};
 use cgmath::{Point3, Point, Vector3};
@@ -12,6 +9,8 @@ use glium::{DisplayBuild, DrawParameters, PolygonMode, Program, Surface, VertexB
 use glium::index::{PrimitiveType, NoIndices};
 use glium::glutin::{ElementState, Event, WindowBuilder};
 use glium::glutin::VirtualKeyCode as Key;
+use std::thread;
+use std::time::Duration;
 
 use camera::Camera;
 use geom::Geometry;
@@ -34,7 +33,7 @@ const CAMERA_Y_HEIGHT: f32 = 1.0;
 const CAMERA_NEAR: f32 = 0.1;
 const CAMERA_FAR: f32 = 300.0;
 
-const POLYHEDRON_SUBDIVS: usize = 3;
+const POLYHEDRON_SUBDIVS: usize = 2;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
 const ROTATIONS_PER_SECOND: f32 = 0.025;
@@ -153,16 +152,16 @@ fn main() {
     let voronoi_vertex_buffer = VertexBuffer::new(&display, &create_voronoi_vertices(&planet)).unwrap();
     let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
-    let shaded_program =
+    let flat_shaded_program =
         Program::from_source(&display,
-                             include_str!("shader/shaded.v.glsl"),
-                             include_str!("shader/shaded.f.glsl"),
+                             include_str!("shader/flat_shaded.v.glsl"),
+                             include_str!("shader/flat_shaded.f.glsl"),
                              None).unwrap();
 
-    let flat_program =
+    let unshaded_program =
         Program::from_source(&display,
-                             include_str!("shader/flat.v.glsl"),
-                             include_str!("shader/flat.f.glsl"),
+                             include_str!("shader/unshaded.v.glsl"),
+                             include_str!("shader/unshaded.f.glsl"),
                              None).unwrap();
 
     // Main loop
@@ -187,10 +186,10 @@ fn main() {
         let proj_matrix = camera.projection_matrix();
         let eye_position = camera.position;
 
-        target.clear_color_and_depth(color::WARM_GREY, 1.0);
+        target.clear_color_and_depth(color::BLUE, 1.0);
 
         if show_mesh {
-            target.draw(&delaunay_vertex_buffer, &index_buffer, &flat_program,
+            target.draw(&delaunay_vertex_buffer, &index_buffer, &unshaded_program,
                     &uniform! {
                         color:      color::PINK,
                         model:      math::array_m4(Matrix4::identity()),
@@ -199,7 +198,7 @@ fn main() {
                     },
                     &draw_params(PolygonMode::Point, true)).unwrap();
             
-            target.draw(&voronoi_vertex_buffer, &index_buffer, &flat_program,
+            target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
                         &uniform! {
                             color:      color::LIGHT_GREY,
                             model:      math::array_m4(Matrix4::from_scale(1.025)),
@@ -208,17 +207,17 @@ fn main() {
                         },
                         &draw_params(PolygonMode::Point, true)).unwrap();
             
-            target.draw(&voronoi_vertex_buffer, &index_buffer, &flat_program,
+            target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
                         &uniform! {
-                            color:      color::HALF_GREY,
+                            color:      color::GREEN,
                             model:      math::array_m4(Matrix4::from_scale(1.025)),
                             view:       math::array_m4(view_matrix),
                             proj:       math::array_m4(proj_matrix),
                         },
                         &draw_params(PolygonMode::Line, true)).unwrap();
         }
-        
-        target.draw(&delaunay_vertex_buffer, &index_buffer, &shaded_program,
+
+        target.draw(&delaunay_vertex_buffer, &index_buffer, &flat_shaded_program,
                     &uniform! {
                         color:      color::WHITE,
                         light_dir:  math::array_v3(LIGHT_DIR),

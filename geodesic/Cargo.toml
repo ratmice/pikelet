@@ -1,7 +1,10 @@
 [package]
 name = "geodesic"
 version = "0.1.0"
-authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
+authors = [
+    "Brendan Zabarauskas <bjzaba@yahoo.com.au>",
+    "Chip Collier <photex@gmail.com>",
+]
 
 [dependencies]
 cgmath = "0.7"
