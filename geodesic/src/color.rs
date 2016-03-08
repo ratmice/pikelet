@@ -11,4 +11,4 @@ pub const BLACK: Color = (0.0, 0.0, 0.0, 1.0);
 
 pub const BLUE: Color = (0.4, 0.6, 0.6, 1.0);
 pub const GREEN: Color = (0.4, 0.6, 0.2, 1.0);
-pub const PINK: Color = (1.0, 0.5, 0.5, 0.25);
+pub const RED: Color = (1.0, 0.25, 0.25, 0.25);

@@ -16,7 +16,7 @@ vec3 faceNormal(vec3 pos) {
 }
 
 void main() {
-    vec3 ambient = vec3(0.0075, 0.0075, 0.0075); // avoid pure black unless you're out in space.
+    vec3 ambient = vec3(0.0075, 0.0075, 0.075); // avoid pure black unless you're out in space.
     vec3 normal = faceNormal(v_eye_relative_pos);
 
     float intensity = max(dot(light_dir, normal), 0.0);

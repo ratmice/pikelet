@@ -7,7 +7,7 @@ use cgmath::{Matrix4, SquareMatrix};
 use cgmath::{Point3, Point, Vector3};
 use glium::{DisplayBuild, DrawParameters, PolygonMode, Program, Surface, VertexBuffer};
 use glium::index::{PrimitiveType, NoIndices};
-use glium::glutin::{ElementState, Event, WindowBuilder};
+use glium::glutin::{ElementState, Event, WindowBuilder, MouseButton};
 use glium::glutin::VirtualKeyCode as Key;
 use std::thread;
 use std::time::Duration;
@@ -31,9 +31,11 @@ const WINDOW_HEIGHT: u32 = 500;
 const CAMERA_XZ_RADIUS: f32 = 2.0;
 const CAMERA_Y_HEIGHT: f32 = 1.0;
 const CAMERA_NEAR: f32 = 0.1;
-const CAMERA_FAR: f32 = 300.0;
+const CAMERA_FAR: f32 = 1000.0;
+const CAMERA_DRAG_FACTOR: f32 = 10.0;
+const CAMERA_ZOOM_FACTOR: f32 = 10.0;
 
-const POLYHEDRON_SUBDIVS: usize = 2;
+const POLYHEDRON_SUBDIVS: usize = 3;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
 const ROTATIONS_PER_SECOND: f32 = 0.025;
@@ -93,11 +95,11 @@ pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
     vertices
 }
 
-fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32)) -> Camera {
+fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32), radius: f32) -> Camera {
     Camera {
         position: Point3 {
-            x: Rad::sin(rotation) * CAMERA_XZ_RADIUS,
-            y: Rad::cos(rotation) * CAMERA_XZ_RADIUS,
+            x: Rad::sin(rotation) * radius,
+            y: Rad::cos(rotation) * radius,
             z: CAMERA_Y_HEIGHT,
         },
         target: Point3::origin(),
@@ -144,8 +146,13 @@ fn main() {
     // Initialise state and resources
 
     let mut show_mesh = true;
-    let mut is_rotating = true;
+    let mut is_rotating = false;
+    let mut is_dragging = false;
+    let mut is_zooming = false;
+    let mut mouse_x: i32 = 0; // mouse position for previous frame x
+    let mut mouse_delta_x: f32 = 0.0; // mouse motion delta for x
     let mut camera_rotation = Rad::new(0.0);
+    let mut cam_distance = CAMERA_XZ_RADIUS;
 
     let planet = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
     let delaunay_vertex_buffer = VertexBuffer::new(&display, &create_delaunay_vertices(&planet)).unwrap();
@@ -177,11 +184,21 @@ fn main() {
             let delta = Rad::full_turn() * ROTATIONS_PER_SECOND * time.delta() as f32;
             camera_rotation = camera_rotation + delta;
         }
+        
+        if is_dragging {
+            let delta = Rad::full_turn() * mouse_delta_x * time.delta() as f32;
+            camera_rotation = camera_rotation - (delta * CAMERA_DRAG_FACTOR);
+        }
+        
+        if is_zooming {
+            let delta = mouse_delta_x * time.delta() as f32;
+            cam_distance = cam_distance - (delta * CAMERA_ZOOM_FACTOR);
+        }
 
         // Render scene
 
         let mut target = display.draw();
-        let camera = create_camera(camera_rotation, target.get_dimensions());
+        let camera = create_camera(camera_rotation, target.get_dimensions(), cam_distance);
         let view_matrix = camera.view_matrix();
         let proj_matrix = camera.projection_matrix();
         let eye_position = camera.position;
@@ -189,10 +206,11 @@ fn main() {
         target.clear_color_and_depth(color::BLUE, 1.0);
 
         if show_mesh {
+            let scaled = Matrix4::from_scale(1.025);
             target.draw(&delaunay_vertex_buffer, &index_buffer, &unshaded_program,
                     &uniform! {
-                        color:      color::PINK,
-                        model:      math::array_m4(Matrix4::identity()),
+                        color:      color::RED,
+                        model:      math::array_m4(scaled),
                         view:       math::array_m4(view_matrix),
                         proj:       math::array_m4(proj_matrix),
                     },
@@ -200,8 +218,8 @@ fn main() {
             
             target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
                         &uniform! {
-                            color:      color::LIGHT_GREY,
-                            model:      math::array_m4(Matrix4::from_scale(1.025)),
+                            color:      color::DARK_GREY,
+                            model:      math::array_m4(scaled),
                             view:       math::array_m4(view_matrix),
                             proj:       math::array_m4(proj_matrix),
                         },
@@ -209,8 +227,8 @@ fn main() {
             
             target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
                         &uniform! {
-                            color:      color::GREEN,
-                            model:      math::array_m4(Matrix4::from_scale(1.025)),
+                            color:      color::WHITE,
+                            model:      math::array_m4(scaled),
                             view:       math::array_m4(view_matrix),
                             proj:       math::array_m4(proj_matrix),
                         },
@@ -219,7 +237,7 @@ fn main() {
 
         target.draw(&delaunay_vertex_buffer, &index_buffer, &flat_shaded_program,
                     &uniform! {
-                        color:      color::WHITE,
+                        color:      color::GREEN,
                         light_dir:  math::array_v3(LIGHT_DIR),
                         model:      math::array_m4(Matrix4::identity()),
                         view:       math::array_m4(view_matrix),
@@ -240,6 +258,19 @@ fn main() {
                     Key::Space => is_rotating = !is_rotating,
                     Key::Escape => break 'main,
                     _ => {},
+                },
+                Event::MouseInput(state, MouseButton::Left) => match state {
+                    ElementState::Pressed => is_dragging = true,
+                    ElementState::Released => is_dragging = false
+                },
+                Event::MouseInput(state, MouseButton::Right) => match state {
+                    ElementState::Pressed => is_zooming = true,
+                    ElementState::Released => is_zooming = false
+                },
+                Event::MouseMoved(current_mouse_coords) => {
+                    let diff = mouse_x - current_mouse_coords.0;
+                    mouse_delta_x = diff as f32 / WINDOW_WIDTH as f32;
+                    mouse_x = current_mouse_coords.0;
                 },
                 _ => {},
             }
