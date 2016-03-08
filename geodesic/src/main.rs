@@ -321,6 +321,6 @@ fn main() {
             }
         }
 
-        thread::sleep(Duration::from_millis(10 as u64)); // battery saver ;)
+        thread::sleep(Duration::from_millis(10)); // battery saver ;)
     }
 }
