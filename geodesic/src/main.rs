@@ -226,10 +226,14 @@ fn main() {
         let mouse_delta = new_mouse_position - mouse_position;
         mouse_position = new_mouse_position;
 
-        let drag_delta = -drag_state.drag_delta().unwrap_or(mouse_delta);
-        let rotations_per_second = (drag_delta.x as f32 / window_dimensions.0 as f32) * CAMERA_DRAG_FACTOR;
-        let rotation_delta = Rad::full_turn() * rotations_per_second * time.delta() as f32;
-        camera_rotation = camera_rotation - rotation_delta;
+        camera_rotation = {
+            let drag_delta = -drag_state.drag_delta().unwrap_or(mouse_delta);
+
+            let rotations_per_second = (drag_delta.x as f32 / window_dimensions.0 as f32) * CAMERA_DRAG_FACTOR;
+            let rotation_delta = Rad::full_turn() * rotations_per_second * time.delta() as f32;
+
+            camera_rotation - rotation_delta
+        };
 
         if is_zooming {
             let zoom_delta = mouse_delta.x as f32 * time.delta() as f32;
@@ -238,58 +242,59 @@ fn main() {
 
         // Render scene
 
-        let mut target = display.draw();
-        let camera = create_camera(camera_rotation, target.get_dimensions(), cam_distance);
-        let view_matrix = camera.view_matrix();
-        let proj_matrix = camera.projection_matrix();
-        let eye_position = camera.position;
+        {
+            let mut target = display.draw();
+            let camera = create_camera(camera_rotation, target.get_dimensions(), cam_distance);
+            let view_matrix = camera.view_matrix();
+            let proj_matrix = camera.projection_matrix();
+            let eye_position = camera.position;
 
-        target.clear_color_and_depth(color::BLUE, 1.0);
+            target.clear_color_and_depth(color::BLUE, 1.0);
 
-        if show_mesh {
-            let scaled = Matrix4::from_scale(1.025);
-            target.draw(&delaunay_vertex_buffer, &index_buffer, &unshaded_program,
-                    &uniform! {
-                        color:      color::RED,
-                        model:      math::array_m4(scaled),
-                        view:       math::array_m4(view_matrix),
-                        proj:       math::array_m4(proj_matrix),
-                    },
-                    &draw_params(PolygonMode::Point, true)).unwrap();
-
-            target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
+            if show_mesh {
+                let scaled = Matrix4::from_scale(1.025);
+                target.draw(&delaunay_vertex_buffer, &index_buffer, &unshaded_program,
                         &uniform! {
-                            color:      color::YELLOW,
+                            color:      color::RED,
                             model:      math::array_m4(scaled),
                             view:       math::array_m4(view_matrix),
                             proj:       math::array_m4(proj_matrix),
                         },
                         &draw_params(PolygonMode::Point, true)).unwrap();
 
-            target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
+                target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
+                            &uniform! {
+                                color:      color::YELLOW,
+                                model:      math::array_m4(scaled),
+                                view:       math::array_m4(view_matrix),
+                                proj:       math::array_m4(proj_matrix),
+                            },
+                            &draw_params(PolygonMode::Point, true)).unwrap();
+
+                target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
+                            &uniform! {
+                                color:      color::WHITE,
+                                model:      math::array_m4(scaled),
+                                view:       math::array_m4(view_matrix),
+                                proj:       math::array_m4(proj_matrix),
+                            },
+                            &draw_params(PolygonMode::Line, true)).unwrap();
+            }
+
+            let polygon_mode = if wireframe { PolygonMode::Line } else { PolygonMode::Fill };
+            target.draw(&delaunay_vertex_buffer, &index_buffer, &flat_shaded_program,
                         &uniform! {
-                            color:      color::WHITE,
-                            model:      math::array_m4(scaled),
+                            color:      color::GREEN,
+                            light_dir:  math::array_v3(LIGHT_DIR),
+                            model:      math::array_m4(Matrix4::identity()),
                             view:       math::array_m4(view_matrix),
                             proj:       math::array_m4(proj_matrix),
+                            eye:        math::array_p3(eye_position),
                         },
-                        &draw_params(PolygonMode::Line, true)).unwrap();
+                        &draw_params(polygon_mode, true)).unwrap();
+
+            target.finish().unwrap();
         }
-
-        let params = if wireframe { draw_params(PolygonMode::Line, true) }
-                     else { draw_params(PolygonMode::Fill, true) };
-        target.draw(&delaunay_vertex_buffer, &index_buffer, &flat_shaded_program,
-                    &uniform! {
-                        color:      color::GREEN,
-                        light_dir:  math::array_v3(LIGHT_DIR),
-                        model:      math::array_m4(Matrix4::identity()),
-                        view:       math::array_m4(view_matrix),
-                        proj:       math::array_m4(proj_matrix),
-                        eye:        math::array_p3(eye_position),
-                    },
-                    &params).unwrap();
-
-        target.finish().unwrap();
 
         // Event handling
 
