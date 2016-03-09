@@ -135,27 +135,6 @@ impl State {
         use glium::glutin::{ElementState, MouseButton};
         use glium::glutin::VirtualKeyCode as Key;
 
-        let mouse_position_delta = match self.new_mouse_position.take() {
-            Some(new_position) => {
-                let old_position = mem::replace(&mut self.mouse_position, new_position);
-                new_position - old_position
-            },
-            None => Vector2::zero(),
-        };
-
-        if self.is_dragging {
-            let (window_width, _) = self.window_dimensions;
-            let rotations_per_second = -(mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
-            self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
-        }
-
-        self.camera_rotation = self.camera_rotation - self.camera_rotation_delta;
-
-        if self.is_zooming {
-            let zoom_delta = mouse_position_delta.x as f32 * delta_time;
-            self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
-        }
-
         for event in events {
             match event {
                 Event::Closed => return Action::Break,
@@ -177,6 +156,27 @@ impl State {
                 Event::Resized(width, height) => self.window_dimensions = (width, height),
                 _ => {},
             }
+        }
+
+        let mouse_position_delta = match self.new_mouse_position.take() {
+            Some(new_position) => {
+                let old_position = mem::replace(&mut self.mouse_position, new_position);
+                new_position - old_position
+            },
+            None => Vector2::zero(),
+        };
+
+        if self.is_dragging {
+            let (window_width, _) = self.window_dimensions;
+            let rotations_per_second = -(mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
+            self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
+        }
+
+        self.camera_rotation = self.camera_rotation - self.camera_rotation_delta;
+
+        if self.is_zooming {
+            let zoom_delta = mouse_position_delta.x as f32 * delta_time;
+            self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
         }
 
         Action::Continue
