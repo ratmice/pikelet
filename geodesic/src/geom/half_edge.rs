@@ -1,5 +1,6 @@
 
 use cgmath::{Vector4, Point3};
+use math;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Some basic type aliases in order to attemp self-documentation
@@ -82,21 +83,52 @@ pub struct HalfEdge {
     face: Index,
 
     // The next HalfEdge around the face.
-    next: Index,
+    next_edge: Index,
 
     // Oppositely oriented adjacent HalfEdge.
     // If this is None then we have a boundary edge.
     adjacent_edge: Option<Index>,
 }
 
+impl HalfEdge {
+    pub fn new(vertex: Index, face: Index, next_edge: Index, adjacent_edge: Index) -> HalfEdge {
+        HalfEdge {
+            vertex: vertex,
+            face: face,
+            next_edge: next_edge,
+            adjacent_edge: Some(adjacent_edge)
+        }
+    }
+
+    pub fn new_boundary_edge(vertex: Index, face: Index, next_edge: Index) -> HalfEdge {
+        HalfEdge {
+            vertex: vertex,
+            face: face,
+            next_edge: next_edge,
+            adjacent_edge: None
+        }
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // The Face
 //
 // TODO: Is the face really so sparse?
+//       Probably not! Because there is a bunch of attributes, seeds, values,
+//       parameters, references to things, and so on, and so on; that could
+//       be associated and organized with a single Face. So let's assume
+//       that connectivity aside, we'll be stuffing stuff into the Face struct
+//       eventually.
 //
 pub struct Face {
     // According to my reading you only need one.
     edge: Index,
+}
+
+impl Face {
+    pub fn new(edge: Index) -> Face {
+        Face { edge: edge }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -105,11 +137,252 @@ pub struct Face {
 pub struct Mesh {
     // Attributes
     positions: Vec<Position>,
-    color: Option<Vec<Color>>,
-    normal: Option<Vec<Normal>>,
+    colors: Option<Vec<Color>>,
+    normals: Option<Vec<Normal>>,
 
     // Connectivity information
     faces: Vec<Face>,
     edges: Vec<HalfEdge>,
     vertices: Vec<Vertex>
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// NOTE: the following probably belong in the parent scope
+
+pub fn icosahedron(radius: f32) -> Mesh {
+    // const POINT_COUNT: u32 = 12;
+    // const FACE_COUNT: u32 = 20;
+    // const EDGE_COUNT: u32 = 60; // 30 * 2
+    // const VERTEX_COUNT: u32 = 60; // 5 * 12
+
+    // The coordinates of the iocosahedron are are described by the
+    // cyclic permutations of (±ϕ, ±1, 0), where ϕ is the [Golden Ratio]
+    // (https://en.wikipedia.org/wiki/Golden_ratio).
+    let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
+    let positions = vec![
+        math::set_radius(Point3::new( phi,  1.0,  0.0), radius),
+        math::set_radius(Point3::new( phi, -1.0,  0.0), radius),
+        math::set_radius(Point3::new(-phi,  1.0,  0.0), radius),
+        math::set_radius(Point3::new(-phi, -1.0,  0.0), radius),
+        math::set_radius(Point3::new( 0.0,  phi,  1.0), radius),
+        math::set_radius(Point3::new( 0.0,  phi, -1.0), radius),
+        math::set_radius(Point3::new( 0.0, -phi,  1.0), radius),
+        math::set_radius(Point3::new( 0.0, -phi, -1.0), radius),
+        math::set_radius(Point3::new( 1.0,  0.0,  phi), radius),
+        math::set_radius(Point3::new(-1.0,  0.0,  phi), radius),
+        math::set_radius(Point3::new( 1.0,  0.0, -phi), radius),
+        math::set_radius(Point3::new(-1.0,  0.0, -phi), radius)
+    ];
+    let colors = None;
+    let normals = None;
+
+                       // Edges around
+    let faces = vec![  // the face:
+        Face::new( 0), //  0,  1,  2
+        Face::new( 3), //  3,  4,  5
+        Face::new( 6), //  6,  7,  8
+        Face::new( 9), //  9, 10, 11
+        Face::new(12), // 12, 13, 14
+        Face::new(15), // 15, 16, 17
+        Face::new(18), // 18, 19, 20
+        Face::new(21), // 21, 22, 23
+        Face::new(24), // 24, 25, 26
+        Face::new(27), // 27, 28, 29
+        Face::new(30), // 30, 31, 32
+        Face::new(33), // 33, 34, 35
+        Face::new(36), // 36, 37, 38
+        Face::new(39), // 39, 40, 41
+        Face::new(42), // 42, 43, 44
+        Face::new(45), // 45, 46, 47
+        Face::new(48), // 48, 49, 50
+        Face::new(51), // 51, 52, 53
+        Face::new(54), // 54, 55, 56
+        Face::new(57), // 57, 58, 59
+    ];
+
+    let vertices = vec![
+        // top row
+        // Face 0
+        Vertex::new( 0, AttributeIndex::new( 0)),
+        Vertex::new( 1, AttributeIndex::new( 1)),
+        Vertex::new( 2, AttributeIndex::new( 2)),
+        // Face 1
+        Vertex::new( 3, AttributeIndex::new( 0)),
+        Vertex::new( 4, AttributeIndex::new( 5)),
+        Vertex::new( 5, AttributeIndex::new( 1)),
+        // Face 2
+        Vertex::new( 6, AttributeIndex::new( 0)),
+        Vertex::new( 7, AttributeIndex::new( 4)),
+        Vertex::new( 8, AttributeIndex::new( 5)),
+        // Face 3
+        Vertex::new( 9, AttributeIndex::new( 0)),
+        Vertex::new(10, AttributeIndex::new( 3)),
+        Vertex::new(11, AttributeIndex::new( 4)),
+        // Face 4
+        Vertex::new(12, AttributeIndex::new( 0)),
+        Vertex::new(13, AttributeIndex::new( 2)),
+        Vertex::new(14, AttributeIndex::new( 3)),
+
+        // upper middle row
+        // Face 5
+        Vertex::new(15, AttributeIndex::new( 2)),
+        Vertex::new(16, AttributeIndex::new( 1)),
+        Vertex::new(17, AttributeIndex::new( 7)),
+        // Face 6
+        Vertex::new(18, AttributeIndex::new( 1)),
+        Vertex::new(19, AttributeIndex::new( 5)),
+        Vertex::new(20, AttributeIndex::new( 6)),
+        // Face 7
+        Vertex::new(21, AttributeIndex::new( 5)),
+        Vertex::new(22, AttributeIndex::new( 4)),
+        Vertex::new(23, AttributeIndex::new(10)),
+        // Face 8
+        Vertex::new(24, AttributeIndex::new( 4)),
+        Vertex::new(25, AttributeIndex::new( 3)),
+        Vertex::new(26, AttributeIndex::new( 9)),
+        // Face 9
+        Vertex::new(27, AttributeIndex::new( 3)),
+        Vertex::new(28, AttributeIndex::new( 2)),
+        Vertex::new(29, AttributeIndex::new( 8)),
+
+        // lower middle row
+        // Face 10
+        Vertex::new(30, AttributeIndex::new( 1)),
+        Vertex::new(31, AttributeIndex::new( 6)),
+        Vertex::new(32, AttributeIndex::new( 7)),
+        // Face 11
+        Vertex::new(33, AttributeIndex::new( 5)),
+        Vertex::new(34, AttributeIndex::new(10)),
+        Vertex::new(35, AttributeIndex::new( 6)),
+        // Face 12
+        Vertex::new(36, AttributeIndex::new( 4)),
+        Vertex::new(37, AttributeIndex::new( 9)),
+        Vertex::new(38, AttributeIndex::new(10)),
+        // Face 13
+        Vertex::new(39, AttributeIndex::new( 3)),
+        Vertex::new(40, AttributeIndex::new( 8)),
+        Vertex::new(41, AttributeIndex::new( 9)),
+        // Face 14
+        Vertex::new(42, AttributeIndex::new( 2)),
+        Vertex::new(43, AttributeIndex::new( 7)),
+        Vertex::new(44, AttributeIndex::new( 8)),
+
+        // bottom row
+        // Face 15
+        Vertex::new(45, AttributeIndex::new( 7)),
+        Vertex::new(46, AttributeIndex::new( 6)),
+        Vertex::new(47, AttributeIndex::new(11)),
+        // Face 16
+        Vertex::new(48, AttributeIndex::new( 6)),
+        Vertex::new(49, AttributeIndex::new(10)),
+        Vertex::new(50, AttributeIndex::new(11)),
+        // Face 17
+        Vertex::new(51, AttributeIndex::new(10)),
+        Vertex::new(52, AttributeIndex::new( 9)),
+        Vertex::new(53, AttributeIndex::new(11)),
+        // Face 18
+        Vertex::new(54, AttributeIndex::new( 9)),
+        Vertex::new(55, AttributeIndex::new( 8)),
+        Vertex::new(56, AttributeIndex::new(11)),
+        // Face 19
+        Vertex::new(57, AttributeIndex::new( 8)),
+        Vertex::new(58, AttributeIndex::new( 7)),
+        Vertex::new(59, AttributeIndex::new(11)),
+    ];
+
+    let edges = vec![ // vertex, face, next, adj
+        // top row
+        HalfEdge::new(        0,    0,    1,   5),
+        HalfEdge::new(        1,    0,    2,  15),
+        HalfEdge::new(        2,    0,    0,  12),
+
+        HalfEdge::new(        3,    1,    4,   8),
+        HalfEdge::new(        4,    1,    5,  18),
+        HalfEdge::new(        5,    1,    3,   0),
+
+        HalfEdge::new(        6,    2,    7,  11),
+        HalfEdge::new(        7,    2,    8,  21),
+        HalfEdge::new(        8,    2,    6,   3),
+
+        HalfEdge::new(        9,    3,   10,  14),
+        HalfEdge::new(       10,    3,   11,  24),
+        HalfEdge::new(       11,    3,    9,   6),
+
+        HalfEdge::new(       12,    4,   13,   2),
+        HalfEdge::new(       13,    4,   14,  27),
+        HalfEdge::new(       14,    4,   12,   6),
+
+        // upper middle
+        HalfEdge::new(       15,    5,   16,   1),
+        HalfEdge::new(       16,    5,   17,  32),
+        HalfEdge::new(       17,    5,   15,  42),
+
+        HalfEdge::new(       18,    6,   19,   4),
+        HalfEdge::new(       19,    6,   20,  35),
+        HalfEdge::new(       20,    6,   18,  30),
+
+        HalfEdge::new(       21,    7,   22,   7),
+        HalfEdge::new(       22,    7,   23,  38),
+        HalfEdge::new(       23,    7,   21,  33),
+
+        HalfEdge::new(       24,    8,   25,  10),
+        HalfEdge::new(       25,    8,   26,  41),
+        HalfEdge::new(       26,    8,   24,  36),
+
+        HalfEdge::new(       27,    9,   28,  13),
+        HalfEdge::new(       28,    9,   29,  44),
+        HalfEdge::new(       29,    9,   27,  39),
+
+        // lower middle
+        HalfEdge::new(       30,   10,   31,  20),
+        HalfEdge::new(       31,   10,   32,  45),
+        HalfEdge::new(       32,   10,   30,  16),
+
+        HalfEdge::new(       33,   11,   34,  23),
+        HalfEdge::new(       34,   11,   35,  48),
+        HalfEdge::new(       35,   11,   33,  19),
+
+        HalfEdge::new(       36,   12,   37,  26),
+        HalfEdge::new(       37,   12,   38,  51),
+        HalfEdge::new(       38,   12,   36,  22),
+
+        HalfEdge::new(       39,   13,   40,  29),
+        HalfEdge::new(       40,   13,   41,  54),
+        HalfEdge::new(       41,   13,   39,  25),
+
+        HalfEdge::new(       42,   14,   43,  17),
+        HalfEdge::new(       43,   14,   44,  57),
+        HalfEdge::new(       44,   14,   42,  28),
+
+        // bottom
+        HalfEdge::new(       45,   15,   46,  31),
+        HalfEdge::new(       46,   15,   47,  50),
+        HalfEdge::new(       47,   15,   45,  58),
+
+        HalfEdge::new(       48,   16,   49,  34),
+        HalfEdge::new(       49,   16,   50,  53),
+        HalfEdge::new(       50,   16,   48,  46),
+
+        HalfEdge::new(       51,   17,   52,  37),
+        HalfEdge::new(       52,   17,   53,  56),
+        HalfEdge::new(       53,   17,   51,  49),
+
+        HalfEdge::new(       54,   18,   55,  40),
+        HalfEdge::new(       55,   18,   56,  59),
+        HalfEdge::new(       56,   18,   54,  52),
+
+        HalfEdge::new(       57,   19,   58,  43),
+        HalfEdge::new(       58,   19,   59,  47),
+        HalfEdge::new(       59,   19,   57,  55),
+    ];
+
+    Mesh {
+        positions: positions,
+        colors: colors,
+        normals: normals,
+
+        vertices: vertices,
+        faces: faces,
+        edges: edges
+    }
 }
