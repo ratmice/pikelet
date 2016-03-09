@@ -109,6 +109,41 @@ pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
 }
 
 enum Action {
+    CloseApp,
+    ToggleMesh,
+    ToggleWireframe,
+    DragStart,
+    DragEnd,
+    ZoomStart,
+    ZoomEnd,
+    MousePosition(Point2<i32>),
+    Resize(u32, u32),
+    NoOp,
+}
+
+impl From<Event> for Action {
+    fn from(src: Event) -> Action {
+        use glium::glutin::ElementState::*;
+        use glium::glutin::Event::*;
+        use glium::glutin::MouseButton;
+        use glium::glutin::VirtualKeyCode as Key;
+
+        match src {
+            Closed | KeyboardInput(Pressed, _, Some(Key::Escape)) => Action::CloseApp,
+            KeyboardInput(Pressed, _, Some(Key::W)) => Action::ToggleWireframe,
+            KeyboardInput(Pressed, _, Some(Key::M)) => Action::ToggleMesh,
+            MouseInput(Pressed, MouseButton::Left) => Action::DragStart,
+            MouseInput(Released, MouseButton::Left) => Action::DragEnd,
+            MouseInput(Pressed, MouseButton::Right) => Action::ZoomStart,
+            MouseInput(Released, MouseButton::Right) => Action::ZoomEnd,
+            MouseMoved((x, y)) => Action::MousePosition(Point2::new(x, y)),
+            Resized(width, height) => Action::Resize(width, height),
+            _ => Action::NoOp,
+        }
+    }
+}
+
+enum Loop {
     Continue,
     Break,
 }
@@ -129,32 +164,23 @@ struct State {
 }
 
 impl State {
-    fn update<Events>(&mut self, events: Events, delta_time: f32) -> Action where
-        Events: Iterator<Item = Event>,
+    fn update<Actions>(&mut self, actions: Actions, delta_time: f32) -> Loop where
+        Actions: Iterator<Item = Action>,
     {
-        use glium::glutin::{ElementState, MouseButton};
-        use glium::glutin::VirtualKeyCode as Key;
+        for action in actions {
+            use Action::*;
 
-        for event in events {
-            match event {
-                Event::Closed => return Action::Break,
-                Event::KeyboardInput(ElementState::Pressed, _, Some(key)) => match key {
-                    Key::W => self.is_wireframe = !self.is_wireframe,
-                    Key::M => self.is_showing_mesh = !self.is_showing_mesh,
-                    Key::Escape => return Action::Break,
-                    _ => {},
-                },
-                Event::MouseInput(mouse_state, MouseButton::Left) => match mouse_state {
-                    ElementState::Pressed => self.is_dragging = true,
-                    ElementState::Released => self.is_dragging = false,
-                },
-                Event::MouseInput(mouse_state, MouseButton::Right) => match mouse_state {
-                    ElementState::Pressed => self.is_zooming = true,
-                    ElementState::Released => self.is_zooming = false,
-                },
-                Event::MouseMoved((x, y)) => self.new_mouse_position = Some(Point2::new(x, y)),
-                Event::Resized(width, height) => self.window_dimensions = (width, height),
-                _ => {},
+            match action {
+                CloseApp => return Loop::Break,
+                ToggleMesh => self.is_wireframe = !self.is_wireframe,
+                ToggleWireframe => self.is_showing_mesh = !self.is_showing_mesh,
+                DragStart => self.is_dragging = true,
+                DragEnd => self.is_dragging = false,
+                ZoomStart => self.is_zooming = true,
+                ZoomEnd => self.is_zooming = false,
+                MousePosition(position) => self.new_mouse_position = Some(position),
+                Resize(width, height) => self.window_dimensions = (width, height),
+                NoOp => {},
             }
         }
 
@@ -179,7 +205,7 @@ impl State {
             self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
         }
 
-        Action::Continue
+        Loop::Continue
     }
 
     fn create_camera(&self, (target_width, target_height): (u32, u32)) -> Camera {
@@ -340,9 +366,12 @@ fn main() {
         //     window.set_title(&format!("{} | FPS: {:.2}",  WINDOW_TITLE, 1.0 / time.delta()));
         // }
 
-        match state.update(display.poll_events(), time.delta() as f32) {
-            Action::Break => break,
-            Action::Continue => render(&state, &resources, display.draw()),
+        let actions = display.poll_events().map(Action::from);
+        let delta_time = time.delta() as f32;
+
+        match state.update(actions, delta_time) {
+            Loop::Break => break,
+            Loop::Continue => render(&state, &resources, display.draw()),
         }
 
         thread::sleep(Duration::from_millis(10)); // battery saver ;)
