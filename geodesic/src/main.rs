@@ -181,6 +181,23 @@ impl State {
 
         Action::Continue
     }
+
+    fn create_camera(&self, (target_width, target_height): (u32, u32)) -> Camera {
+        Camera {
+            position: Point3 {
+                x: Rad::sin(self.camera_rotation) * self.camera_distance,
+                y: Rad::cos(self.camera_rotation) * self.camera_distance,
+                z: CAMERA_Y_HEIGHT,
+            },
+            target: Point3::origin(),
+            projection: PerspectiveFov {
+                aspect: target_width as f32 / target_height as f32,
+                fovy: Rad::full_turn() / 6.0,
+                near: CAMERA_NEAR,
+                far: CAMERA_FAR,
+            },
+        }
+    }
 }
 
 fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
@@ -212,22 +229,7 @@ struct Resources {
 }
 
 fn render(state: &State, resources: &Resources, mut target: Frame) {
-    let (target_width, target_height) = target.get_dimensions();
-    let camera = Camera {
-        position: Point3 {
-            x: Rad::sin(state.camera_rotation) * state.camera_distance,
-            y: Rad::cos(state.camera_rotation) * state.camera_distance,
-            z: CAMERA_Y_HEIGHT,
-        },
-        target: Point3::origin(),
-        projection: PerspectiveFov {
-            aspect: target_width as f32 / target_height as f32,
-            fovy: Rad::full_turn() / 6.0,
-            near: CAMERA_NEAR,
-            far: CAMERA_FAR,
-        },
-    };
-
+    let camera = state.create_camera(target.get_dimensions());
     let view_matrix = camera.view_matrix();
     let proj_matrix = camera.projection_matrix();
     let eye_position = camera.position;
