@@ -234,65 +234,52 @@ fn render(state: &State, resources: &Resources, mut target: Frame) {
     let proj_matrix = camera.projection_matrix();
     let eye_position = camera.position;
 
+    let draw_unshaded = |target: &mut Frame, vertex_buffer, color, polygon_mode| {
+        target.draw(
+            vertex_buffer,
+            &resources.index_buffer,
+            &resources.unshaded_program,
+            &uniform! {
+                color:      color,
+                model:      math::array_m4(Matrix4::from_scale(1.025)),
+                view:       math::array_m4(view_matrix),
+                proj:       math::array_m4(proj_matrix),
+            },
+            &draw_params(polygon_mode),
+        )
+    };
+
+    let draw_flat_shaded = |target: &mut Frame, vertex_buffer, color, polygon_mode| {
+        target.draw(
+            vertex_buffer,
+            &resources.index_buffer,
+            &resources.flat_shaded_program,
+            &uniform! {
+                color:      color,
+                light_dir:  math::array_v3(LIGHT_DIR),
+                model:      math::array_m4(Matrix4::identity()),
+                view:       math::array_m4(view_matrix),
+                proj:       math::array_m4(proj_matrix),
+                eye:        math::array_p3(eye_position),
+            },
+            &draw_params(polygon_mode),
+        )
+    };
+
     target.clear_color_and_depth(color::BLUE, 1.0);
 
     if state.is_showing_mesh {
-        let scaled = Matrix4::from_scale(1.025);
-
-        target.draw(
-            &resources.delaunay_vertex_buffer,
-            &resources.index_buffer,
-            &resources.unshaded_program,
-            &uniform! {
-                color:      color::RED,
-                model:      math::array_m4(scaled),
-                view:       math::array_m4(view_matrix),
-                proj:       math::array_m4(proj_matrix),
-            },
-            &draw_params(PolygonMode::Point),
-        ).unwrap();
-
-        target.draw(
-            &resources.voronoi_vertex_buffer,
-            &resources.index_buffer,
-            &resources.unshaded_program,
-            &uniform! {
-                color:      color::YELLOW,
-                model:      math::array_m4(scaled),
-                view:       math::array_m4(view_matrix),
-                proj:       math::array_m4(proj_matrix),
-            },
-            &draw_params(PolygonMode::Point),
-        ).unwrap();
-
-        target.draw(
-            &resources.voronoi_vertex_buffer,
-            &resources.index_buffer,
-            &resources.unshaded_program,
-            &uniform! {
-                color:      color::WHITE,
-                model:      math::array_m4(scaled),
-                view:       math::array_m4(view_matrix),
-                proj:       math::array_m4(proj_matrix),
-            },
-            &draw_params(PolygonMode::Line),
-        ).unwrap();
+        draw_unshaded(&mut target, &resources.delaunay_vertex_buffer,
+                      color::RED, PolygonMode::Point).unwrap();
+        draw_unshaded(&mut target, &resources.voronoi_vertex_buffer,
+                      color::YELLOW, PolygonMode::Point).unwrap();
+        draw_unshaded(&mut target, &resources.voronoi_vertex_buffer,
+                      color::WHITE, PolygonMode::Line).unwrap();
     }
 
-    target.draw(
-        &resources.delaunay_vertex_buffer,
-        &resources.index_buffer,
-        &resources.flat_shaded_program,
-        &uniform! {
-            color:      color::GREEN,
-            light_dir:  math::array_v3(LIGHT_DIR),
-            model:      math::array_m4(Matrix4::identity()),
-            view:       math::array_m4(view_matrix),
-            proj:       math::array_m4(proj_matrix),
-            eye:        math::array_p3(eye_position),
-        },
-        &draw_params(if state.is_wireframe { PolygonMode::Line } else { PolygonMode::Fill }),
-    ).unwrap();
+    let polygon_mode = if state.is_wireframe { PolygonMode::Line } else { PolygonMode::Fill };
+    draw_flat_shaded(&mut target, &resources.delaunay_vertex_buffer,
+                     color::GREEN, polygon_mode).unwrap();
 
     target.finish().unwrap();
 }
