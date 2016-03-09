@@ -69,6 +69,27 @@ pub struct Vertex {
 
 implement_vertex!(Vertex, position);
 
+pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
+    const VERTICES_PER_FACE: usize = 3;
+
+    let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
+    for face in &mesh.faces {
+        let ref e0 = mesh.edges[face.edge];
+        let ref e1 = mesh.edges[e0.next];
+        let ref e2 = mesh.edges[e1.next];
+
+        let ref v0 = mesh.vertices[e2.vertex];
+        let ref v1 = mesh.vertices[e0.vertex];
+        let ref v2 = mesh.vertices[e1.vertex];
+
+        vertices.push(Vertex { position: mesh.positions[v0.attributes.position].into() });
+        vertices.push(Vertex { position: mesh.positions[v1.attributes.position].into() });
+        vertices.push(Vertex { position: mesh.positions[v2.attributes.position].into() });
+    }
+
+    vertices
+}
+
 pub fn create_delaunay_vertices(geometry: &Geometry) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
 
@@ -241,6 +262,7 @@ fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
 struct Resources {
     context: Rc<Context>,
 
+    half_edge_vertex_buffer: VertexBuffer<Vertex>,
     delaunay_vertex_buffer: VertexBuffer<Vertex>,
     voronoi_vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: NoIndices,
@@ -357,6 +379,8 @@ fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32)
         target.render_unshaded(&resources.voronoi_vertex_buffer, color::WHITE, PolygonMode::Line);
     }
 
+    target.render_unshaded(&resources.half_edge_vertex_buffer, color::PURPLE, PolygonMode::Point);
+
     if state.is_wireframe {
         target.render_unshaded(&resources.delaunay_vertex_buffer, color::BLACK, PolygonMode::Line);
     } else {
@@ -402,11 +426,13 @@ fn main() {
         use rusttype::FontCollection;
 
         let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
+        let foosahedron = geom::half_edge::icosahedron(1.0);
         let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
 
         Resources {
             context: display.get_context().clone(),
 
+            half_edge_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&foosahedron)).unwrap(),
             delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
             voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&geometry)).unwrap(),
             index_buffer: NoIndices(PrimitiveType::TrianglesList),

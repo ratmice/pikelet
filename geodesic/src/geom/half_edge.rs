@@ -5,7 +5,7 @@ use math;
 ///////////////////////////////////////////////////////////////////////////////
 // Some basic type aliases in order to attemp self-documentation
 
-pub type Index = u32;
+pub type Index = usize;
 pub type Position = Point3<f32>;
 pub type Normal = Point3<f32>;
 pub type Color = Vector4<f32>;
@@ -29,9 +29,9 @@ pub type Color = Vector4<f32>;
 //       This is a common trick in apps like Houdini.
 //
 pub struct AttributeIndex {
-    position: Index,        // Positions are required.
-    color: Option<Index>,   // If a mesh has vertex colors.
-    normal: Option<Index>,  // If a mesh has normals.
+    pub position: Index,        // Positions are required.
+    pub color: Option<Index>,   // If a mesh has vertex colors.
+    pub normal: Option<Index>,  // If a mesh has normals.
 }
 
 impl AttributeIndex {
@@ -49,10 +49,10 @@ impl AttributeIndex {
 //
 pub struct Vertex {
     // Attribute index for this vertex.
-    attributes: AttributeIndex,
+    pub attributes: AttributeIndex,
 
     // The HalfEdge eminating from this vertex.
-    edge: Index,
+    pub edge: Index,
 }
 
 impl Vertex {
@@ -77,36 +77,40 @@ impl Vertex {
 //
 pub struct HalfEdge {
     // Vertex that this half-edge points toward.
-    vertex: Index,
+    pub vertex: Index,
 
     // The face that this edge borders.
-    face: Index,
+    pub face: Index,
 
     // The next HalfEdge around the face.
-    next_edge: Index,
+    pub next: Index,
 
     // Oppositely oriented adjacent HalfEdge.
     // If this is None then we have a boundary edge.
-    adjacent_edge: Option<Index>,
+    pub adjacent: Option<Index>,
 }
 
 impl HalfEdge {
-    pub fn new(vertex: Index, face: Index, next_edge: Index, adjacent_edge: Index) -> HalfEdge {
+    pub fn new(vertex: Index, face: Index, next: Index, adjacent: Index) -> HalfEdge {
         HalfEdge {
             vertex: vertex,
             face: face,
-            next_edge: next_edge,
-            adjacent_edge: Some(adjacent_edge)
+            next: next,
+            adjacent: Some(adjacent)
         }
     }
 
-    pub fn new_boundary_edge(vertex: Index, face: Index, next_edge: Index) -> HalfEdge {
+    pub fn new_boundary_edge(vertex: Index, face: Index, next: Index) -> HalfEdge {
         HalfEdge {
             vertex: vertex,
             face: face,
-            next_edge: next_edge,
-            adjacent_edge: None
+            next: next,
+            adjacent: None
         }
+    }
+
+    pub fn is_boundary(&self) -> bool {
+        self.adjacent.is_some()
     }
 }
 
@@ -122,7 +126,7 @@ impl HalfEdge {
 //
 pub struct Face {
     // According to my reading you only need one.
-    edge: Index,
+    pub edge: Index,
 }
 
 impl Face {
@@ -136,14 +140,14 @@ impl Face {
 //
 pub struct Mesh {
     // Attributes
-    positions: Vec<Position>,
-    colors: Option<Vec<Color>>,
-    normals: Option<Vec<Normal>>,
+    pub positions: Vec<Position>,
+    pub colors: Option<Vec<Color>>,
+    pub normals: Option<Vec<Normal>>,
 
     // Connectivity information
-    faces: Vec<Face>,
-    edges: Vec<HalfEdge>,
-    vertices: Vec<Vertex>
+    pub faces: Vec<Face>,
+    pub edges: Vec<HalfEdge>,
+    pub vertices: Vec<Vertex>
 }
 
 ///////////////////////////////////////////////////////////////////////////////
