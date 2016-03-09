@@ -114,8 +114,8 @@ enum Action {
 }
 
 struct State {
-    wireframe: bool,
-    show_mesh: bool,
+    is_wireframe: bool,
+    is_showing_mesh: bool,
     is_dragging: bool,
     is_zooming: bool,
 
@@ -139,8 +139,8 @@ impl State {
             match event {
                 Event::Closed => return Action::Break,
                 Event::KeyboardInput(ElementState::Pressed, _, Some(key)) => match key {
-                    Key::W => self.wireframe = !self.wireframe,
-                    Key::M => self.show_mesh = !self.show_mesh,
+                    Key::W => self.is_wireframe = !self.is_wireframe,
+                    Key::M => self.is_showing_mesh = !self.is_showing_mesh,
                     Key::Escape => return Action::Break,
                     _ => {},
                 },
@@ -236,7 +236,7 @@ fn render(state: &State, resources: &Resources, mut target: Frame) {
 
     target.clear_color_and_depth(color::BLUE, 1.0);
 
-    if state.show_mesh {
+    if state.is_showing_mesh {
         let scaled = Matrix4::from_scale(1.025);
 
         target.draw(
@@ -279,7 +279,6 @@ fn render(state: &State, resources: &Resources, mut target: Frame) {
         ).unwrap();
     }
 
-    let polygon_mode = if state.wireframe { PolygonMode::Line } else { PolygonMode::Fill };
     target.draw(
         &resources.delaunay_vertex_buffer,
         &resources.index_buffer,
@@ -292,7 +291,7 @@ fn render(state: &State, resources: &Resources, mut target: Frame) {
             proj:       math::array_m4(proj_matrix),
             eye:        math::array_p3(eye_position),
         },
-        &draw_params(polygon_mode),
+        &draw_params(if state.is_wireframe { PolygonMode::Line } else { PolygonMode::Fill }),
     ).unwrap();
 
     target.finish().unwrap();
@@ -307,14 +306,13 @@ fn main() {
         .unwrap();
 
     let mut state = State {
-        wireframe: false,
-        show_mesh: true,
+        is_wireframe: false,
+        is_showing_mesh: true,
         is_dragging: false,
         is_zooming: false,
 
         mouse_position: Point2::origin(),
         new_mouse_position: None,
-        // mouse_position_delta: Vector2::zero(),
         window_dimensions: (WINDOW_WIDTH, WINDOW_HEIGHT),
 
         camera_rotation: Rad::new(0.0),
