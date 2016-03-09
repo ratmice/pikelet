@@ -151,7 +151,7 @@ struct State {
     window_dimensions: (u32, u32),
 
     camera_rotation: Rad<f32>,
-    cam_distance: f32,
+    camera_distance: f32,
 }
 
 impl State {
@@ -175,7 +175,7 @@ impl State {
 
         if self.is_zooming {
             let zoom_delta = mouse_delta.x as f32 * delta_time;
-            self.cam_distance = self.cam_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
+            self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
         }
 
         for event in events {
@@ -202,23 +202,6 @@ impl State {
         }
 
         Action::Continue
-    }
-}
-
-fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32), radius: f32) -> Camera {
-    Camera {
-        position: Point3 {
-            x: Rad::sin(rotation) * radius,
-            y: Rad::cos(rotation) * radius,
-            z: CAMERA_Y_HEIGHT,
-        },
-        target: Point3::origin(),
-        projection: PerspectiveFov {
-            aspect: width as f32 / height as f32,
-            fovy: Rad::full_turn() / 6.0,
-            near: CAMERA_NEAR,
-            far: CAMERA_FAR,
-        },
     }
 }
 
@@ -251,7 +234,22 @@ struct Resources {
 }
 
 fn render(state: &State, resources: &Resources, mut target: Frame) {
-    let camera = create_camera(state.camera_rotation, target.get_dimensions(), state.cam_distance);
+    let (target_width, target_height) = target.get_dimensions();
+    let camera = Camera {
+        position: Point3 {
+            x: Rad::sin(state.camera_rotation) * state.camera_distance,
+            y: Rad::cos(state.camera_rotation) * state.camera_distance,
+            z: CAMERA_Y_HEIGHT,
+        },
+        target: Point3::origin(),
+        projection: PerspectiveFov {
+            aspect: target_width as f32 / target_height as f32,
+            fovy: Rad::full_turn() / 6.0,
+            near: CAMERA_NEAR,
+            far: CAMERA_FAR,
+        },
+    };
+
     let view_matrix = camera.view_matrix();
     let proj_matrix = camera.projection_matrix();
     let eye_position = camera.position;
@@ -339,7 +337,7 @@ fn main() {
         window_dimensions: (WINDOW_WIDTH, WINDOW_HEIGHT),
 
         camera_rotation: Rad::new(0.0),
-        cam_distance: CAMERA_XZ_RADIUS,
+        camera_distance: CAMERA_XZ_RADIUS,
     };
 
     let resources = {
