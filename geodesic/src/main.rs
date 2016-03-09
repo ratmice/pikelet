@@ -10,6 +10,7 @@ use glium::{DisplayBuild, Frame, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface};
 use glium::index::{PrimitiveType, NoIndices};
 use glium::glutin::{Event, WindowBuilder};
+use std::mem;
 use std::thread;
 use std::time::Duration;
 
@@ -107,34 +108,6 @@ pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
     vertices
 }
 
-enum DragState {
-    Released { drag_delta: Vector2<i32> },
-    Dragging,
-}
-
-impl DragState {
-    fn new() -> DragState {
-        DragState::Released { drag_delta: Vector2::zero() }
-    }
-
-    fn begin_drag(&mut self) {
-        *self = DragState::Dragging;
-    }
-
-    fn end_drag(&mut self, mouse_delta: Vector2<i32>) {
-        if let DragState::Dragging = *self {
-            *self = DragState::Released { drag_delta: mouse_delta };
-        }
-    }
-
-    fn drag_delta(&self) -> Option<Vector2<i32>> {
-        match *self {
-            DragState::Released { drag_delta } => Some(drag_delta),
-            DragState::Dragging => None,
-        }
-    }
-}
-
 enum Action {
     Continue,
     Break,
@@ -143,14 +116,15 @@ enum Action {
 struct State {
     wireframe: bool,
     show_mesh: bool,
+    is_dragging: bool,
     is_zooming: bool,
-    drag_state: DragState,
 
     mouse_position: Point2<i32>,
-    new_mouse_position: Point2<i32>,
+    new_mouse_position: Option<Point2<i32>>,
     window_dimensions: (u32, u32),
 
     camera_rotation: Rad<f32>,
+    camera_rotation_delta: Rad<f32>,
     camera_distance: f32,
 }
 
@@ -161,20 +135,24 @@ impl State {
         use glium::glutin::{ElementState, MouseButton};
         use glium::glutin::VirtualKeyCode as Key;
 
-        let mouse_delta = self.new_mouse_position - self.mouse_position;
-        self.mouse_position = self.new_mouse_position;
-
-        self.camera_rotation = {
-            let drag_delta = -self.drag_state.drag_delta().unwrap_or(mouse_delta);
-
-            let rotations_per_second = (drag_delta.x as f32 / self.window_dimensions.0 as f32) * CAMERA_DRAG_FACTOR;
-            let rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
-
-            self.camera_rotation - rotation_delta
+        let mouse_position_delta = match self.new_mouse_position.take() {
+            Some(new_position) => {
+                let old_position = mem::replace(&mut self.mouse_position, new_position);
+                new_position - old_position
+            },
+            None => Vector2::zero(),
         };
 
+        if self.is_dragging {
+            let (window_width, _) = self.window_dimensions;
+            let rotations_per_second = -(mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
+            self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
+        }
+
+        self.camera_rotation = self.camera_rotation - self.camera_rotation_delta;
+
         if self.is_zooming {
-            let zoom_delta = mouse_delta.x as f32 * delta_time;
+            let zoom_delta = mouse_position_delta.x as f32 * delta_time;
             self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
         }
 
@@ -188,14 +166,14 @@ impl State {
                     _ => {},
                 },
                 Event::MouseInput(mouse_state, MouseButton::Left) => match mouse_state {
-                    ElementState::Pressed => self.drag_state.begin_drag(),
-                    ElementState::Released => self.drag_state.end_drag(mouse_delta),
+                    ElementState::Pressed => self.is_dragging = true,
+                    ElementState::Released => self.is_dragging = false,
                 },
                 Event::MouseInput(mouse_state, MouseButton::Right) => match mouse_state {
                     ElementState::Pressed => self.is_zooming = true,
                     ElementState::Released => self.is_zooming = false,
                 },
-                Event::MouseMoved((x, y)) => self.new_mouse_position = Point2::new(x, y),
+                Event::MouseMoved((x, y)) => self.new_mouse_position = Some(Point2::new(x, y)),
                 Event::Resized(width, height) => self.window_dimensions = (width, height),
                 _ => {},
             }
@@ -329,14 +307,16 @@ fn main() {
     let mut state = State {
         wireframe: false,
         show_mesh: true,
+        is_dragging: false,
         is_zooming: false,
-        drag_state: DragState::new(),
 
         mouse_position: Point2::origin(),
-        new_mouse_position: Point2::origin(),
+        new_mouse_position: None,
+        // mouse_position_delta: Vector2::zero(),
         window_dimensions: (WINDOW_WIDTH, WINDOW_HEIGHT),
 
         camera_rotation: Rad::new(0.0),
+        camera_rotation_delta: Rad::new(0.0),
         camera_distance: CAMERA_XZ_RADIUS,
     };
 
