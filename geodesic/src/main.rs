@@ -72,19 +72,10 @@ implement_vertex!(Vertex, position);
 pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
 
-    let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
-    for face in &mesh.faces {
-        let ref e0 = mesh.edges[face.edge];
-        let ref e1 = mesh.edges[e0.next];
-        let ref e2 = mesh.edges[e1.next];
-
-        let ref v0 = mesh.vertices[e2.vertex];
-        let ref v1 = mesh.vertices[e0.vertex];
-        let ref v2 = mesh.vertices[e1.vertex];
-
-        vertices.push(Vertex { position: mesh.positions[v0.attributes.position].into() });
-        vertices.push(Vertex { position: mesh.positions[v1.attributes.position].into() });
-        vertices.push(Vertex { position: mesh.positions[v2.attributes.position].into() });
+    let mut vertices = Vec::with_capacity(mesh.vertices.len());
+    let mut i = 0;
+    for vert in &mesh.vertices {
+        vertices.push( Vertex { position: mesh.positions[vert.attributes.position].into() } );
     }
 
     vertices
@@ -379,7 +370,7 @@ fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32)
         target.render_unshaded(&resources.voronoi_vertex_buffer, color::WHITE, PolygonMode::Line);
     }
 
-    target.render_unshaded(&resources.half_edge_vertex_buffer, color::PURPLE, PolygonMode::Point);
+    target.render_flat_shaded(&resources.half_edge_vertex_buffer, state.light_dir, color::WHITE);
 
     if state.is_wireframe {
         target.render_unshaded(&resources.delaunay_vertex_buffer, color::BLACK, PolygonMode::Line);
