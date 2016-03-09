@@ -6,10 +6,10 @@ use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::{Matrix4, SquareMatrix};
 use cgmath::{Point2, Point3, Point};
 use cgmath::{Vector2, Vector3, Vector};
-use glium::{DisplayBuild, DrawParameters, PolygonMode, Program, Surface, VertexBuffer};
+use glium::{DisplayBuild, Frame, Program, VertexBuffer};
+use glium::{DrawParameters, PolygonMode, Surface};
 use glium::index::{PrimitiveType, NoIndices};
-use glium::glutin::{ElementState, Event, WindowBuilder, MouseButton};
-use glium::glutin::VirtualKeyCode as Key;
+use glium::glutin::{Event, WindowBuilder};
 use std::thread;
 use std::time::Duration;
 
@@ -107,6 +107,104 @@ pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
     vertices
 }
 
+enum DragState {
+    Released { drag_delta: Vector2<i32> },
+    Dragging,
+}
+
+impl DragState {
+    fn new() -> DragState {
+        DragState::Released { drag_delta: Vector2::zero() }
+    }
+
+    fn begin_drag(&mut self) {
+        *self = DragState::Dragging;
+    }
+
+    fn end_drag(&mut self, mouse_delta: Vector2<i32>) {
+        if let DragState::Dragging = *self {
+            *self = DragState::Released { drag_delta: mouse_delta };
+        }
+    }
+
+    fn drag_delta(&self) -> Option<Vector2<i32>> {
+        match *self {
+            DragState::Released { drag_delta } => Some(drag_delta),
+            DragState::Dragging => None,
+        }
+    }
+}
+
+enum Action {
+    Continue,
+    Break,
+}
+
+struct State {
+    wireframe: bool,
+    show_mesh: bool,
+    is_zooming: bool,
+    drag_state: DragState,
+
+    mouse_position: Point2<i32>,
+    new_mouse_position: Point2<i32>,
+    window_dimensions: (u32, u32),
+
+    camera_rotation: Rad<f32>,
+    cam_distance: f32,
+}
+
+impl State {
+    fn update<Events>(&mut self, events: Events, delta_time: f32) -> Action where
+        Events: Iterator<Item = Event>,
+    {
+        use glium::glutin::{ElementState, MouseButton};
+        use glium::glutin::VirtualKeyCode as Key;
+
+        let mouse_delta = self.new_mouse_position - self.mouse_position;
+        self.mouse_position = self.new_mouse_position;
+
+        self.camera_rotation = {
+            let drag_delta = -self.drag_state.drag_delta().unwrap_or(mouse_delta);
+
+            let rotations_per_second = (drag_delta.x as f32 / self.window_dimensions.0 as f32) * CAMERA_DRAG_FACTOR;
+            let rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
+
+            self.camera_rotation - rotation_delta
+        };
+
+        if self.is_zooming {
+            let zoom_delta = mouse_delta.x as f32 * delta_time;
+            self.cam_distance = self.cam_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
+        }
+
+        for event in events {
+            match event {
+                Event::Closed => return Action::Break,
+                Event::KeyboardInput(ElementState::Pressed, _, Some(key)) => match key {
+                    Key::W => self.wireframe = !self.wireframe,
+                    Key::M => self.show_mesh = !self.show_mesh,
+                    Key::Escape => return Action::Break,
+                    _ => {},
+                },
+                Event::MouseInput(mouse_state, MouseButton::Left) => match mouse_state {
+                    ElementState::Pressed => self.drag_state.begin_drag(),
+                    ElementState::Released => self.drag_state.end_drag(mouse_delta),
+                },
+                Event::MouseInput(mouse_state, MouseButton::Right) => match mouse_state {
+                    ElementState::Pressed => self.is_zooming = true,
+                    ElementState::Released => self.is_zooming = false,
+                },
+                Event::MouseMoved((x, y)) => self.new_mouse_position = Point2::new(x, y),
+                Event::Resized(width, height) => self.window_dimensions = (width, height),
+                _ => {},
+            }
+        }
+
+        Action::Continue
+    }
+}
+
 fn create_camera(rotation: Rad<f32>, (width, height): (u32, u32), radius: f32) -> Camera {
     Camera {
         position: Point3 {
@@ -143,32 +241,83 @@ fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
     }
 }
 
-enum DragState {
-    Released { drag_delta: Vector2<i32> },
-    Dragging,
+struct Resources {
+    delaunay_vertex_buffer: VertexBuffer<Vertex>,
+    voronoi_vertex_buffer: VertexBuffer<Vertex>,
+    index_buffer: NoIndices,
+
+    flat_shaded_program: Program,
+    unshaded_program: Program,
 }
 
-impl DragState {
-    fn new() -> DragState {
-        DragState::Released { drag_delta: Vector2::zero() }
+fn render(state: &State, resources: &Resources, mut target: Frame) {
+    let camera = create_camera(state.camera_rotation, target.get_dimensions(), state.cam_distance);
+    let view_matrix = camera.view_matrix();
+    let proj_matrix = camera.projection_matrix();
+    let eye_position = camera.position;
+
+    target.clear_color_and_depth(color::BLUE, 1.0);
+
+    if state.show_mesh {
+        let scaled = Matrix4::from_scale(1.025);
+
+        target.draw(
+            &resources.delaunay_vertex_buffer,
+            &resources.index_buffer,
+            &resources.unshaded_program,
+            &uniform! {
+                color:      color::RED,
+                model:      math::array_m4(scaled),
+                view:       math::array_m4(view_matrix),
+                proj:       math::array_m4(proj_matrix),
+            },
+            &draw_params(PolygonMode::Point),
+        ).unwrap();
+
+        target.draw(
+            &resources.voronoi_vertex_buffer,
+            &resources.index_buffer,
+            &resources.unshaded_program,
+            &uniform! {
+                color:      color::YELLOW,
+                model:      math::array_m4(scaled),
+                view:       math::array_m4(view_matrix),
+                proj:       math::array_m4(proj_matrix),
+            },
+            &draw_params(PolygonMode::Point),
+        ).unwrap();
+
+        target.draw(
+            &resources.voronoi_vertex_buffer,
+            &resources.index_buffer,
+            &resources.unshaded_program,
+            &uniform! {
+                color:      color::WHITE,
+                model:      math::array_m4(scaled),
+                view:       math::array_m4(view_matrix),
+                proj:       math::array_m4(proj_matrix),
+            },
+            &draw_params(PolygonMode::Line),
+        ).unwrap();
     }
 
-    fn begin_drag(&mut self) {
-        *self = DragState::Dragging;
-    }
+    let polygon_mode = if state.wireframe { PolygonMode::Line } else { PolygonMode::Fill };
+    target.draw(
+        &resources.delaunay_vertex_buffer,
+        &resources.index_buffer,
+        &resources.flat_shaded_program,
+        &uniform! {
+            color:      color::GREEN,
+            light_dir:  math::array_v3(LIGHT_DIR),
+            model:      math::array_m4(Matrix4::identity()),
+            view:       math::array_m4(view_matrix),
+            proj:       math::array_m4(proj_matrix),
+            eye:        math::array_p3(eye_position),
+        },
+        &draw_params(polygon_mode),
+    ).unwrap();
 
-    fn end_drag(&mut self, mouse_delta: Vector2<i32>) {
-        if let DragState::Dragging = *self {
-            *self = DragState::Released { drag_delta: mouse_delta };
-        }
-    }
-
-    fn drag_delta(&self) -> Option<Vector2<i32>> {
-        match *self {
-            DragState::Released { drag_delta } => Some(drag_delta),
-            DragState::Dragging => None,
-        }
-    }
+    target.finish().unwrap();
 }
 
 fn main() {
@@ -179,142 +328,56 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    // Initialise state and resources
+    let mut state = State {
+        wireframe: false,
+        show_mesh: true,
+        is_zooming: false,
+        drag_state: DragState::new(),
 
-    let mut wireframe = false;
-    let mut show_mesh = true;
-    let mut is_zooming = false;
-    let mut drag_state = DragState::new();
+        mouse_position: Point2::origin(),
+        new_mouse_position: Point2::origin(),
+        window_dimensions: (WINDOW_WIDTH, WINDOW_HEIGHT),
 
-    let mut mouse_position = Point2::origin();
-    let mut new_mouse_position = Point2::origin();
-    let mut window_dimensions = (WINDOW_WIDTH, WINDOW_HEIGHT);
+        camera_rotation: Rad::new(0.0),
+        cam_distance: CAMERA_XZ_RADIUS,
+    };
 
-    let mut camera_rotation = Rad::new(0.0);
-    let mut cam_distance = CAMERA_XZ_RADIUS;
+    let resources = {
+        let planet = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
+        let delaunay_vertex_buffer = VertexBuffer::new(&display, &create_delaunay_vertices(&planet)).unwrap();
+        let voronoi_vertex_buffer = VertexBuffer::new(&display, &create_voronoi_vertices(&planet)).unwrap();
+        let index_buffer = NoIndices(PrimitiveType::TrianglesList);
 
-    let planet = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
-    let delaunay_vertex_buffer = VertexBuffer::new(&display, &create_delaunay_vertices(&planet)).unwrap();
-    let voronoi_vertex_buffer = VertexBuffer::new(&display, &create_voronoi_vertices(&planet)).unwrap();
-    let index_buffer = NoIndices(PrimitiveType::TrianglesList);
+        let flat_shaded_program =
+            Program::from_source(&display,
+                                 include_str!("shader/flat_shaded.v.glsl"),
+                                 include_str!("shader/flat_shaded.f.glsl"),
+                                 None).unwrap();
 
-    let flat_shaded_program =
-        Program::from_source(&display,
-                             include_str!("shader/flat_shaded.v.glsl"),
-                             include_str!("shader/flat_shaded.f.glsl"),
-                             None).unwrap();
+        let unshaded_program =
+            Program::from_source(&display,
+                                 include_str!("shader/unshaded.v.glsl"),
+                                 include_str!("shader/unshaded.f.glsl"),
+                                 None).unwrap();
 
-    let unshaded_program =
-        Program::from_source(&display,
-                             include_str!("shader/unshaded.v.glsl"),
-                             include_str!("shader/unshaded.f.glsl"),
-                             None).unwrap();
+        Resources {
+            delaunay_vertex_buffer: delaunay_vertex_buffer,
+            voronoi_vertex_buffer: voronoi_vertex_buffer,
+            index_buffer: index_buffer,
 
-    // Main loop
+            flat_shaded_program: flat_shaded_program,
+            unshaded_program: unshaded_program,
+        }
+    };
 
-    'main: for time in times::in_seconds() {
+    for time in times::in_seconds() {
         // if let Some(window) = display.get_window() {
         //     window.set_title(&format!("{} | FPS: {:.2}",  WINDOW_TITLE, 1.0 / time.delta()));
         // }
 
-        // Update state
-
-        let mouse_delta = new_mouse_position - mouse_position;
-        mouse_position = new_mouse_position;
-
-        camera_rotation = {
-            let drag_delta = -drag_state.drag_delta().unwrap_or(mouse_delta);
-
-            let rotations_per_second = (drag_delta.x as f32 / window_dimensions.0 as f32) * CAMERA_DRAG_FACTOR;
-            let rotation_delta = Rad::full_turn() * rotations_per_second * time.delta() as f32;
-
-            camera_rotation - rotation_delta
-        };
-
-        if is_zooming {
-            let zoom_delta = mouse_delta.x as f32 * time.delta() as f32;
-            cam_distance = cam_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
-        }
-
-        // Render scene
-
-        {
-            let mut target = display.draw();
-            let camera = create_camera(camera_rotation, target.get_dimensions(), cam_distance);
-            let view_matrix = camera.view_matrix();
-            let proj_matrix = camera.projection_matrix();
-            let eye_position = camera.position;
-
-            target.clear_color_and_depth(color::BLUE, 1.0);
-
-            if show_mesh {
-                let scaled = Matrix4::from_scale(1.025);
-                target.draw(&delaunay_vertex_buffer, &index_buffer, &unshaded_program,
-                        &uniform! {
-                            color:      color::RED,
-                            model:      math::array_m4(scaled),
-                            view:       math::array_m4(view_matrix),
-                            proj:       math::array_m4(proj_matrix),
-                        },
-                        &draw_params(PolygonMode::Point)).unwrap();
-
-                target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
-                            &uniform! {
-                                color:      color::YELLOW,
-                                model:      math::array_m4(scaled),
-                                view:       math::array_m4(view_matrix),
-                                proj:       math::array_m4(proj_matrix),
-                            },
-                            &draw_params(PolygonMode::Point)).unwrap();
-
-                target.draw(&voronoi_vertex_buffer, &index_buffer, &unshaded_program,
-                            &uniform! {
-                                color:      color::WHITE,
-                                model:      math::array_m4(scaled),
-                                view:       math::array_m4(view_matrix),
-                                proj:       math::array_m4(proj_matrix),
-                            },
-                            &draw_params(PolygonMode::Line)).unwrap();
-            }
-
-            let polygon_mode = if wireframe { PolygonMode::Line } else { PolygonMode::Fill };
-            target.draw(&delaunay_vertex_buffer, &index_buffer, &flat_shaded_program,
-                        &uniform! {
-                            color:      color::GREEN,
-                            light_dir:  math::array_v3(LIGHT_DIR),
-                            model:      math::array_m4(Matrix4::identity()),
-                            view:       math::array_m4(view_matrix),
-                            proj:       math::array_m4(proj_matrix),
-                            eye:        math::array_p3(eye_position),
-                        },
-                        &draw_params(polygon_mode)).unwrap();
-
-            target.finish().unwrap();
-        }
-
-        // Event handling
-
-        for ev in display.poll_events() {
-            match ev {
-                Event::Closed => break 'main,
-                Event::KeyboardInput(ElementState::Pressed, _, Some(key)) => match key {
-                    Key::W => wireframe = !wireframe,
-                    Key::M => show_mesh = !show_mesh,
-                    Key::Escape => break 'main,
-                    _ => {},
-                },
-                Event::MouseInput(state, MouseButton::Left) => match state {
-                    ElementState::Pressed => drag_state.begin_drag(),
-                    ElementState::Released => drag_state.end_drag(mouse_delta),
-                },
-                Event::MouseInput(state, MouseButton::Right) => match state {
-                    ElementState::Pressed => is_zooming = true,
-                    ElementState::Released => is_zooming = false,
-                },
-                Event::MouseMoved((x, y)) => new_mouse_position = Point2::new(x, y),
-                Event::Resized(width, height) => window_dimensions = (width, height),
-                _ => {},
-            }
+        match state.update(display.poll_events(), time.delta() as f32) {
+            Action::Break => break,
+            Action::Continue => render(&state, &resources, display.draw()),
         }
 
         thread::sleep(Duration::from_millis(10)); // battery saver ;)
