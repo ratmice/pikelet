@@ -73,9 +73,9 @@ pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
 
     let mut vertices = Vec::with_capacity(mesh.vertices.len());
-    let mut i = 0;
     for vert in &mesh.vertices {
-        vertices.push( Vertex { position: mesh.positions[vert.attributes.position].into() } );
+        let p = mesh.positions[vert.attributes.position];
+        vertices.push( Vertex { position: p.into() } );
     }
 
     vertices
@@ -365,17 +365,15 @@ fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32)
     target.frame.clear_color_and_depth(color::BLUE, 1.0);
 
     if state.is_showing_mesh {
-        target.render_unshaded(&resources.delaunay_vertex_buffer, color::RED, PolygonMode::Point);
+        target.render_unshaded(&resources.delaunay_vertex_buffer, color::RED, PolygonMode::Line);
         target.render_unshaded(&resources.voronoi_vertex_buffer, color::YELLOW, PolygonMode::Point);
         target.render_unshaded(&resources.voronoi_vertex_buffer, color::WHITE, PolygonMode::Line);
     }
 
-    target.render_flat_shaded(&resources.half_edge_vertex_buffer, state.light_dir, color::WHITE);
-
     if state.is_wireframe {
-        target.render_unshaded(&resources.delaunay_vertex_buffer, color::BLACK, PolygonMode::Line);
+        target.render_unshaded(&resources.half_edge_vertex_buffer, color::BLACK, PolygonMode::Line);
     } else {
-        target.render_flat_shaded(&resources.delaunay_vertex_buffer, state.light_dir, color::GREEN);
+        target.render_flat_shaded(&resources.half_edge_vertex_buffer, state.light_dir, color::GREEN);
     }
 
     target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK);

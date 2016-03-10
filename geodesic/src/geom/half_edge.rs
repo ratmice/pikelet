@@ -164,18 +164,18 @@ pub fn icosahedron(radius: f32) -> Mesh {
     // (https://en.wikipedia.org/wiki/Golden_ratio).
     let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
     let positions = vec![
-        math::set_radius(Point3::new( phi,  1.0,  0.0), radius),
-        math::set_radius(Point3::new( phi, -1.0,  0.0), radius),
-        math::set_radius(Point3::new(-phi,  1.0,  0.0), radius),
-        math::set_radius(Point3::new(-phi, -1.0,  0.0), radius),
-        math::set_radius(Point3::new( 0.0,  phi,  1.0), radius),
         math::set_radius(Point3::new( 0.0,  phi, -1.0), radius),
-        math::set_radius(Point3::new( 0.0, -phi,  1.0), radius),
-        math::set_radius(Point3::new( 0.0, -phi, -1.0), radius),
-        math::set_radius(Point3::new( 1.0,  0.0,  phi), radius),
-        math::set_radius(Point3::new(-1.0,  0.0,  phi), radius),
+        math::set_radius(Point3::new(-phi,  1.0,  0.0), radius),
+        math::set_radius(Point3::new( 0.0,  phi,  1.0), radius),
+        math::set_radius(Point3::new( phi,  1.0,  0.0), radius),
         math::set_radius(Point3::new( 1.0,  0.0, -phi), radius),
-        math::set_radius(Point3::new(-1.0,  0.0, -phi), radius)
+        math::set_radius(Point3::new(-1.0,  0.0, -phi), radius),
+        math::set_radius(Point3::new(-1.0,  0.0,  phi), radius),
+        math::set_radius(Point3::new( 1.0,  0.0,  phi), radius),
+        math::set_radius(Point3::new( phi, -1.0,  0.0), radius),
+        math::set_radius(Point3::new( 0.0, -phi, -1.0), radius),
+        math::set_radius(Point3::new(-phi, -1.0,  0.0), radius),
+        math::set_radius(Point3::new( 0.0, -phi,  1.0), radius),
     ];
     let colors = None;
     let normals = None;
@@ -232,7 +232,7 @@ pub fn icosahedron(radius: f32) -> Mesh {
         // Face 6
         Vertex::new(18, AttributeIndex::new( 2)),
         Vertex::new(19, AttributeIndex::new( 7)),
-        Vertex::new(20, AttributeIndex::new( 5)),
+        Vertex::new(20, AttributeIndex::new( 3)),
         // Face 7
         Vertex::new(21, AttributeIndex::new( 3)),
         Vertex::new(22, AttributeIndex::new( 8)),
