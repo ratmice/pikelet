@@ -41,6 +41,17 @@ const POLYHEDRON_SUBDIVS: usize = 1;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
 
+macro_rules! shader_src {
+    ($path:expr) => {
+        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/resources/shaders/", $path))
+    };
+}
+
+const FLAT_SHADED_VERT: &'static str = shader_src!("flat_shaded.v.glsl");
+const FLAT_SHADED_FRAG: &'static str = shader_src!("flat_shaded.f.glsl");
+const UNSHADED_VERT: &'static str = shader_src!("unshaded.v.glsl");
+const UNSHADED_FRAG: &'static str = shader_src!("unshaded.f.glsl");
+
 #[derive(Copy, Clone)]
 pub struct Vertex {
     position: [f32; 3],
@@ -334,30 +345,15 @@ fn main() {
     };
 
     let resources = {
-        let planet = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
-        let delaunay_vertex_buffer = VertexBuffer::new(&display, &create_delaunay_vertices(&planet)).unwrap();
-        let voronoi_vertex_buffer = VertexBuffer::new(&display, &create_voronoi_vertices(&planet)).unwrap();
-        let index_buffer = NoIndices(PrimitiveType::TrianglesList);
-
-        let flat_shaded_program =
-            Program::from_source(&display,
-                                 include_str!("shader/flat_shaded.v.glsl"),
-                                 include_str!("shader/flat_shaded.f.glsl"),
-                                 None).unwrap();
-
-        let unshaded_program =
-            Program::from_source(&display,
-                                 include_str!("shader/unshaded.v.glsl"),
-                                 include_str!("shader/unshaded.f.glsl"),
-                                 None).unwrap();
+        let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
 
         Resources {
-            delaunay_vertex_buffer: delaunay_vertex_buffer,
-            voronoi_vertex_buffer: voronoi_vertex_buffer,
-            index_buffer: index_buffer,
+            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
+            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&geometry)).unwrap(),
+            index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
-            flat_shaded_program: flat_shaded_program,
-            unshaded_program: unshaded_program,
+            flat_shaded_program: Program::from_source(&display, FLAT_SHADED_VERT, FLAT_SHADED_FRAG, None).unwrap(),
+            unshaded_program: Program::from_source(&display, UNSHADED_VERT, UNSHADED_FRAG, None).unwrap(),
         }
     };
 
