@@ -8,7 +8,7 @@ pub struct Camera<T = f32> {
 
 impl<T: BaseFloat> Camera<T> {
     pub fn view_matrix(&self) -> Matrix4<T> {
-        Matrix4::look_at(self.position, self.target, Vector3::unit_z())
+        Matrix4::look_at(self.position, self.target, Vector3::unit_y())
     }
 
     pub fn projection_matrix(&self) -> Matrix4<T> {

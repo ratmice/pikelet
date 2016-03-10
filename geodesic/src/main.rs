@@ -41,7 +41,7 @@ const CAMERA_DRAG_FACTOR: f32 = 10.0;
 
 const POLYHEDRON_SUBDIVS: usize = 1;
 
-const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
+const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 1.0, z: 0.2 };
 
 macro_rules! include_resource {
     (shader: $path:expr) => { include_str!(concat!("../resources/shaders/", $path)) };
@@ -230,8 +230,8 @@ impl State {
         Camera {
             position: Point3 {
                 x: Rad::sin(self.camera_rotation) * self.camera_distance,
-                y: Rad::cos(self.camera_rotation) * self.camera_distance,
-                z: CAMERA_Y_HEIGHT,
+                y: CAMERA_Y_HEIGHT,
+                z: Rad::cos(self.camera_rotation) * self.camera_distance,
             },
             target: Point3::origin(),
             projection: PerspectiveFov {
