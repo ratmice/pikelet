@@ -163,6 +163,8 @@ enum Loop {
 }
 
 struct State {
+    frames_per_second: f32,
+
     is_wireframe: bool,
     is_showing_mesh: bool,
     is_dragging: bool,
@@ -197,6 +199,8 @@ impl State {
                 NoOp => {},
             }
         }
+
+        self.frames_per_second = 1.0 / delta_time;
 
         let mouse_position_delta = match self.new_mouse_position.take() {
             Some(new_position) => {
@@ -323,6 +327,23 @@ fn render(state: &State, resources: &Resources, mut target: Frame) {
     draw_flat_shaded(&mut target, &resources.delaunay_vertex_buffer,
                      color::GREEN, polygon_mode).unwrap();
 
+    {
+        // TODO: init texture buffer
+
+        let fps_text = format!("FPS: {}", state.frames_per_second);
+        let scale = rusttype::Pixels(12.0);
+        let position = rusttype::point(0.0, 0.0);
+        let glyphs = resources.blogger_sans_font.layout(&fps_text, scale, position);
+
+        for glyph in glyphs {
+            glyph.draw(|_x, _y, _value| {
+                // TODO: set pixel in texture buffer
+            });
+        }
+
+        // TODO: draw texture
+    }
+
     target.finish().unwrap();
 }
 
@@ -335,6 +356,8 @@ fn main() {
         .unwrap();
 
     let mut state = State {
+        frames_per_second: 0.0,
+
         is_wireframe: false,
         is_showing_mesh: true,
         is_dragging: false,
