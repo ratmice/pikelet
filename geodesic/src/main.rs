@@ -41,16 +41,17 @@ const POLYHEDRON_SUBDIVS: usize = 1;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
 
-macro_rules! shader_src {
-    ($path:expr) => {
-        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/resources/shaders/", $path))
-    };
+macro_rules! include_resource {
+    (shader: $path:expr) => { include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/resources/shaders/", $path)) };
+    (font: $path:expr) => { include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/resources/fonts/", $path)) };
 }
 
-const FLAT_SHADED_VERT: &'static str = shader_src!("flat_shaded.v.glsl");
-const FLAT_SHADED_FRAG: &'static str = shader_src!("flat_shaded.f.glsl");
-const UNSHADED_VERT: &'static str = shader_src!("unshaded.v.glsl");
-const UNSHADED_FRAG: &'static str = shader_src!("unshaded.f.glsl");
+const FLAT_SHADED_VERT: &'static str = include_resource!(shader: "flat_shaded.v.glsl");
+const FLAT_SHADED_FRAG: &'static str = include_resource!(shader: "flat_shaded.f.glsl");
+const UNSHADED_VERT: &'static str = include_resource!(shader: "unshaded.v.glsl");
+const UNSHADED_FRAG: &'static str = include_resource!(shader: "unshaded.f.glsl");
+
+const BLOGGER_SANS_FONT: &'static [u8] = include_resource!(font: "blogger/Blogger Sans.ttf");
 
 #[derive(Copy, Clone)]
 pub struct Vertex {
