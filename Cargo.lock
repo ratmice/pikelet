@@ -5,6 +5,7 @@ dependencies = [
  "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium 0.13.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "glutin 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rusttype 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -12,6 +13,15 @@ dependencies = [
 name = "android_glue"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "arrayvec"
+version = "0.3.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "nodrop 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "odds 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "backtrace"
@@ -312,6 +322,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nodrop"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "odds 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "num"
 version = "0.1.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -328,6 +346,11 @@ dependencies = [
  "libc 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "malloc_buf 0.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "odds"
+version = "0.2.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "osmesa-sys"
@@ -350,6 +373,15 @@ dependencies = [
 name = "rustc-serialize"
 version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "rusttype"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "stb_truetype 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "serde"
@@ -381,6 +413,14 @@ dependencies = [
 name = "smallvec"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "stb_truetype"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "byteorder 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "tempfile"

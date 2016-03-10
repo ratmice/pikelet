@@ -44,8 +44,8 @@ const POLYHEDRON_SUBDIVS: usize = 1;
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 0.5, z: 1.0 };
 
 macro_rules! include_resource {
-    (shader: $path:expr) => { include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/resources/shaders/", $path)) };
-    (font: $path:expr) => { include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/resources/fonts/", $path)) };
+    (shader: $path:expr) => { include_str!(concat!("../resources/shaders/", $path)) };
+    (font: $path:expr) => { include_bytes!(concat!("../resources/fonts/", $path)) };
 }
 
 const FLAT_SHADED_VERT: &'static str = include_resource!(shader: "flat_shaded.v.glsl");
