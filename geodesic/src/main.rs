@@ -1,5 +1,6 @@
 extern crate cgmath;
 #[macro_use] extern crate glium;
+extern crate rusttype;
 extern crate time;
 
 use cgmath::{Angle, PerspectiveFov, Rad};
@@ -10,6 +11,7 @@ use glium::{DisplayBuild, Frame, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface};
 use glium::index::{PrimitiveType, NoIndices};
 use glium::glutin::{Event, WindowBuilder};
+use rusttype::Font;
 use std::mem;
 use std::thread;
 use std::time::Duration;
@@ -264,6 +266,8 @@ struct Resources {
 
     flat_shaded_program: Program,
     unshaded_program: Program,
+
+    blogger_sans_font: Font<'static>,
 }
 
 fn render(state: &State, resources: &Resources, mut target: Frame) {
@@ -346,7 +350,10 @@ fn main() {
     };
 
     let resources = {
+        use rusttype::FontCollection;
+
         let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
+        let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
 
         Resources {
             delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
@@ -355,6 +362,8 @@ fn main() {
 
             flat_shaded_program: Program::from_source(&display, FLAT_SHADED_VERT, FLAT_SHADED_FRAG, None).unwrap(),
             unshaded_program: Program::from_source(&display, UNSHADED_VERT, UNSHADED_FRAG, None).unwrap(),
+
+            blogger_sans_font: font_collection.into_font().unwrap(),
         }
     };
 
