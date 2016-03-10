@@ -9,9 +9,11 @@ use cgmath::{Point2, Point3, Point};
 use cgmath::{Vector2, Vector3, Vector};
 use glium::{DisplayBuild, Frame, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface};
+use glium::backend::Facade;
 use glium::index::{PrimitiveType, NoIndices};
 use glium::glutin::{Event, WindowBuilder};
 use rusttype::Font;
+use std::borrow::Cow;
 use std::mem;
 use std::thread;
 use std::time::Duration;
@@ -274,7 +276,7 @@ struct Resources {
     blogger_sans_font: Font<'static>,
 }
 
-fn render(state: &State, resources: &Resources, mut target: Frame) {
+fn render<F>(display: &F, mut target: Frame, state: &State, resources: &Resources) where F: Facade {
     let camera = state.create_camera(target.get_dimensions());
     let view_matrix = camera.view_matrix();
     let proj_matrix = camera.projection_matrix();
@@ -328,20 +330,31 @@ fn render(state: &State, resources: &Resources, mut target: Frame) {
                      color::GREEN, polygon_mode).unwrap();
 
     {
-        // TODO: init texture buffer
+        use glium::texture::{ClientFormat, RawImage2d, Texture2d};
+
+        let width = 200;
+        let height = 20;
 
         let fps_text = format!("FPS: {}", state.frames_per_second);
         let scale = rusttype::Pixels(12.0);
         let position = rusttype::point(0.0, 0.0);
         let glyphs = resources.blogger_sans_font.layout(&fps_text, scale, position);
 
+        let mut data = Vec::with_capacity(width * height);
         for glyph in glyphs {
-            glyph.draw(|_x, _y, _value| {
-                // TODO: set pixel in texture buffer
-            });
+            glyph.draw(|_, _, value| data.push(value));
         }
 
-        // TODO: draw texture
+        let raw_image = RawImage2d {
+            data: Cow::Borrowed(&data),
+            width: width as u32,
+            height: height as u32,
+            format: ClientFormat::F32,
+        };
+
+        let texture = Texture2d::new(display, raw_image);
+
+        // TODO: draw text using shader
     }
 
     target.finish().unwrap();
@@ -391,16 +404,12 @@ fn main() {
     };
 
     for time in times::in_seconds() {
-        // if let Some(window) = display.get_window() {
-        //     window.set_title(&format!("{} | FPS: {:.2}",  WINDOW_TITLE, 1.0 / time.delta()));
-        // }
-
         let actions = display.poll_events().map(Action::from);
         let delta_time = time.delta() as f32;
 
         match state.update(actions, delta_time) {
             Loop::Break => break,
-            Loop::Continue => render(&state, &resources, display.draw()),
+            Loop::Continue => render(&display, display.draw(), &state, &resources),
         }
 
         thread::sleep(Duration::from_millis(10)); // battery saver ;)
