@@ -218,7 +218,7 @@ impl State {
 
         if self.is_dragging {
             let (window_width, _) = self.window_dimensions;
-            let rotations_per_second = -(mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
+            let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
             self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
         }
 
