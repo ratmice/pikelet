@@ -292,6 +292,26 @@ impl Resources {
         let index_buffer = NoIndices(PrimitiveType::TrianglesList);
         let tex = Texture2d::new(&self.context, text_texture).unwrap();
 
+        let params = {
+            use glium::Blend;
+            use glium::BlendingFunction::Addition;
+            use glium::LinearBlendingFactor::*;
+
+            let blending_function = Addition {
+                source: SourceAlpha,
+                destination: OneMinusSourceAlpha
+            };
+
+            DrawParameters {
+                blend: Blend {
+                    color: blending_function,
+                    alpha: blending_function,
+                    constant_value: (1.0, 1.0, 1.0, 1.0),
+                },
+                ..DrawParameters::default()
+            }
+        };
+
         target.draw(
             &vertex_buffer,
             &index_buffer,
@@ -301,7 +321,7 @@ impl Resources {
                 tex: tex.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
                 model: math::array_m4(matrix),
             },
-            &DrawParameters { polygon_mode: PolygonMode::Fill, ..DrawParameters::default() },
+            &params,
         ).unwrap();
     }
 }
