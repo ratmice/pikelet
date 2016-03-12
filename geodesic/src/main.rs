@@ -13,7 +13,6 @@ use glium::backend::{Context, Facade};
 use glium::index::{PrimitiveType, NoIndices};
 use glium::glutin::{Event, WindowBuilder};
 use rusttype::Font;
-use std::borrow::Cow;
 use std::mem;
 use std::rc::Rc;
 use std::thread;
@@ -29,6 +28,7 @@ pub mod color;
 pub mod geom;
 pub mod index;
 pub mod math;
+pub mod text;
 pub mod times;
 
 const WINDOW_TITLE: &'static str = "Geodesic Test";
@@ -333,29 +333,12 @@ fn render(resources: &Resources, mut target: Frame, state: &State) {
                      color::GREEN, polygon_mode).unwrap();
 
     {
-        use glium::texture::{ClientFormat, RawImage2d, Texture2d};
-
-        let width = 200;
-        let height = 20;
-
-        let fps_text = format!("FPS: {}", state.frames_per_second);
-        let scale = rusttype::Pixels(12.0);
-        let position = rusttype::point(0.0, 0.0);
-        let glyphs = resources.blogger_sans_font.layout(&fps_text, scale, position);
-
-        let mut data = Vec::with_capacity(width * height);
-        for glyph in glyphs {
-            glyph.draw(|_, _, value| data.push(value));
-        }
-
-        let raw_image = RawImage2d {
-            data: Cow::Borrowed(&data),
-            width: width as u32,
-            height: height as u32,
-            format: ClientFormat::F32,
-        };
-
-        let texture = Texture2d::new(&resources.context, raw_image);
+        let fps_text = text::draw(
+            &resources.context,
+            &resources.blogger_sans_font,
+            &format!("FPS: {}", state.frames_per_second),
+            12.0,
+        );
 
         // TODO: draw text using shader
     }
