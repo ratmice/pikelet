@@ -180,6 +180,8 @@ struct State {
     new_mouse_position: Option<Point2<i32>>,
     window_dimensions: (u32, u32),
 
+    light_dir: Vector3<f32>,
+
     camera_rotation: Rad<f32>,
     camera_rotation_delta: Rad<f32>,
     camera_distance: f32,
@@ -354,7 +356,7 @@ fn render(resources: &Resources, mut target: Frame, state: &State) {
             &resources.flat_shaded_program,
             &uniform! {
                 color:      color,
-                light_dir:  math::array_v3(LIGHT_DIR),
+                light_dir:  math::array_v3(state.light_dir),
                 model:      math::array_m4(Matrix4::identity()),
                 view:       math::array_m4(view_matrix),
                 proj:       math::array_m4(proj_matrix),
@@ -407,6 +409,8 @@ fn main() {
         is_showing_mesh: true,
         is_dragging: false,
         is_zooming: false,
+
+        light_dir: LIGHT_DIR,
 
         mouse_position: Point2::origin(),
         new_mouse_position: None,
