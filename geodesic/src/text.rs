@@ -53,6 +53,13 @@ impl TextTexture {
             Vertex { position: [-0.5, -0.5], tex_coords: [0.0, 1.0] }, // Bottom-left
         ]
     }
+
+    pub fn get_indices(&self) -> [u8; 2 * 3] {
+        [
+            0, 1, 2,
+            2, 3, 0,
+        ]
+    }
 }
 
 impl<'a> Texture2dDataSource<'a> for &'a TextTexture {

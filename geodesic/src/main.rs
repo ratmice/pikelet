@@ -7,7 +7,7 @@ use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::{Matrix4, SquareMatrix};
 use cgmath::{Point2, Point3, Point};
 use cgmath::{Vector2, Vector3, Vector};
-use glium::{DisplayBuild, Frame, Program, VertexBuffer};
+use glium::{DisplayBuild, Frame, IndexBuffer, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface};
 use glium::backend::{Context, Facade};
 use glium::index::{PrimitiveType, NoIndices};
@@ -258,7 +258,7 @@ impl Resources {
         use glium::uniforms::MagnifySamplerFilter;
 
         let vertex_buffer = VertexBuffer::new(&self.context, &text_texture.get_vertices()).unwrap();
-        let index_buffer = NoIndices(PrimitiveType::TrianglesList);
+        let index_buffer = IndexBuffer::new(&self.context, PrimitiveType::TrianglesList, &text_texture.get_indices()).unwrap();
         let tex = Texture2d::new(&self.context, text_texture).unwrap();
 
         let params = {
@@ -288,7 +288,7 @@ impl Resources {
             &uniform! {
                 color: color,
                 tex: tex.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
-                model: math::array_m4(matrix),
+                matrix: math::array_m4(matrix),
             },
             &params,
         ).unwrap();
@@ -348,15 +348,13 @@ fn render(resources: &Resources, mut target: Frame, state: &State) {
     draw_flat_shaded(&mut target, &resources.delaunay_vertex_buffer,
                      color::GREEN, polygon_mode).unwrap();
 
-    {
-        let fps_text = TextTexture::new(
-            &resources.blogger_sans_font,
-            &format!("FPS: {}", state.frames_per_second),
-            12.0,
-        );
+    let fps_text = TextTexture::new(
+        &resources.blogger_sans_font,
+        &format!("FPS: {}", state.frames_per_second),
+        12.0,
+    );
 
-        resources.render_text(&mut target, &fps_text, color::BLACK, Matrix4::identity());
-    }
+    resources.render_text(&mut target, &fps_text, color::BLACK, Matrix4::identity());
 
     target.finish().unwrap();
 }
