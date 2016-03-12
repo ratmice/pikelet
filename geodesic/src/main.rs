@@ -9,12 +9,13 @@ use cgmath::{Point2, Point3, Point};
 use cgmath::{Vector2, Vector3, Vector};
 use glium::{DisplayBuild, Frame, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface};
-use glium::backend::Facade;
+use glium::backend::{Context, Facade};
 use glium::index::{PrimitiveType, NoIndices};
 use glium::glutin::{Event, WindowBuilder};
 use rusttype::Font;
 use std::borrow::Cow;
 use std::mem;
+use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
 
@@ -266,6 +267,8 @@ fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
 }
 
 struct Resources {
+    context: Rc<Context>,
+
     delaunay_vertex_buffer: VertexBuffer<Vertex>,
     voronoi_vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: NoIndices,
@@ -276,7 +279,7 @@ struct Resources {
     blogger_sans_font: Font<'static>,
 }
 
-fn render<F>(display: &F, mut target: Frame, state: &State, resources: &Resources) where F: Facade {
+fn render(resources: &Resources, mut target: Frame, state: &State) {
     let camera = state.create_camera(target.get_dimensions());
     let view_matrix = camera.view_matrix();
     let proj_matrix = camera.projection_matrix();
@@ -352,7 +355,7 @@ fn render<F>(display: &F, mut target: Frame, state: &State, resources: &Resource
             format: ClientFormat::F32,
         };
 
-        let texture = Texture2d::new(display, raw_image);
+        let texture = Texture2d::new(&resources.context, raw_image);
 
         // TODO: draw text using shader
     }
@@ -392,6 +395,8 @@ fn main() {
         let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
 
         Resources {
+            context: display.get_context().clone(),
+
             delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
             voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&geometry)).unwrap(),
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
@@ -409,7 +414,7 @@ fn main() {
 
         match state.update(actions, delta_time) {
             Loop::Break => break,
-            Loop::Continue => render(&display, display.draw(), &state, &resources),
+            Loop::Continue => render(&resources, display.draw(), &state),
         }
 
         thread::sleep(Duration::from_millis(10)); // battery saver ;)
