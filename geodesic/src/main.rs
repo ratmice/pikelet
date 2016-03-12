@@ -70,7 +70,7 @@ pub struct Vertex {
 implement_vertex!(Vertex, position);
 
 pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
-    const VERTICES_PER_FACE: usize = 3;
+    // const VERTICES_PER_FACE: usize = 3;
 
     let mut vertices = Vec::with_capacity(mesh.vertices.len());
     for vert in &mesh.vertices {
