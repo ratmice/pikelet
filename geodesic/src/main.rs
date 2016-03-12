@@ -87,8 +87,8 @@ pub fn create_delaunay_vertices(geometry: &Geometry) -> Vec<Vertex> {
 }
 
 pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
-    const MAX_FACES_PER_NODE: usize = 6;
-    const VERTICES_PER_FACE: usize = 3;
+    // const MAX_FACES_PER_NODE: usize = 6;
+    // const VERTICES_PER_FACE: usize = 3;
 
     let mut vertices = Vec::with_capacity(geometry.faces.len());
 
