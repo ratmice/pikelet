@@ -11,7 +11,7 @@ use glium::{DisplayBuild, Frame, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface};
 use glium::backend::{Context, Facade};
 use glium::index::{PrimitiveType, NoIndices};
-use glium::glutin::{Event, WindowBuilder};
+use glium::glutin::WindowBuilder;
 use rusttype::Font;
 use std::mem;
 use std::rc::Rc;
@@ -28,6 +28,7 @@ pub mod camera;
 pub mod color;
 pub mod geom;
 pub mod index;
+pub mod input;
 pub mod math;
 pub mod text;
 pub mod times;
@@ -128,41 +129,6 @@ pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
     vertices
 }
 
-enum Action {
-    CloseApp,
-    ToggleMesh,
-    ToggleWireframe,
-    DragStart,
-    DragEnd,
-    ZoomStart,
-    ZoomEnd,
-    MousePosition(Point2<i32>),
-    Resize(u32, u32),
-    NoOp,
-}
-
-impl From<Event> for Action {
-    fn from(src: Event) -> Action {
-        use glium::glutin::ElementState::*;
-        use glium::glutin::Event::*;
-        use glium::glutin::MouseButton;
-        use glium::glutin::VirtualKeyCode as Key;
-
-        match src {
-            Closed | KeyboardInput(Pressed, _, Some(Key::Escape)) => Action::CloseApp,
-            KeyboardInput(Pressed, _, Some(Key::W)) => Action::ToggleWireframe,
-            KeyboardInput(Pressed, _, Some(Key::M)) => Action::ToggleMesh,
-            MouseInput(Pressed, MouseButton::Left) => Action::DragStart,
-            MouseInput(Released, MouseButton::Left) => Action::DragEnd,
-            MouseInput(Pressed, MouseButton::Right) => Action::ZoomStart,
-            MouseInput(Released, MouseButton::Right) => Action::ZoomEnd,
-            MouseMoved((x, y)) => Action::MousePosition(Point2::new(x, y)),
-            Resized(width, height) => Action::Resize(width, height),
-            _ => Action::NoOp,
-        }
-    }
-}
-
 enum Loop {
     Continue,
     Break,
@@ -188,13 +154,14 @@ struct State {
 }
 
 impl State {
-    fn update<Actions>(&mut self, actions: Actions, delta_time: f32) -> Loop where
-        Actions: Iterator<Item = Action>,
+    fn update<Events>(&mut self, actions: Events, delta_time: f32) -> Loop where
+        Events: IntoIterator,
+        Events::Item: Into<input::Event>,
     {
         for action in actions {
-            use Action::*;
+            use input::Event::*;
 
-            match action {
+            match action.into() {
                 CloseApp => return Loop::Break,
                 ToggleMesh => self.is_wireframe = !self.is_wireframe,
                 ToggleWireframe => self.is_showing_mesh = !self.is_showing_mesh,
@@ -443,10 +410,10 @@ fn main() {
     };
 
     for time in times::in_seconds() {
-        let actions = display.poll_events().map(Action::from);
+        let events = display.poll_events();
         let delta_time = time.delta() as f32;
 
-        match state.update(actions, delta_time) {
+        match state.update(events, delta_time) {
             Loop::Break => break,
             Loop::Continue => render(&resources, display.draw(), &state),
         }
