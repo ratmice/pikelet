@@ -20,6 +20,7 @@ use std::time::Duration;
 
 use camera::Camera;
 use geom::Geometry;
+use text::TextTexture;
 
 mod macros;
 
@@ -53,6 +54,8 @@ macro_rules! include_resource {
 
 const FLAT_SHADED_VERT: &'static str = include_resource!(shader: "flat_shaded.v.glsl");
 const FLAT_SHADED_FRAG: &'static str = include_resource!(shader: "flat_shaded.f.glsl");
+const TEXT_VERT: &'static str = include_resource!(shader: "text.v.glsl");
+const TEXT_FRAG: &'static str = include_resource!(shader: "text.f.glsl");
 const UNSHADED_VERT: &'static str = include_resource!(shader: "unshaded.v.glsl");
 const UNSHADED_FRAG: &'static str = include_resource!(shader: "unshaded.f.glsl");
 
@@ -274,9 +277,33 @@ struct Resources {
     index_buffer: NoIndices,
 
     flat_shaded_program: Program,
+    text_program: Program,
     unshaded_program: Program,
 
     blogger_sans_font: Font<'static>,
+}
+
+impl Resources {
+    pub fn render_text(&self, target: &mut Frame, text_texture: &TextTexture, color: (f32, f32, f32, f32), matrix: Matrix4<f32>) {
+        use glium::texture::Texture2d;
+        use glium::uniforms::MagnifySamplerFilter;
+
+        let vertex_buffer = VertexBuffer::new(&self.context, &text_texture.get_vertices()).unwrap();
+        let index_buffer = NoIndices(PrimitiveType::TrianglesList);
+        let tex = Texture2d::new(&self.context, text_texture).unwrap();
+
+        target.draw(
+            &vertex_buffer,
+            &index_buffer,
+            &self.text_program,
+            &uniform! {
+                color: color,
+                tex: tex.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
+                model: math::array_m4(matrix),
+            },
+            &DrawParameters { polygon_mode: PolygonMode::Fill, ..DrawParameters::default() },
+        ).unwrap();
+    }
 }
 
 fn render(resources: &Resources, mut target: Frame, state: &State) {
@@ -333,14 +360,13 @@ fn render(resources: &Resources, mut target: Frame, state: &State) {
                      color::GREEN, polygon_mode).unwrap();
 
     {
-        let fps_text = text::draw(
-            &resources.context,
+        let fps_text = TextTexture::new(
             &resources.blogger_sans_font,
             &format!("FPS: {}", state.frames_per_second),
             12.0,
         );
 
-        // TODO: draw text using shader
+        resources.render_text(&mut target, &fps_text, color::BLACK, Matrix4::identity());
     }
 
     target.finish().unwrap();
@@ -385,6 +411,7 @@ fn main() {
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
             flat_shaded_program: Program::from_source(&display, FLAT_SHADED_VERT, FLAT_SHADED_FRAG, None).unwrap(),
+            text_program: Program::from_source(&display, TEXT_VERT, TEXT_FRAG, None).unwrap(),
             unshaded_program: Program::from_source(&display, UNSHADED_VERT, UNSHADED_FRAG, None).unwrap(),
 
             blogger_sans_font: font_collection.into_font().unwrap(),

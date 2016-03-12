@@ -1,47 +1,69 @@
-use glium::backend::Facade;
-use glium::texture::{ClientFormat, RawImage2d, Texture2d};
+use glium::Surface;
+use glium::texture::{ClientFormat, RawImage2d, Texture2dDataSource};
 use rusttype::{self, Font, Pixels};
 use std::borrow::Cow;
 
-#[derive(Copy, Clone)]
-struct Vertex {
+#[derive(Copy, Clone, Debug)]
+pub struct Vertex {
     position: [f32; 2],
     tex_coords: [f32; 2],
 }
 
 implement_vertex!(Vertex, position, tex_coords);
 
-pub fn draw<F>(facade: &F, font: &Font, text: &str, height: f32) -> Texture2d where
-    F: Facade,
-{
-    let pixel_height = height.ceil() as usize;
-    let scale = Pixels(height);
+#[derive(Clone, Debug)]
+pub struct TextTexture {
+    data: Vec<f32>,
+    width: u32,
+    height: u32,
+}
 
-    let v_metrics = font.v_metrics(scale);
-    let offset = rusttype::point(0.0, v_metrics.ascent);
+impl TextTexture {
+    pub fn new(font: &Font, text: &str, height: f32) -> TextTexture {
+        let pixel_height = height.ceil() as usize;
+        let scale = Pixels(height);
 
-    let glyphs: Vec<_> = font.layout(&text, scale, offset).collect();
+        let v_metrics = font.v_metrics(scale);
+        let offset = rusttype::point(0.0, v_metrics.ascent);
 
-    let width = glyphs.iter()
-        .map(|glyph| glyph.h_metrics().advance_width)
-        .fold(0.0, |x, y| x + y)
-        .ceil() as usize;
+        let glyphs: Vec<_> = font.layout(&text, scale, offset).collect();
 
-    println!("width: {}, height: {}", width, pixel_height);
+        let width = glyphs.iter()
+            .map(|glyph| glyph.h_metrics().advance_width)
+            .fold(0.0, |x, y| x + y)
+            .ceil() as usize;
 
-    let mut data = vec![0.0; width * pixel_height];
-    for (i, glyph) in glyphs.iter().enumerate() {
-        glyph.draw(|_, _, value| data[i] = value as f32);
+        let mut data = vec![0.0; width * pixel_height];
+        for (i, glyph) in glyphs.iter().enumerate() {
+            glyph.draw(|_, _, value| data[i] = value as f32);
+        }
+
+        TextTexture {
+            data: data,
+            width: width as u32,
+            height: pixel_height as u32,
+        }
     }
 
-    println!("data.len(): {}, width x height: {}", data.len(), width * pixel_height);
+    pub fn get_vertices(&self) -> [Vertex; 4] {
+        [
+            Vertex { position: [-0.5,  0.5], tex_coords: [0.0, 0.0] }, // Top-left
+            Vertex { position: [ 0.5,  0.5], tex_coords: [1.0, 0.0] }, // Top-right
+            Vertex { position: [ 0.5, -0.5], tex_coords: [1.0, 1.0] }, // Bottom-right
+            Vertex { position: [-0.5, -0.5], tex_coords: [0.0, 1.0] }, // Bottom-left
+        ]
+    }
+}
 
-    let raw_image = RawImage2d {
-        data: Cow::Borrowed(&data),
-        width: width as u32,
-        height: pixel_height as u32,
-        format: ClientFormat::F32,
-    };
+impl<'a> Texture2dDataSource<'a> for &'a TextTexture {
+    type Data = f32;
 
-    Texture2d::new(facade, raw_image).unwrap()
+    fn into_raw(self) -> RawImage2d<'a, f32> {
+        RawImage2d {
+            data: Cow::Borrowed(&self.data),
+            width: self.width,
+            height: self.height,
+            format: ClientFormat::F32,
+        }
+    }
 }
