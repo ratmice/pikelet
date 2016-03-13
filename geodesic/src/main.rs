@@ -17,7 +17,8 @@ use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
 
-use camera::Camera;
+use camera::{Camera, ComputedCamera};
+use color::Color;
 use geom::Geometry;
 use text::TextTexture;
 
@@ -200,7 +201,7 @@ impl State {
         Loop::Continue
     }
 
-    fn create_camera(&self, (target_width, target_height): (u32, u32)) -> Camera {
+    fn create_camera(&self, width: u32, height: u32) -> ComputedCamera {
         Camera {
             position: Point3 {
                 x: Rad::sin(self.camera_rotation) * self.camera_distance,
@@ -209,12 +210,12 @@ impl State {
             },
             target: Point3::origin(),
             projection: PerspectiveFov {
-                aspect: target_width as f32 / target_height as f32,
+                aspect: width as f32 / height as f32,
                 fovy: Rad::full_turn() / 6.0,
                 near: CAMERA_NEAR,
                 far: CAMERA_FAR,
             },
-        }
+        }.compute()
     }
 }
 
@@ -240,8 +241,6 @@ fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
 struct Resources {
     context: Rc<Context>,
 
-    hidpi_factor: f32,
-
     delaunay_vertex_buffer: VertexBuffer<Vertex>,
     voronoi_vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: NoIndices,
@@ -256,20 +255,21 @@ struct Resources {
     blogger_sans_font: Font<'static>,
 }
 
-impl Resources {
-    pub fn render_text(&self, target: &mut Frame, text_texture: &TextTexture,
-                       color: (f32, f32, f32, f32), position: Point2<f32>) {
+struct RenderTarget<'a> {
+    frame: Frame,
+    hidpi_factor: f32,
+    resources: &'a Resources,
+    camera: ComputedCamera,
+    hud_matrix: Matrix4<f32>,
+}
+
+impl<'a> RenderTarget<'a> {
+    fn render_hud_text(&mut self, text: &str, text_size: f32, position: Point2<f32>, color: Color) {
         use glium::texture::Texture2d;
         use glium::uniforms::MagnifySamplerFilter;
 
-        let proj = {
-            let (target_width, target_height) = target.get_dimensions();
-            cgmath::ortho(0.0, target_width as f32, target_height as f32, 0.0, -1.0, 1.0)
-        };
-
-        let model = text_texture.matrix(position);
-
-        let text = Texture2d::new(&self.context, text_texture).unwrap();
+        let text_texture = TextTexture::new(&self.resources.blogger_sans_font, text, text_size * self.hidpi_factor);
+        let texture = Texture2d::new(&self.resources.context, &text_texture).unwrap();
 
         let params = {
             use glium::Blend;
@@ -291,88 +291,81 @@ impl Resources {
             }
         };
 
-        target.draw(
-            &self.text_vertex_buffer,
-            &self.text_index_buffer,
-            &self.text_program,
+        self.frame.draw(
+            &self.resources.text_vertex_buffer,
+            &self.resources.text_index_buffer,
+            &self.resources.text_program,
             &uniform! {
                 color:    color,
-                text:     text.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
-                proj:     math::array_m4(proj),
-                model:    math::array_m4(model),
+                text:     texture.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
+                proj:     math::array_m4(self.hud_matrix),
+                model:    math::array_m4(text_texture.matrix(position * self.hidpi_factor)),
             },
             &params,
         ).unwrap();
     }
-}
 
-fn render(resources: &Resources, mut target: Frame, state: &State) {
-    let camera = state.create_camera(target.get_dimensions());
-    let view_matrix = camera.view_matrix();
-    let proj_matrix = camera.projection_matrix();
-    let eye_position = camera.position;
-
-    let draw_unshaded = |target: &mut Frame, vertex_buffer, color, polygon_mode| {
-        target.draw(
+    fn render_unshaded(&mut self, vertex_buffer: &VertexBuffer<Vertex>, color: Color, polygon_mode: PolygonMode) {
+        self.frame.draw(
             vertex_buffer,
-            &resources.index_buffer,
-            &resources.unshaded_program,
+            &self.resources.index_buffer,
+            &self.resources.unshaded_program,
             &uniform! {
                 color:      color,
                 model:      math::array_m4(Matrix4::from_scale(1.025)),
-                view:       math::array_m4(view_matrix),
-                proj:       math::array_m4(proj_matrix),
+                view:       math::array_m4(self.camera.view),
+                proj:       math::array_m4(self.camera.projection),
             },
             &draw_params(polygon_mode),
-        )
-    };
-
-    let draw_flat_shaded = |target: &mut Frame, vertex_buffer, color, polygon_mode| {
-        target.draw(
-            vertex_buffer,
-            &resources.index_buffer,
-            &resources.flat_shaded_program,
-            &uniform! {
-                color:      color,
-                light_dir:  math::array_v3(state.light_dir),
-                model:      math::array_m4(Matrix4::identity()),
-                view:       math::array_m4(view_matrix),
-                proj:       math::array_m4(proj_matrix),
-                eye:        math::array_p3(eye_position),
-            },
-            &draw_params(polygon_mode),
-        )
-    };
-
-    target.clear_color_and_depth(color::BLUE, 1.0);
-
-    if state.is_showing_mesh {
-        draw_unshaded(&mut target, &resources.delaunay_vertex_buffer,
-                      color::RED, PolygonMode::Point).unwrap();
-        draw_unshaded(&mut target, &resources.voronoi_vertex_buffer,
-                      color::YELLOW, PolygonMode::Point).unwrap();
-        draw_unshaded(&mut target, &resources.voronoi_vertex_buffer,
-                      color::WHITE, PolygonMode::Line).unwrap();
+        ).unwrap();
     }
 
-    let polygon_mode = if state.is_wireframe { PolygonMode::Line } else { PolygonMode::Fill };
-    draw_flat_shaded(&mut target, &resources.delaunay_vertex_buffer,
-                     color::GREEN, polygon_mode).unwrap();
+    fn render_flat_shaded(&mut self, vertex_buffer: &VertexBuffer<Vertex>, light_dir: Vector3<f32>, color: Color) {
+        self.frame.draw(
+            vertex_buffer,
+            &self.resources.index_buffer,
+            &self.resources.flat_shaded_program,
+            &uniform! {
+                color:      color,
+                light_dir:  math::array_v3(light_dir),
+                model:      math::array_m4(Matrix4::identity()),
+                view:       math::array_m4(self.camera.view),
+                proj:       math::array_m4(self.camera.projection),
+                eye:        math::array_p3(self.camera.position),
+            },
+            &draw_params(PolygonMode::Fill),
+        ).unwrap();
+    }
+}
 
-    let fps_text = TextTexture::new(
-        &resources.blogger_sans_font,
-        &format!("FPS: {}", state.frames_per_second),
-        12.0 * resources.hidpi_factor,
-    );
+fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32) {
+    let (frame_width, frame_height) = frame.get_dimensions();
 
-    resources.render_text(
-        &mut target,
-        &fps_text,
-        color::BLACK,
-        Point2::new(2.0, 2.0) * resources.hidpi_factor,
-    );
+    let mut target = RenderTarget {
+        frame: frame,
+        hidpi_factor: hidpi_factor,
+        resources: resources,
+        camera: state.create_camera(frame_width, frame_height),
+        hud_matrix: cgmath::ortho(0.0, frame_width as f32, frame_height as f32, 0.0, -1.0, 1.0),
+    };
 
-    target.finish().unwrap();
+    target.frame.clear_color_and_depth(color::BLUE, 1.0);
+
+    if state.is_showing_mesh {
+        target.render_unshaded(&resources.delaunay_vertex_buffer, color::RED, PolygonMode::Point);
+        target.render_unshaded(&resources.voronoi_vertex_buffer, color::YELLOW, PolygonMode::Point);
+        target.render_unshaded(&resources.voronoi_vertex_buffer, color::WHITE, PolygonMode::Line);
+    }
+
+    if state.is_wireframe {
+        target.render_unshaded(&resources.delaunay_vertex_buffer, color::BLACK, PolygonMode::Line);
+    } else {
+        target.render_flat_shaded(&resources.delaunay_vertex_buffer, state.light_dir, color::GREEN);
+    }
+
+    target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK);
+
+    target.frame.finish().unwrap();
 }
 
 fn main() {
@@ -408,16 +401,11 @@ fn main() {
     let resources = {
         use rusttype::FontCollection;
 
-        let hidpi_factor = display.get_window()
-            .map(|window| window.hidpi_factor())
-            .unwrap_or(1.0);
         let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
         let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
 
         Resources {
             context: display.get_context().clone(),
-
-            hidpi_factor: hidpi_factor,
 
             delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
             voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&geometry)).unwrap(),
@@ -438,9 +426,13 @@ fn main() {
         let events = display.poll_events();
         let delta_time = time.delta() as f32;
 
+        let hidpi_factor = display.get_window()
+            .map(|window| window.hidpi_factor())
+            .unwrap_or(1.0);
+
         match state.update(events, delta_time) {
             Loop::Break => break,
-            Loop::Continue => render(&resources, display.draw(), &state),
+            Loop::Continue => render(&state, &resources, display.draw(), hidpi_factor),
         }
 
         thread::sleep(Duration::from_millis(10)); // battery saver ;)
