@@ -20,7 +20,7 @@ use std::time::Duration;
 use camera::{Camera, ComputedCamera};
 use color::Color;
 use geom::Geometry;
-use text::TextTexture;
+use text::TextData;
 
 mod macros;
 
@@ -268,8 +268,8 @@ impl<'a> RenderTarget<'a> {
         use glium::texture::Texture2d;
         use glium::uniforms::MagnifySamplerFilter;
 
-        let text_texture = TextTexture::new(&self.resources.blogger_sans_font, text, text_size * self.hidpi_factor);
-        let texture = Texture2d::new(&self.resources.context, &text_texture).unwrap();
+        let text_data = TextData::new(&self.resources.blogger_sans_font, text, text_size * self.hidpi_factor);
+        let text_texture = Texture2d::new(&self.resources.context, &text_data).unwrap();
 
         let params = {
             use glium::Blend;
@@ -297,9 +297,9 @@ impl<'a> RenderTarget<'a> {
             &self.resources.text_program,
             &uniform! {
                 color:    color,
-                text:     texture.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
+                text:     text_texture.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
                 proj:     math::array_m4(self.hud_matrix),
-                model:    math::array_m4(text_texture.matrix(position * self.hidpi_factor)),
+                model:    math::array_m4(text_data.matrix(position * self.hidpi_factor)),
             },
             &params,
         ).unwrap();
