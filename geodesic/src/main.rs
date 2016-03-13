@@ -162,8 +162,8 @@ impl State {
 
             match action.into() {
                 CloseApp => return Loop::Break,
-                ToggleMesh => self.is_wireframe = !self.is_wireframe,
-                ToggleWireframe => self.is_showing_mesh = !self.is_showing_mesh,
+                ToggleMesh => self.is_showing_mesh = !self.is_showing_mesh,
+                ToggleWireframe => self.is_wireframe = !self.is_wireframe,
                 DragStart => self.is_dragging = true,
                 DragEnd => self.is_dragging = false,
                 ZoomStart => self.is_zooming = true,
