@@ -11,11 +11,26 @@ pub struct Vertex {
 
 implement_vertex!(Vertex, position, tex_coords);
 
+pub const TEXTURE_HEIGHT: f32 = 1.0;
+pub const TEXTURE_WIDTH: f32 = 1.0;
+
+pub const TEXTURE_VERTICES: [Vertex; 4] = [
+    Vertex { position: [          0.0,            0.0], tex_coords: [0.0, 0.0] }, // Top-left
+    Vertex { position: [TEXTURE_WIDTH,            0.0], tex_coords: [1.0, 0.0] }, // Top-right
+    Vertex { position: [TEXTURE_WIDTH, TEXTURE_HEIGHT], tex_coords: [1.0, 1.0] }, // Bottom-right
+    Vertex { position: [          0.0, TEXTURE_HEIGHT], tex_coords: [0.0, 1.0] }, // Bottom-left
+];
+
+pub const TEXTURE_INDICES: [u8; 2 * 3] = [
+    0, 1, 2,
+    2, 3, 0,
+];
+
 #[derive(Clone, Debug)]
 pub struct TextTexture {
     data: Vec<f32>,
-    width: u32,
-    height: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl TextTexture {
@@ -49,22 +64,6 @@ impl TextTexture {
             width: width as u32,
             height: pixel_height as u32,
         }
-    }
-
-    pub fn vertices() -> [Vertex; 4] {
-        [
-            Vertex { position: [-0.5,  0.5], tex_coords: [0.0, 0.0] }, // Top-left
-            Vertex { position: [ 0.5,  0.5], tex_coords: [1.0, 0.0] }, // Top-right
-            Vertex { position: [ 0.5, -0.5], tex_coords: [1.0, 1.0] }, // Bottom-right
-            Vertex { position: [-0.5, -0.5], tex_coords: [0.0, 1.0] }, // Bottom-left
-        ]
-    }
-
-    pub fn indices() -> [u8; 2 * 3] {
-        [
-            0, 1, 2,
-            2, 3, 0,
-        ]
     }
 }
 

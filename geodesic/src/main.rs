@@ -9,9 +9,8 @@ use cgmath::{Point2, Point3, Point};
 use cgmath::{Vector2, Vector3, Vector};
 use glium::{DisplayBuild, Frame, IndexBuffer, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface};
-use glium::backend::{Context, Facade};
+use glium::backend::Context;
 use glium::index::{PrimitiveType, NoIndices};
-use glium::glutin::WindowBuilder;
 use rusttype::Font;
 use std::mem;
 use std::rc::Rc;
@@ -241,6 +240,8 @@ fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
 struct Resources {
     context: Rc<Context>,
 
+    hidpi_factor: f32,
+
     delaunay_vertex_buffer: VertexBuffer<Vertex>,
     voronoi_vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: NoIndices,
@@ -256,11 +257,23 @@ struct Resources {
 }
 
 impl Resources {
-    pub fn render_text(&self, target: &mut Frame, text_texture: &TextTexture, color: (f32, f32, f32, f32), matrix: Matrix4<f32>) {
+    pub fn render_text(&self, target: &mut Frame, text_texture: &TextTexture, color: (f32, f32, f32, f32)) {
         use glium::texture::Texture2d;
         use glium::uniforms::MagnifySamplerFilter;
 
-        let tex = Texture2d::new(&self.context, text_texture).unwrap();
+        let proj = {
+            let (target_width, target_height) = target.get_dimensions();
+            cgmath::ortho(0.0, target_width as f32, target_height as f32, 0.0, -1.0, 1.0)
+        };
+
+        let model = {
+            let scale_x = text_texture.width as f32 / text::TEXTURE_WIDTH;
+            let scale_y = text_texture.height as f32 / text::TEXTURE_HEIGHT;
+
+            Matrix4::from_nonuniform_scale(scale_x, scale_y, 1.0)
+        };
+
+        let text = Texture2d::new(&self.context, text_texture).unwrap();
 
         let params = {
             use glium::Blend;
@@ -287,9 +300,10 @@ impl Resources {
             &self.text_index_buffer,
             &self.text_program,
             &uniform! {
-                color: color,
-                tex: tex.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
-                matrix: math::array_m4(matrix),
+                color:    color,
+                text:     text.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
+                proj:     math::array_m4(proj),
+                model:    math::array_m4(model),
             },
             &params,
         ).unwrap();
@@ -352,15 +366,18 @@ fn render(resources: &Resources, mut target: Frame, state: &State) {
     let fps_text = TextTexture::new(
         &resources.blogger_sans_font,
         &format!("FPS: {}", state.frames_per_second),
-        12.0,
+        12.0 * resources.hidpi_factor,
     );
 
-    resources.render_text(&mut target, &fps_text, color::BLACK, Matrix4::identity());
+    resources.render_text(&mut target, &fps_text, color::BLACK);
 
     target.finish().unwrap();
 }
 
 fn main() {
+    use glium::backend::Facade;
+    use glium::glutin::WindowBuilder;
+
     let display = WindowBuilder::new()
         .with_title(WINDOW_TITLE.to_string())
         .with_dimensions(WINDOW_WIDTH, WINDOW_HEIGHT)
@@ -390,18 +407,23 @@ fn main() {
     let resources = {
         use rusttype::FontCollection;
 
+        let hidpi_factor = display.get_window()
+            .map(|window| window.hidpi_factor())
+            .unwrap_or(1.0);
         let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
         let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
 
         Resources {
             context: display.get_context().clone(),
 
+            hidpi_factor: hidpi_factor,
+
             delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
             voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&geometry)).unwrap(),
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
-            text_vertex_buffer: VertexBuffer::new(&display, &TextTexture::vertices()).unwrap(),
-            text_index_buffer: IndexBuffer::new(&display, PrimitiveType::TrianglesList, &TextTexture::indices()).unwrap(),
+            text_vertex_buffer: VertexBuffer::new(&display, &text::TEXTURE_VERTICES).unwrap(),
+            text_index_buffer: IndexBuffer::new(&display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
 
             flat_shaded_program: Program::from_source(&display, FLAT_SHADED_VERT, FLAT_SHADED_FRAG, None).unwrap(),
             text_program: Program::from_source(&display, TEXT_VERT, TEXT_FRAG, None).unwrap(),
