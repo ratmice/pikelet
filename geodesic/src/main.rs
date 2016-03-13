@@ -6,7 +6,7 @@ extern crate time;
 use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::{Matrix4, SquareMatrix};
 use cgmath::{Point2, Point3, Point};
-use cgmath::{Vector2, Vector3, Vector};
+use cgmath::Vector3;
 use glium::{DisplayBuild, Frame, IndexBuffer, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface};
 use glium::backend::Context;
@@ -143,7 +143,6 @@ struct State {
     is_zooming: bool,
 
     mouse_position: Point2<i32>,
-    new_mouse_position: Option<Point2<i32>>,
     window_dimensions: (u32, u32),
 
     light_dir: Vector3<f32>,
@@ -154,10 +153,32 @@ struct State {
 }
 
 impl State {
+    fn update_mouse_position(&mut self, new_position: Point2<i32>, delta_time: f32) {
+        let mouse_position_delta = {
+            let old_position = mem::replace(&mut self.mouse_position, new_position);
+            new_position - old_position
+        };
+
+        if self.is_dragging {
+            let (window_width, _) = self.window_dimensions;
+            let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
+            self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
+        }
+
+        if self.is_zooming {
+            let zoom_delta = mouse_position_delta.x as f32 * delta_time;
+            self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
+        }
+    }
+
     fn update<Events>(&mut self, actions: Events, delta_time: f32) -> Loop where
         Events: IntoIterator,
         Events::Item: Into<input::Event>,
     {
+        if self.is_dragging {
+            self.camera_rotation_delta = Rad::new(0.0);
+        }
+
         for action in actions {
             use input::Event::*;
 
@@ -169,34 +190,14 @@ impl State {
                 DragEnd => self.is_dragging = false,
                 ZoomStart => self.is_zooming = true,
                 ZoomEnd => self.is_zooming = false,
-                MousePosition(position) => self.new_mouse_position = Some(position),
+                MousePosition(position) => self.update_mouse_position(position, delta_time),
                 Resize(width, height) => self.window_dimensions = (width, height),
                 NoOp => {},
             }
         }
 
         self.frames_per_second = 1.0 / delta_time;
-
-        let mouse_position_delta = match self.new_mouse_position.take() {
-            Some(new_position) => {
-                let old_position = mem::replace(&mut self.mouse_position, new_position);
-                new_position - old_position
-            },
-            None => Vector2::zero(),
-        };
-
-        if self.is_dragging {
-            let (window_width, _) = self.window_dimensions;
-            let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
-            self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
-        }
-
         self.camera_rotation = self.camera_rotation - self.camera_rotation_delta;
-
-        if self.is_zooming {
-            let zoom_delta = mouse_position_delta.x as f32 * delta_time;
-            self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
-        }
 
         Loop::Continue
     }
@@ -390,7 +391,6 @@ fn main() {
         light_dir: LIGHT_DIR,
 
         mouse_position: Point2::origin(),
-        new_mouse_position: None,
         window_dimensions: (WINDOW_WIDTH, WINDOW_HEIGHT),
 
         camera_rotation: Rad::new(0.0),
