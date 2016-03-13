@@ -257,7 +257,8 @@ struct Resources {
 }
 
 impl Resources {
-    pub fn render_text(&self, target: &mut Frame, text_texture: &TextTexture, color: (f32, f32, f32, f32)) {
+    pub fn render_text(&self, target: &mut Frame, text_texture: &TextTexture,
+                       color: (f32, f32, f32, f32), position: Point2<f32>) {
         use glium::texture::Texture2d;
         use glium::uniforms::MagnifySamplerFilter;
 
@@ -266,12 +267,7 @@ impl Resources {
             cgmath::ortho(0.0, target_width as f32, target_height as f32, 0.0, -1.0, 1.0)
         };
 
-        let model = {
-            let scale_x = text_texture.width as f32 / text::TEXTURE_WIDTH;
-            let scale_y = text_texture.height as f32 / text::TEXTURE_HEIGHT;
-
-            Matrix4::from_nonuniform_scale(scale_x, scale_y, 1.0)
-        };
+        let model = text_texture.matrix(position);
 
         let text = Texture2d::new(&self.context, text_texture).unwrap();
 
@@ -369,7 +365,12 @@ fn render(resources: &Resources, mut target: Frame, state: &State) {
         12.0 * resources.hidpi_factor,
     );
 
-    resources.render_text(&mut target, &fps_text, color::BLACK);
+    resources.render_text(
+        &mut target,
+        &fps_text,
+        color::BLACK,
+        Point2::new(2.0, 2.0) * resources.hidpi_factor,
+    );
 
     target.finish().unwrap();
 }

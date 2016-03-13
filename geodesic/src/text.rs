@@ -1,3 +1,4 @@
+use cgmath::{Matrix4, Point2};
 use glium::Surface;
 use glium::texture::{ClientFormat, RawImage2d, Texture2dDataSource};
 use rusttype::{self, Font, Pixels};
@@ -64,6 +65,17 @@ impl TextTexture {
             width: width as u32,
             height: pixel_height as u32,
         }
+    }
+
+    pub fn matrix(&self, position: Point2<f32>) -> Matrix4<f32> {
+        let scale_x = self.width as f32 / TEXTURE_WIDTH;
+        let scale_y = self.height as f32 / TEXTURE_HEIGHT;
+        let mut matrix = Matrix4::from_nonuniform_scale(scale_x, scale_y, 1.0);
+
+        matrix[3][0] = position.x;
+        matrix[3][1] = position.y;
+
+        matrix
     }
 }
 
