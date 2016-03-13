@@ -160,6 +160,28 @@ impl Mesh {
         let mut vertices = Vec::with_capacity(self.vertices.len() * RESERVATION_FACTOR);
         let mut faces = Vec::with_capacity(self.faces.len() * RESERVATION_FACTOR);
 
+        // For each face, get the edge loop, split each each.
+        // Keep track of any attributes so that we don't duplicate them.
+        // NOTE: We're baking in the idea that a mesh *only* ever contains
+        //       triangles. That's fine of course, but if any other functions
+        //       potentially generate faces with more than 3 edges you'll
+        //       need to triangulate the Mesh first.
+        //
+        // NOTE: The method of subdivision is illustrated below:
+        //
+        //          n0
+        //          /\
+        //         /  \
+        //    n5  /____\  n3
+        //       /\    /\
+        //      /  \  /  \
+        //     /____\/____\
+        //   n2     n4     n1
+        //
+        for face in &self.faces {
+            //
+        }
+
         Mesh {
             positions: positions,
             colors: None,
