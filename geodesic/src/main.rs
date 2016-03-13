@@ -245,6 +245,9 @@ struct Resources {
     voronoi_vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: NoIndices,
 
+    text_vertex_buffer: VertexBuffer<text::Vertex>,
+    text_index_buffer: IndexBuffer<u8>,
+
     flat_shaded_program: Program,
     text_program: Program,
     unshaded_program: Program,
@@ -257,8 +260,6 @@ impl Resources {
         use glium::texture::Texture2d;
         use glium::uniforms::MagnifySamplerFilter;
 
-        let vertex_buffer = VertexBuffer::new(&self.context, &text_texture.get_vertices()).unwrap();
-        let index_buffer = IndexBuffer::new(&self.context, PrimitiveType::TrianglesList, &text_texture.get_indices()).unwrap();
         let tex = Texture2d::new(&self.context, text_texture).unwrap();
 
         let params = {
@@ -282,8 +283,8 @@ impl Resources {
         };
 
         target.draw(
-            &vertex_buffer,
-            &index_buffer,
+            &self.text_vertex_buffer,
+            &self.text_index_buffer,
             &self.text_program,
             &uniform! {
                 color: color,
@@ -398,6 +399,9 @@ fn main() {
             delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
             voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&geometry)).unwrap(),
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
+
+            text_vertex_buffer: VertexBuffer::new(&display, &TextTexture::vertices()).unwrap(),
+            text_index_buffer: IndexBuffer::new(&display, PrimitiveType::TrianglesList, &TextTexture::indices()).unwrap(),
 
             flat_shaded_program: Program::from_source(&display, FLAT_SHADED_VERT, FLAT_SHADED_FRAG, None).unwrap(),
             text_program: Program::from_source(&display, TEXT_VERT, TEXT_FRAG, None).unwrap(),

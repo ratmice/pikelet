@@ -51,7 +51,7 @@ impl TextTexture {
         }
     }
 
-    pub fn get_vertices(&self) -> [Vertex; 4] {
+    pub fn vertices() -> [Vertex; 4] {
         [
             Vertex { position: [-0.5,  0.5], tex_coords: [0.0, 0.0] }, // Top-left
             Vertex { position: [ 0.5,  0.5], tex_coords: [1.0, 0.0] }, // Top-right
@@ -60,7 +60,7 @@ impl TextTexture {
         ]
     }
 
-    pub fn get_indices(&self) -> [u8; 2 * 3] {
+    pub fn indices() -> [u8; 2 * 3] {
         [
             0, 1, 2,
             2, 3, 0,
