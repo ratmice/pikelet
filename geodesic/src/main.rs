@@ -202,7 +202,7 @@ impl State {
         Loop::Continue
     }
 
-    fn create_camera(&self, width: u32, height: u32) -> ComputedCamera {
+    fn create_scene_camera(&self, (frame_width, frame_height): (u32, u32)) -> ComputedCamera {
         Camera {
             position: Point3 {
                 x: Rad::sin(self.camera_rotation) * self.camera_distance,
@@ -211,12 +211,16 @@ impl State {
             },
             target: Point3::origin(),
             projection: PerspectiveFov {
-                aspect: width as f32 / height as f32,
+                aspect: frame_width as f32 / frame_height as f32,
                 fovy: Rad::full_turn() / 6.0,
                 near: CAMERA_NEAR,
                 far: CAMERA_FAR,
             },
         }.compute()
+    }
+
+    fn create_hud_camera(&self, (frame_width, frame_height): (u32, u32)) -> Matrix4<f32> {
+        cgmath::ortho(0.0, frame_width as f32, frame_height as f32, 0.0, -1.0, 1.0)
     }
 }
 
@@ -348,14 +352,14 @@ impl<'a> RenderTarget<'a> {
 }
 
 fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32) {
-    let (frame_width, frame_height) = frame.get_dimensions();
+    let frame_dimensions = frame.get_dimensions();
 
     let mut target = RenderTarget {
         frame: frame,
         hidpi_factor: hidpi_factor,
         resources: resources,
-        camera: state.create_camera(frame_width, frame_height),
-        hud_matrix: cgmath::ortho(0.0, frame_width as f32, frame_height as f32, 0.0, -1.0, 1.0),
+        camera: state.create_scene_camera(frame_dimensions),
+        hud_matrix: state.create_hud_camera(frame_dimensions),
     };
 
     target.clear(color::BLUE);
