@@ -188,6 +188,7 @@ struct State {
 
     is_wireframe: bool,
     is_showing_mesh: bool,
+    is_showing_star_field: bool,
     is_dragging: bool,
     is_zooming: bool,
 
@@ -234,6 +235,7 @@ impl State {
             match action.into() {
                 CloseApp => return Loop::Break,
                 ToggleMesh => self.is_showing_mesh = !self.is_showing_mesh,
+                ToggleStarField => self.is_showing_star_field = !self.is_showing_star_field,
                 ToggleWireframe => self.is_wireframe = !self.is_wireframe,
                 DragStart => self.is_dragging = true,
                 DragEnd => self.is_dragging = false,
@@ -440,10 +442,12 @@ fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32)
 
     target.clear(color::BLUE);
 
-    // TODO: Render centered at eye position
-    target.render_points(&resources.stars0_vertex_buffer, STAR0_SIZE, color::WHITE);
-    target.render_points(&resources.stars1_vertex_buffer, STAR1_SIZE, color::WHITE);
-    target.render_points(&resources.stars2_vertex_buffer, STAR2_SIZE, color::WHITE);
+    if state.is_showing_star_field {
+        // TODO: Render centered at eye position
+        target.render_points(&resources.stars0_vertex_buffer, STAR0_SIZE, color::WHITE);
+        target.render_points(&resources.stars1_vertex_buffer, STAR1_SIZE, color::WHITE);
+        target.render_points(&resources.stars2_vertex_buffer, STAR2_SIZE, color::WHITE);
+    }
 
     if state.is_showing_mesh {
         target.render_points(&resources.delaunay_vertex_buffer, 5.0, color::RED);
@@ -478,6 +482,7 @@ fn main() {
 
         is_wireframe: false,
         is_showing_mesh: true,
+        is_showing_star_field: false,
         is_dragging: false,
         is_zooming: false,
 
