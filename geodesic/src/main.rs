@@ -1,26 +1,26 @@
 extern crate cgmath;
 #[macro_use] extern crate glium;
+extern crate rand;
+extern crate rayon;
 extern crate rusttype;
 extern crate time;
 
 use cgmath::{Angle, PerspectiveFov, Rad};
-use cgmath::{Matrix4, SquareMatrix};
+use cgmath::Matrix4;
 use cgmath::{Point2, Point3, Point};
-use cgmath::{Vector2, Vector3, Vector};
-use glium::{DisplayBuild, Frame, IndexBuffer, Program, VertexBuffer};
-use glium::{DrawParameters, PolygonMode, Surface};
-use glium::backend::Context;
+use cgmath::Vector3;
+use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer};
 use glium::index::{PrimitiveType, NoIndices};
-use rusttype::Font;
+use rand::Rng;
+use rayon::prelude::*;
 use std::mem;
-use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
-use color::Color;
 use geom::Geometry;
-use text::TextTexture;
+use math::Polar;
+use render::{Resources, RenderTarget, Vertex};
 
 mod macros;
 
@@ -32,6 +32,7 @@ pub mod input;
 pub mod math;
 pub mod text;
 pub mod times;
+pub mod render;
 
 const WINDOW_TITLE: &'static str = "Geodesic Test";
 const WINDOW_WIDTH: u32 = 800;
@@ -48,6 +49,16 @@ const POLYHEDRON_SUBDIVS: usize = 1;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 1.0, z: 0.2 };
 
+const STAR_FIELD_RADIUS: f32 = 20.0;
+
+const STAR0_SIZE: f32 = 1.0;
+const STAR1_SIZE: f32 = 2.5;
+const STAR2_SIZE: f32 = 5.0;
+
+const STARS0_COUNT: usize = 100000;
+const STARS1_COUNT: usize = 10000;
+const STARS2_COUNT: usize = 1000;
+
 macro_rules! include_resource {
     (shader: $path:expr) => { include_str!(concat!("../resources/shaders/", $path)) };
     (font: $path:expr) => { include_bytes!(concat!("../resources/fonts/", $path)) };
@@ -61,13 +72,6 @@ const UNSHADED_VERT: &'static str = include_resource!(shader: "unshaded.v.glsl")
 const UNSHADED_FRAG: &'static str = include_resource!(shader: "unshaded.f.glsl");
 
 const BLOGGER_SANS_FONT: &'static [u8] = include_resource!(font: "blogger/Blogger Sans.ttf");
-
-#[derive(Copy, Clone)]
-pub struct Vertex {
-    position: [f32; 3],
-}
-
-implement_vertex!(Vertex, position);
 
 pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
     // const VERTICES_PER_FACE: usize = 3;
@@ -141,6 +145,45 @@ pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
     vertices
 }
 
+struct Star {
+    pub position: Polar<Rad<f32>>,
+}
+
+impl Star {
+    fn rand_spherical<R: Rng>(rng: &mut R, radius: f32) -> Self {
+        Star { position: Polar::rand_spherical(rng, radius) }
+    }
+}
+
+struct StarField {
+    stars0: Vec<Star>,
+    stars1: Vec<Star>,
+    stars2: Vec<Star>,
+}
+
+impl StarField {
+    fn generate(radius: f32) -> StarField {
+        let mut rng = rand::weak_rng();
+        StarField {
+            stars0: (0..STARS0_COUNT).map(|_| Star::rand_spherical(&mut rng, radius)).collect(),
+            stars1: (0..STARS1_COUNT).map(|_| Star::rand_spherical(&mut rng, radius)).collect(),
+            stars2: (0..STARS2_COUNT).map(|_| Star::rand_spherical(&mut rng, radius)).collect(),
+        }
+    }
+}
+
+fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
+    let mut star_vertices = Vec::with_capacity(stars.len());
+    stars.par_iter()
+        .map(|star| {
+            let position = math::array_p3(star.position.into());
+            Vertex { position: position }
+        })
+        .collect_into(&mut star_vertices);
+
+    star_vertices
+}
+
 enum Loop {
     Continue,
     Break,
@@ -151,11 +194,11 @@ struct State {
 
     is_wireframe: bool,
     is_showing_mesh: bool,
+    is_showing_star_field: bool,
     is_dragging: bool,
     is_zooming: bool,
 
     mouse_position: Point2<i32>,
-    new_mouse_position: Option<Point2<i32>>,
     window_dimensions: (u32, u32),
 
     light_dir: Vector3<f32>,
@@ -166,35 +209,10 @@ struct State {
 }
 
 impl State {
-    fn update<Events>(&mut self, actions: Events, delta_time: f32) -> Loop where
-        Events: IntoIterator,
-        Events::Item: Into<input::Event>,
-    {
-        for action in actions {
-            use input::Event::*;
-
-            match action.into() {
-                CloseApp => return Loop::Break,
-                ToggleMesh => self.is_showing_mesh = !self.is_showing_mesh,
-                ToggleWireframe => self.is_wireframe = !self.is_wireframe,
-                DragStart => self.is_dragging = true,
-                DragEnd => self.is_dragging = false,
-                ZoomStart => self.is_zooming = true,
-                ZoomEnd => self.is_zooming = false,
-                MousePosition(position) => self.new_mouse_position = Some(position),
-                Resize(width, height) => self.window_dimensions = (width, height),
-                NoOp => {},
-            }
-        }
-
-        self.frames_per_second = 1.0 / delta_time;
-
-        let mouse_position_delta = match self.new_mouse_position.take() {
-            Some(new_position) => {
-                let old_position = mem::replace(&mut self.mouse_position, new_position);
-                new_position - old_position
-            },
-            None => Vector2::zero(),
+    fn update_mouse_position(&mut self, new_position: Point2<i32>, delta_time: f32) {
+        let mouse_position_delta = {
+            let old_position = mem::replace(&mut self.mouse_position, new_position);
+            new_position - old_position
         };
 
         if self.is_dragging {
@@ -203,17 +221,45 @@ impl State {
             self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
         }
 
-        self.camera_rotation = self.camera_rotation - self.camera_rotation_delta;
-
         if self.is_zooming {
             let zoom_delta = mouse_position_delta.x as f32 * delta_time;
             self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
         }
+    }
+
+    fn update<Events>(&mut self, actions: Events, delta_time: f32) -> Loop where
+        Events: IntoIterator,
+        Events::Item: Into<input::Event>,
+    {
+        if self.is_dragging {
+            self.camera_rotation_delta = Rad::new(0.0);
+        }
+
+        for action in actions {
+            use input::Event::*;
+
+            match action.into() {
+                CloseApp => return Loop::Break,
+                ToggleMesh => self.is_showing_mesh = !self.is_showing_mesh,
+                ToggleStarField => self.is_showing_star_field = !self.is_showing_star_field,
+                ToggleWireframe => self.is_wireframe = !self.is_wireframe,
+                DragStart => self.is_dragging = true,
+                DragEnd => self.is_dragging = false,
+                ZoomStart => self.is_zooming = true,
+                ZoomEnd => self.is_zooming = false,
+                MousePosition(position) => self.update_mouse_position(position, delta_time),
+                Resize(width, height) => self.window_dimensions = (width, height),
+                NoOp => {},
+            }
+        }
+
+        self.frames_per_second = 1.0 / delta_time;
+        self.camera_rotation = self.camera_rotation - self.camera_rotation_delta;
 
         Loop::Continue
     }
 
-    fn create_camera(&self, width: u32, height: u32) -> ComputedCamera {
+    fn create_scene_camera(&self, (frame_width, frame_height): (u32, u32)) -> ComputedCamera {
         Camera {
             position: Point3 {
                 x: Rad::sin(self.camera_rotation) * self.camera_distance,
@@ -222,163 +268,54 @@ impl State {
             },
             target: Point3::origin(),
             projection: PerspectiveFov {
-                aspect: width as f32 / height as f32,
+                aspect: frame_width as f32 / frame_height as f32,
                 fovy: Rad::full_turn() / 6.0,
                 near: CAMERA_NEAR,
                 far: CAMERA_FAR,
             },
         }.compute()
     }
-}
 
-fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
-    use glium::{BackfaceCullingMode, Depth, DepthTest};
-    use glium::draw_parameters::{Smooth};
-
-    DrawParameters {
-        backface_culling: BackfaceCullingMode::CullClockwise,
-        depth: Depth {
-            test: DepthTest::IfLess,
-            write: true,
-            ..Depth::default()
-        },
-        polygon_mode: polygon_mode,
-        line_width: Some(0.5),
-        point_size: Some(5.0),
-        smooth: Some(Smooth::Nicest),
-        ..DrawParameters::default()
+    fn create_hud_camera(&self, (frame_width, frame_height): (u32, u32)) -> Matrix4<f32> {
+        cgmath::ortho(0.0, frame_width as f32, frame_height as f32, 0.0, -1.0, 1.0)
     }
 }
 
-struct Resources {
-    context: Rc<Context>,
-
-    half_edge_vertex_buffer: VertexBuffer<Vertex>,
-    delaunay_vertex_buffer: VertexBuffer<Vertex>,
-    voronoi_vertex_buffer: VertexBuffer<Vertex>,
-    index_buffer: NoIndices,
-
-    text_vertex_buffer: VertexBuffer<text::Vertex>,
-    text_index_buffer: IndexBuffer<u8>,
-
-    flat_shaded_program: Program,
-    text_program: Program,
-    unshaded_program: Program,
-
-    blogger_sans_font: Font<'static>,
-}
-
-struct RenderTarget<'a> {
-    frame: Frame,
-    hidpi_factor: f32,
-    resources: &'a Resources,
-    camera: ComputedCamera,
-    hud_matrix: Matrix4<f32>,
-}
-
-impl<'a> RenderTarget<'a> {
-    fn render_hud_text(&mut self, text: &str, text_size: f32, position: Point2<f32>, color: Color) {
-        use glium::texture::Texture2d;
-        use glium::uniforms::MagnifySamplerFilter;
-
-        let text_texture = TextTexture::new(&self.resources.blogger_sans_font, text, text_size * self.hidpi_factor);
-        let texture = Texture2d::new(&self.resources.context, &text_texture).unwrap();
-
-        let params = {
-            use glium::Blend;
-            use glium::BlendingFunction::Addition;
-            use glium::LinearBlendingFactor::*;
-
-            let blending_function = Addition {
-                source: SourceAlpha,
-                destination: OneMinusSourceAlpha
-            };
-
-            DrawParameters {
-                blend: Blend {
-                    color: blending_function,
-                    alpha: blending_function,
-                    constant_value: (1.0, 1.0, 1.0, 1.0),
-                },
-                ..DrawParameters::default()
-            }
-        };
-
-        self.frame.draw(
-            &self.resources.text_vertex_buffer,
-            &self.resources.text_index_buffer,
-            &self.resources.text_program,
-            &uniform! {
-                color:    color,
-                text:     texture.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
-                proj:     math::array_m4(self.hud_matrix),
-                model:    math::array_m4(text_texture.matrix(position * self.hidpi_factor)),
-            },
-            &params,
-        ).unwrap();
-    }
-
-    fn render_unshaded(&mut self, vertex_buffer: &VertexBuffer<Vertex>, color: Color, polygon_mode: PolygonMode) {
-        self.frame.draw(
-            vertex_buffer,
-            &self.resources.index_buffer,
-            &self.resources.unshaded_program,
-            &uniform! {
-                color:      color,
-                model:      math::array_m4(Matrix4::from_scale(1.025)),
-                view:       math::array_m4(self.camera.view),
-                proj:       math::array_m4(self.camera.projection),
-            },
-            &draw_params(polygon_mode),
-        ).unwrap();
-    }
-
-    fn render_flat_shaded(&mut self, vertex_buffer: &VertexBuffer<Vertex>, light_dir: Vector3<f32>, color: Color) {
-        self.frame.draw(
-            vertex_buffer,
-            &self.resources.index_buffer,
-            &self.resources.flat_shaded_program,
-            &uniform! {
-                color:      color,
-                light_dir:  math::array_v3(light_dir),
-                model:      math::array_m4(Matrix4::identity()),
-                view:       math::array_m4(self.camera.view),
-                proj:       math::array_m4(self.camera.projection),
-                eye:        math::array_p3(self.camera.position),
-            },
-            &draw_params(PolygonMode::Fill),
-        ).unwrap();
-    }
-}
-
-fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32) {
-    let (frame_width, frame_height) = frame.get_dimensions();
+fn render_scene(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32) {
+    let frame_dimensions = frame.get_dimensions();
 
     let mut target = RenderTarget {
         frame: frame,
         hidpi_factor: hidpi_factor,
         resources: resources,
-        camera: state.create_camera(frame_width, frame_height),
-        hud_matrix: cgmath::ortho(0.0, frame_width as f32, frame_height as f32, 0.0, -1.0, 1.0),
+        camera: state.create_scene_camera(frame_dimensions),
+        hud_matrix: state.create_hud_camera(frame_dimensions),
     };
 
-    target.frame.clear_color_and_depth(color::BLUE, 1.0);
+    target.clear(color::BLUE);
+
+    if state.is_showing_star_field {
+        // TODO: Render centered at eye position
+        target.render_points(&resources.stars0_vertex_buffer, STAR0_SIZE, color::WHITE);
+        target.render_points(&resources.stars1_vertex_buffer, STAR1_SIZE, color::WHITE);
+        target.render_points(&resources.stars2_vertex_buffer, STAR2_SIZE, color::WHITE);
+    }
 
     if state.is_showing_mesh {
-        target.render_unshaded(&resources.delaunay_vertex_buffer, color::RED, PolygonMode::Line);
-        target.render_unshaded(&resources.voronoi_vertex_buffer, color::YELLOW, PolygonMode::Point);
-        target.render_unshaded(&resources.voronoi_vertex_buffer, color::WHITE, PolygonMode::Line);
+        target.render_points(&resources.delaunay_vertex_buffer, 5.0, color::RED);
+        target.render_points(&resources.voronoi_vertex_buffer, 5.0, color::YELLOW);
+        target.render_lines(&resources.voronoi_vertex_buffer, 0.5, color::WHITE);
     }
 
     if state.is_wireframe {
-        target.render_unshaded(&resources.half_edge_vertex_buffer, color::BLACK, PolygonMode::Line);
+        target.render_lines(&resources.delaunay_vertex_buffer, 0.5, color::BLACK);
     } else {
-        target.render_flat_shaded(&resources.half_edge_vertex_buffer, state.light_dir, color::GREEN);
+        target.render_solid(&resources.delaunay_vertex_buffer, state.light_dir, color::GREEN);
     }
 
     target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK);
 
-    target.frame.finish().unwrap();
+    target.finish();
 }
 
 fn main() {
@@ -397,13 +334,13 @@ fn main() {
 
         is_wireframe: false,
         is_showing_mesh: true,
+        is_showing_star_field: false,
         is_dragging: false,
         is_zooming: false,
 
         light_dir: LIGHT_DIR,
 
         mouse_position: Point2::origin(),
-        new_mouse_position: None,
         window_dimensions: (WINDOW_WIDTH, WINDOW_HEIGHT),
 
         camera_rotation: Rad::new(0.0),
@@ -414,20 +351,25 @@ fn main() {
     let resources = {
         use rusttype::FontCollection;
 
-        let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
-        let foosahedron = geom::half_edge::icosahedron(1.0);
+        let ori_geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
+        let geometry = geom::half_edge::icosahedron(1.0);
+        let star_field = StarField::generate(STAR_FIELD_RADIUS);
         let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
 
         Resources {
             context: display.get_context().clone(),
 
-            half_edge_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&foosahedron)).unwrap(),
-            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
-            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&geometry)).unwrap(),
+            // delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
+            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&geometry)).unwrap(),
+            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&ori_geometry)).unwrap(),
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
             text_vertex_buffer: VertexBuffer::new(&display, &text::TEXTURE_VERTICES).unwrap(),
             text_index_buffer: IndexBuffer::new(&display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
+
+            stars0_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars0)).unwrap(),
+            stars1_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars1)).unwrap(),
+            stars2_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars2)).unwrap(),
 
             flat_shaded_program: Program::from_source(&display, FLAT_SHADED_VERT, FLAT_SHADED_FRAG, None).unwrap(),
             text_program: Program::from_source(&display, TEXT_VERT, TEXT_FRAG, None).unwrap(),
@@ -447,7 +389,7 @@ fn main() {
 
         match state.update(events, delta_time) {
             Loop::Break => break,
-            Loop::Continue => render(&state, &resources, display.draw(), hidpi_factor),
+            Loop::Continue => render_scene(&state, &resources, display.draw(), hidpi_factor),
         }
 
         thread::sleep(Duration::from_millis(10)); // battery saver ;)

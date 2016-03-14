@@ -76,9 +76,9 @@ impl Geometry {
             let p0 = index::get(&self.nodes, face.nodes[0]).position;
             let p1 = index::get(&self.nodes, face.nodes[1]).position;
             let p2 = index::get(&self.nodes, face.nodes[2]).position;
-            let p3 = math::set_radius(math::midpoint(p0, p1), BASE_RADIUS);
-            let p4 = math::set_radius(math::midpoint(p1, p2), BASE_RADIUS);
-            let p5 = math::set_radius(math::midpoint(p2, p0), BASE_RADIUS);
+            let p3 = math::set_radius(math::midpoint(&p0, &p1), BASE_RADIUS);
+            let p4 = math::set_radius(math::midpoint(&p1, &p2), BASE_RADIUS);
+            let p5 = math::set_radius(math::midpoint(&p2, &p0), BASE_RADIUS);
 
             let n0 = push_node(&mut nodes, Node { position: p0, edges: vec_len6(), faces: vec_len6() });
             let n1 = push_node(&mut nodes, Node { position: p1, edges: vec_len6(), faces: vec_len6() });

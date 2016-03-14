@@ -4,6 +4,7 @@ use glium::glutin;
 pub enum Event {
     CloseApp,
     ToggleMesh,
+    ToggleStarField,
     ToggleWireframe,
     DragStart,
     DragEnd,
@@ -24,6 +25,7 @@ impl From<glutin::Event> for Event {
         match src {
             Closed | KeyboardInput(Pressed, _, Some(Key::Escape)) => Event::CloseApp,
             KeyboardInput(Pressed, _, Some(Key::W)) => Event::ToggleWireframe,
+            KeyboardInput(Pressed, _, Some(Key::S)) => Event::ToggleStarField,
             KeyboardInput(Pressed, _, Some(Key::M)) => Event::ToggleMesh,
             MouseInput(Pressed, MouseButton::Left) => Event::DragStart,
             MouseInput(Released, MouseButton::Left) => Event::DragEnd,

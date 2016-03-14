@@ -28,14 +28,14 @@ pub const TEXTURE_INDICES: [u8; 2 * 3] = [
 ];
 
 #[derive(Clone, Debug)]
-pub struct TextTexture {
+pub struct TextData {
     data: Vec<f32>,
     pub width: u32,
     pub height: u32,
 }
 
-impl TextTexture {
-    pub fn new(font: &Font, text: &str, height: f32) -> TextTexture {
+impl TextData {
+    pub fn new(font: &Font, text: &str, height: f32) -> TextData {
         let pixel_height = height.ceil() as usize;
         let scale = Pixels(height);
 
@@ -60,7 +60,7 @@ impl TextTexture {
             }
         }
 
-        TextTexture {
+        TextData {
             data: data,
             width: width as u32,
             height: pixel_height as u32,
@@ -79,7 +79,7 @@ impl TextTexture {
     }
 }
 
-impl<'a> Texture2dDataSource<'a> for &'a TextTexture {
+impl<'a> Texture2dDataSource<'a> for &'a TextData {
     type Data = f32;
 
     fn into_raw(self) -> RawImage2d<'a, f32> {

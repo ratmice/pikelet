@@ -1,4 +1,4 @@
-
+use std::collections::HashMap;
 use cgmath::{Vector4, Point3};
 use math;
 
@@ -31,17 +31,35 @@ pub type Color = Vector4<f32>;
 #[derive(Clone, Debug)]
 pub struct AttributeIndex {
     pub position: Index,        // Positions are required.
-    pub color: Option<Index>,   // If a mesh has vertex colors.
-    pub normal: Option<Index>,  // If a mesh has normals.
 }
 
 impl AttributeIndex {
     pub fn new(position: Index) -> AttributeIndex {
         AttributeIndex {
-            position: position,
-            color: None,
-            normal: None
+            position: position
         }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// The Face
+//
+// TODO: Is the face really so sparse?
+//       Probably not! Because there is a bunch of attributes, seeds, values,
+//       parameters, references to things, and so on, and so on; that could
+//       be associated and organized with a single Face. So let's assume
+//       that connectivity aside, we'll be stuffing stuff into the Face struct
+//       eventually.
+//
+#[derive(Clone, Debug)]
+pub struct Face {
+    // The index of the first edge to define this face.
+    pub root: Index,
+}
+
+impl Face {
+    pub fn new(root: Index) -> Face {
+        Face { root: root }
     }
 }
 
@@ -90,36 +108,6 @@ impl HalfEdge {
     pub fn is_boundary(&self) -> bool {
         self.adjacent.is_some()
     }
-
-    pub fn has_color(&self) -> bool {
-        self.attributes.color.is_some()
-    }
-
-    pub fn has_normal(&self) -> bool {
-        self.attributes.normal.is_some()
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// The Face
-//
-// TODO: Is the face really so sparse?
-//       Probably not! Because there is a bunch of attributes, seeds, values,
-//       parameters, references to things, and so on, and so on; that could
-//       be associated and organized with a single Face. So let's assume
-//       that connectivity aside, we'll be stuffing stuff into the Face struct
-//       eventually.
-//
-#[derive(Clone, Debug)]
-pub struct Face {
-    // The index of the first edge to define this face.
-    pub root: Index,
-}
-
-impl Face {
-    pub fn new(root: Index) -> Face {
-        Face { root: root }
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -129,8 +117,6 @@ impl Face {
 pub struct Mesh {
     // Attributes
     pub positions: Vec<Position>,
-    pub colors: Option<Vec<Color>>,
-    pub normals: Option<Vec<Normal>>,
 
     // Connectivity information
     pub faces: Vec<Face>,
@@ -138,11 +124,45 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn subdivide(&self, count: usize) -> Mesh {
-        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once())
+
+    // Return the Position of the midpoint along an edge
+    pub fn midpoint(&self, radius: f32, edge_index: Index) -> Position {
+        let ref e0 = self.vertices[edge_index];
+        let ref e1 = self.vertices[e0.next];
+        
+        let ref p0 = self.positions[e0.attributes.position];
+        let ref p1 = self.positions[e1.attributes.position];
+
+        math::set_radius(math::midpoint(p0, p1), radius)
+    }
+    
+    pub fn subdivide(&self, radius: f32, count: usize) -> Mesh {
+        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(radius))
     }
 
-    pub fn subdivide_once(&self) -> Mesh {
+    // - For each face, get the edge loop, split each each edge.
+    // - Once each edge is split you make 3 new faces.
+    // - Always split adjacent edges in order to maintain correct indexing.
+    //
+    // Keep track of any attributes so that we don't duplicate them.
+    //
+    // NOTE: We're baking in the idea that a mesh *only* ever contains
+    //       triangles. That's fine of course, but if any other functions
+    //       potentially generate faces with more than 3 edges you'll
+    //       need to triangulate the Mesh first.
+    //
+    // NOTE: The method of subdivision is illustrated below:
+    //
+    //          v0         |  v0 ____v3____ v2
+    //          /\         |    \    /\    /
+    //         /  \        |     \  /  \  /
+    //    v3  /____\  v5   |   v4 \/____\/ v5
+    //       /\    /\      |       \    /
+    //      /  \  /  \     |        \  /
+    //     /____\/____\    |         \/
+    //   v1     v4     v2  |         v1
+    //
+    pub fn subdivide_once(&self, radius: f32) -> Mesh {
         // I don't know a general way to individually calculate the
         // amount to reserve for attributes. Points in particular
         // don't end up with values that divide into whole numbers.
@@ -155,37 +175,84 @@ impl Mesh {
         // that ultimately would get baked into buffers and these entities
         // generated aren't intended to be ludicrously dense.
         const RESERVATION_FACTOR: usize = 4;
+
+        let mut visited_edges: HashMap<usize, Index> = HashMap::new();
+        let mut new_positions: HashMap<usize, Index> = HashMap::new();
         
         let mut positions = Vec::with_capacity(self.positions.len() * RESERVATION_FACTOR);
         let mut vertices = Vec::with_capacity(self.vertices.len() * RESERVATION_FACTOR);
         let mut faces = Vec::with_capacity(self.faces.len() * RESERVATION_FACTOR);
 
-        // For each face, get the edge loop, split each each.
-        // Keep track of any attributes so that we don't duplicate them.
-        // NOTE: We're baking in the idea that a mesh *only* ever contains
-        //       triangles. That's fine of course, but if any other functions
-        //       potentially generate faces with more than 3 edges you'll
-        //       need to triangulate the Mesh first.
-        //
-        // NOTE: The method of subdivision is illustrated below:
-        //
-        //          n0
-        //          /\
-        //         /  \
-        //    n5  /____\  n3
-        //       /\    /\
-        //      /  \  /  \
-        //     /____\/____\
-        //   n2     n4     n1
-        //
+        positions.extend_from_slice(self.positions.as_slice());
+        vertices.extend_from_slice(self.vertices.as_slice());
+        faces.extend_from_slice(self.faces.as_slice());
+
+        let mut split_edge = |point: Index, edge: Index| {
+            let mut e0 = vertices[edge];
+            let e1 = match e0.adjacent {
+                Some(adjacent) => HalfEdge::new(point, e0.face, e0.next, adjacent),
+                None => HalfEdge::new_boundary(point, e0.face, e0.next)
+            };
+
+            vertices.push(e1);
+
+            let new_edge_index = vertices.len()-1;
+
+            e0.next = new_edge_index;
+
+            new_edge_index
+        };
+
+        let adjacent_id = |eid: usize| {
+            ((eid & 0xFFFF) << 32) | (eid >> 32)
+        };
+
+        let mut get_midpoint_position_index = |ve_index: &usize, edge: Index| {
+            if new_positions.contains_key(ve_index) {
+                new_positions.get(ve_index).unwrap().clone()
+            } else {
+                let p = self.midpoint(radius, edge);
+                positions.push(p);
+                let p_index = positions.len()-1;
+                new_positions.insert(ve_index.clone(), p_index.clone());
+                new_positions.insert(adjacent_id(ve_index.clone()), p_index.clone());
+                p_index
+            }
+        };
+        
         for face in &self.faces {
-            //
+            let e0 = face.root;
+            let ref v0 = vertices[e0];
+            let e1 = v0.next;
+            let ref v1 = vertices[e1];
+            let e2 = v1.next;
+            let ref v2 = vertices[e2];
+            
+            assert_eq!(v2.next, e0);
+
+            let id01: usize = (e0 << 32) | e1;
+            let id12: usize = (e1 << 32) | e2;
+            let id20: usize = (e2 << 32) | e0;
+
+            let e5 = match visited_edges.get(&id20) {
+                Some(index) => index,
+                None => {
+                    let p_index = get_midpoint_position_index(&id20, e2);
+                    let new_edge_index = split_edge(p_index, e2);
+                    visited_edges.insert(id20, new_edge_index);
+                    visited_edges.get(&id20).unwrap()
+                }
+            };
+
+            // let v4 = visited_edges.get(id12).or_else(|| {
+            // });
+            
+            // let v3 = visited_edges.get(id01).or_else(|| {
+            // });
         }
 
         Mesh {
             positions: positions,
-            colors: None,
-            normals: None,
 
             faces: faces,
             vertices: vertices
@@ -219,8 +286,6 @@ pub fn icosahedron(radius: f32) -> Mesh {
         math::set_radius(Point3::new(-phi, -1.0,  0.0), radius),
         math::set_radius(Point3::new( 0.0, -phi,  1.0), radius),
     ];
-    let colors = None;
-    let normals = None;
 
                        // Edges around
     let faces = vec![  // the face:
@@ -331,9 +396,6 @@ pub fn icosahedron(radius: f32) -> Mesh {
 
     Mesh {
         positions: positions,
-        colors: colors,
-        normals: normals,
-
         faces: faces,
         vertices: vertices
     }
