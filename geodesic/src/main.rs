@@ -265,6 +265,10 @@ struct RenderTarget<'a> {
 }
 
 impl<'a> RenderTarget<'a> {
+    fn clear(&mut self, color: Color) {
+        self.frame.clear_color_and_depth(color, 1.0);
+    }
+
     fn render_hud_text(&mut self, text: &str, text_size: f32, position: Point2<f32>, color: Color) {
         use glium::texture::Texture2d;
         use glium::uniforms::MagnifySamplerFilter;
@@ -337,6 +341,10 @@ impl<'a> RenderTarget<'a> {
             &draw_params(PolygonMode::Fill),
         ).unwrap();
     }
+
+    fn finish(self) {
+        self.frame.finish().unwrap();
+    }
 }
 
 fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32) {
@@ -350,7 +358,7 @@ fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32)
         hud_matrix: cgmath::ortho(0.0, frame_width as f32, frame_height as f32, 0.0, -1.0, 1.0),
     };
 
-    target.frame.clear_color_and_depth(color::BLUE, 1.0);
+    target.clear(color::BLUE);
 
     if state.is_showing_mesh {
         target.render_unshaded(&resources.delaunay_vertex_buffer, color::RED, PolygonMode::Point);
@@ -366,7 +374,7 @@ fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32)
 
     target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK);
 
-    target.frame.finish().unwrap();
+    target.finish();
 }
 
 fn main() {
