@@ -5,25 +5,20 @@ extern crate rusttype;
 extern crate time;
 
 use cgmath::{Angle, PerspectiveFov, Rad};
-use cgmath::{Matrix4, SquareMatrix};
+use cgmath::Matrix4;
 use cgmath::{Point2, Point3, Point};
 use cgmath::Vector3;
-use glium::{DisplayBuild, Frame, IndexBuffer, Program, VertexBuffer};
-use glium::{DrawParameters, PolygonMode, Surface};
-use glium::backend::Context;
+use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer};
 use glium::index::{PrimitiveType, NoIndices};
 use rand::Rng;
-use rusttype::Font;
 use std::mem;
-use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
-use color::Color;
 use geom::Geometry;
-use text::TextData;
 use math::Polar;
+use render::{Resources, RenderTarget, Vertex};
 
 mod macros;
 
@@ -35,6 +30,7 @@ pub mod input;
 pub mod math;
 pub mod text;
 pub mod times;
+pub mod render;
 
 const WINDOW_TITLE: &'static str = "Geodesic Test";
 const WINDOW_WIDTH: u32 = 800;
@@ -74,13 +70,6 @@ const UNSHADED_VERT: &'static str = include_resource!(shader: "unshaded.v.glsl")
 const UNSHADED_FRAG: &'static str = include_resource!(shader: "unshaded.f.glsl");
 
 const BLOGGER_SANS_FONT: &'static [u8] = include_resource!(font: "blogger/Blogger Sans.ttf");
-
-#[derive(Copy, Clone)]
-pub struct Vertex {
-    position: [f32; 3],
-}
-
-implement_vertex!(Vertex, position);
 
 pub fn create_delaunay_vertices(geometry: &Geometry) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
@@ -275,161 +264,7 @@ impl State {
     }
 }
 
-fn draw_params<'a>() -> DrawParameters<'a> {
-    use glium::{BackfaceCullingMode, Depth, DepthTest};
-    use glium::draw_parameters::{Smooth};
-
-    DrawParameters {
-        backface_culling: BackfaceCullingMode::CullClockwise,
-        depth: Depth {
-            test: DepthTest::IfLess,
-            write: true,
-            ..Depth::default()
-        },
-        smooth: Some(Smooth::Nicest),
-        ..DrawParameters::default()
-    }
-}
-
-struct Resources {
-    context: Rc<Context>,
-
-    delaunay_vertex_buffer: VertexBuffer<Vertex>,
-    voronoi_vertex_buffer: VertexBuffer<Vertex>,
-    index_buffer: NoIndices,
-
-    stars0_vertex_buffer: VertexBuffer<Vertex>,
-    stars1_vertex_buffer: VertexBuffer<Vertex>,
-    stars2_vertex_buffer: VertexBuffer<Vertex>,
-
-    text_vertex_buffer: VertexBuffer<text::Vertex>,
-    text_index_buffer: IndexBuffer<u8>,
-
-    flat_shaded_program: Program,
-    text_program: Program,
-    unshaded_program: Program,
-
-    blogger_sans_font: Font<'static>,
-}
-
-struct RenderTarget<'a> {
-    frame: Frame,
-    hidpi_factor: f32,
-    resources: &'a Resources,
-    camera: ComputedCamera,
-    hud_matrix: Matrix4<f32>,
-}
-
-impl<'a> RenderTarget<'a> {
-    fn clear(&mut self, color: Color) {
-        self.frame.clear_color_and_depth(color, 1.0);
-    }
-
-    fn render_hud_text(&mut self, text: &str, text_size: f32, position: Point2<f32>, color: Color) {
-        use glium::texture::Texture2d;
-        use glium::uniforms::MagnifySamplerFilter;
-
-        let text_data = TextData::new(&self.resources.blogger_sans_font, text, text_size * self.hidpi_factor);
-        let text_texture = Texture2d::new(&self.resources.context, &text_data).unwrap();
-
-        let params = {
-            use glium::Blend;
-            use glium::BlendingFunction::Addition;
-            use glium::LinearBlendingFactor::*;
-
-            let blending_function = Addition {
-                source: SourceAlpha,
-                destination: OneMinusSourceAlpha
-            };
-
-            DrawParameters {
-                blend: Blend {
-                    color: blending_function,
-                    alpha: blending_function,
-                    constant_value: (1.0, 1.0, 1.0, 1.0),
-                },
-                ..DrawParameters::default()
-            }
-        };
-
-        self.frame.draw(
-            &self.resources.text_vertex_buffer,
-            &self.resources.text_index_buffer,
-            &self.resources.text_program,
-            &uniform! {
-                color:    color,
-                text:     text_texture.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
-                proj:     math::array_m4(self.hud_matrix),
-                model:    math::array_m4(text_data.matrix(position * self.hidpi_factor)),
-            },
-            &params,
-        ).unwrap();
-    }
-
-    fn render_points(&mut self, vertex_buffer: &VertexBuffer<Vertex>, point_size: f32, color: Color) {
-        self.frame.draw(
-            vertex_buffer,
-            &self.resources.index_buffer,
-            &self.resources.unshaded_program,
-            &uniform! {
-                color:      color,
-                model:      math::array_m4(Matrix4::from_scale(1.025)),
-                view:       math::array_m4(self.camera.view),
-                proj:       math::array_m4(self.camera.projection),
-            },
-            &DrawParameters {
-                polygon_mode: PolygonMode::Point,
-                point_size: Some(point_size),
-                ..draw_params()
-            },
-        ).unwrap();
-    }
-
-    fn render_lines(&mut self, vertex_buffer: &VertexBuffer<Vertex>, line_width: f32, color: Color) {
-        self.frame.draw(
-            vertex_buffer,
-            &self.resources.index_buffer,
-            &self.resources.unshaded_program,
-            &uniform! {
-                color:      color,
-                model:      math::array_m4(Matrix4::from_scale(1.025)),
-                view:       math::array_m4(self.camera.view),
-                proj:       math::array_m4(self.camera.projection),
-            },
-            &DrawParameters {
-                polygon_mode: PolygonMode::Line,
-                line_width: Some(line_width),
-                ..draw_params()
-            },
-        ).unwrap();
-    }
-
-    fn render_solid(&mut self, vertex_buffer: &VertexBuffer<Vertex>, light_dir: Vector3<f32>, color: Color) {
-        self.frame.draw(
-            vertex_buffer,
-            &self.resources.index_buffer,
-            &self.resources.flat_shaded_program,
-            &uniform! {
-                color:      color,
-                light_dir:  math::array_v3(light_dir),
-                model:      math::array_m4(Matrix4::identity()),
-                view:       math::array_m4(self.camera.view),
-                proj:       math::array_m4(self.camera.projection),
-                eye:        math::array_p3(self.camera.position),
-            },
-            &DrawParameters {
-                polygon_mode: PolygonMode::Fill,
-                ..draw_params()
-            },
-        ).unwrap();
-    }
-
-    fn finish(self) {
-        self.frame.finish().unwrap();
-    }
-}
-
-fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32) {
+fn render_scene(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32) {
     let frame_dimensions = frame.get_dimensions();
 
     let mut target = RenderTarget {
@@ -535,7 +370,7 @@ fn main() {
 
         match state.update(events, delta_time) {
             Loop::Break => break,
-            Loop::Continue => render(&state, &resources, display.draw(), hidpi_factor),
+            Loop::Continue => render_scene(&state, &resources, display.draw(), hidpi_factor),
         }
 
         thread::sleep(Duration::from_millis(10)); // battery saver ;)
