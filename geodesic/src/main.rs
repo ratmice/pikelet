@@ -1,6 +1,7 @@
 extern crate cgmath;
 #[macro_use] extern crate glium;
 extern crate rand;
+extern crate rayon;
 extern crate rusttype;
 extern crate time;
 
@@ -11,6 +12,7 @@ use cgmath::Vector3;
 use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer};
 use glium::index::{PrimitiveType, NoIndices};
 use rand::Rng;
+use rayon::prelude::*;
 use std::mem;
 use std::thread;
 use std::time::Duration;
@@ -159,12 +161,15 @@ impl StarField {
 }
 
 fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
-    stars.iter()
+    let mut star_vertices = Vec::with_capacity(stars.len());
+    stars.par_iter()
         .map(|star| {
             let position = math::array_p3(star.position.into());
             Vertex { position: position }
         })
-        .collect()
+        .collect_into(&mut star_vertices);
+
+    star_vertices
 }
 
 enum Loop {
