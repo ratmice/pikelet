@@ -18,6 +18,7 @@ path = "geodesic/src/main.rs"
 cgmath = "0.7.0"
 glium = "0.13.5"
 glutin = "0.4.9"
+rand = "^0.3.14"
 rusttype = "0.1.2"
 time = "0.1.34"
 

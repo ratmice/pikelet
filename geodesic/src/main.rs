@@ -1,5 +1,6 @@
 extern crate cgmath;
 #[macro_use] extern crate glium;
+extern crate rand;
 extern crate rusttype;
 extern crate time;
 
