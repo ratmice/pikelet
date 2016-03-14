@@ -225,7 +225,7 @@ impl State {
     }
 }
 
-fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
+fn draw_params<'a>() -> DrawParameters<'a> {
     use glium::{BackfaceCullingMode, Depth, DepthTest};
     use glium::draw_parameters::{Smooth};
 
@@ -236,9 +236,6 @@ fn draw_params<'a>(polygon_mode: PolygonMode) -> DrawParameters<'a> {
             write: true,
             ..Depth::default()
         },
-        polygon_mode: polygon_mode,
-        line_width: Some(0.5),
-        point_size: Some(5.0),
         smooth: Some(Smooth::Nicest),
         ..DrawParameters::default()
     }
@@ -315,7 +312,7 @@ impl<'a> RenderTarget<'a> {
         ).unwrap();
     }
 
-    fn render_unshaded(&mut self, vertex_buffer: &VertexBuffer<Vertex>, color: Color, polygon_mode: PolygonMode) {
+    fn render_points(&mut self, vertex_buffer: &VertexBuffer<Vertex>, point_size: f32, color: Color) {
         self.frame.draw(
             vertex_buffer,
             &self.resources.index_buffer,
@@ -326,11 +323,34 @@ impl<'a> RenderTarget<'a> {
                 view:       math::array_m4(self.camera.view),
                 proj:       math::array_m4(self.camera.projection),
             },
-            &draw_params(polygon_mode),
+            &DrawParameters {
+                polygon_mode: PolygonMode::Point,
+                point_size: Some(point_size),
+                ..draw_params()
+            },
         ).unwrap();
     }
 
-    fn render_flat_shaded(&mut self, vertex_buffer: &VertexBuffer<Vertex>, light_dir: Vector3<f32>, color: Color) {
+    fn render_lines(&mut self, vertex_buffer: &VertexBuffer<Vertex>, line_width: f32, color: Color) {
+        self.frame.draw(
+            vertex_buffer,
+            &self.resources.index_buffer,
+            &self.resources.unshaded_program,
+            &uniform! {
+                color:      color,
+                model:      math::array_m4(Matrix4::from_scale(1.025)),
+                view:       math::array_m4(self.camera.view),
+                proj:       math::array_m4(self.camera.projection),
+            },
+            &DrawParameters {
+                polygon_mode: PolygonMode::Line,
+                line_width: Some(line_width),
+                ..draw_params()
+            },
+        ).unwrap();
+    }
+
+    fn render_solid(&mut self, vertex_buffer: &VertexBuffer<Vertex>, light_dir: Vector3<f32>, color: Color) {
         self.frame.draw(
             vertex_buffer,
             &self.resources.index_buffer,
@@ -343,7 +363,10 @@ impl<'a> RenderTarget<'a> {
                 proj:       math::array_m4(self.camera.projection),
                 eye:        math::array_p3(self.camera.position),
             },
-            &draw_params(PolygonMode::Fill),
+            &DrawParameters {
+                polygon_mode: PolygonMode::Fill,
+                ..draw_params()
+            },
         ).unwrap();
     }
 
@@ -366,15 +389,15 @@ fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32)
     target.clear(color::BLUE);
 
     if state.is_showing_mesh {
-        target.render_unshaded(&resources.delaunay_vertex_buffer, color::RED, PolygonMode::Point);
-        target.render_unshaded(&resources.voronoi_vertex_buffer, color::YELLOW, PolygonMode::Point);
-        target.render_unshaded(&resources.voronoi_vertex_buffer, color::WHITE, PolygonMode::Line);
+        target.render_points(&resources.delaunay_vertex_buffer, 5.0, color::RED);
+        target.render_points(&resources.voronoi_vertex_buffer, 5.0, color::YELLOW);
+        target.render_lines(&resources.voronoi_vertex_buffer, 0.5, color::WHITE);
     }
 
     if state.is_wireframe {
-        target.render_unshaded(&resources.delaunay_vertex_buffer, color::BLACK, PolygonMode::Line);
+        target.render_lines(&resources.delaunay_vertex_buffer, 0.5, color::BLACK);
     } else {
-        target.render_flat_shaded(&resources.delaunay_vertex_buffer, state.light_dir, color::GREEN);
+        target.render_solid(&resources.delaunay_vertex_buffer, state.light_dir, color::GREEN);
     }
 
     target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK);
