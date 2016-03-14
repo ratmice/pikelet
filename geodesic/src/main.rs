@@ -12,6 +12,7 @@ use glium::{DisplayBuild, Frame, IndexBuffer, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface};
 use glium::backend::Context;
 use glium::index::{PrimitiveType, NoIndices};
+use rand::Rng;
 use rusttype::Font;
 use std::mem;
 use std::rc::Rc;
@@ -22,6 +23,7 @@ use camera::{Camera, ComputedCamera};
 use color::Color;
 use geom::Geometry;
 use text::TextData;
+use math::Polar;
 
 mod macros;
 
@@ -48,6 +50,16 @@ const CAMERA_DRAG_FACTOR: f32 = 10.0;
 const POLYHEDRON_SUBDIVS: usize = 1;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 1.0, z: 0.2 };
+
+const STAR_FIELD_RADIUS: f32 = 20.0;
+
+const STAR0_SIZE: f32 = 1.0;
+const STAR1_SIZE: f32 = 2.5;
+const STAR2_SIZE: f32 = 5.0;
+
+const STARS0_COUNT: usize = 100000;
+const STARS1_COUNT: usize = 10000;
+const STARS2_COUNT: usize = 1000;
 
 macro_rules! include_resource {
     (shader: $path:expr) => { include_str!(concat!("../resources/shaders/", $path)) };
@@ -128,6 +140,42 @@ pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
     // }
 
     vertices
+}
+
+struct Star {
+    pub position: Polar<Rad<f32>>,
+}
+
+impl Star {
+    fn rand_spherical<R: Rng>(rng: &mut R, radius: f32) -> Self {
+        Star { position: Polar::rand_spherical(rng, radius) }
+    }
+}
+
+struct StarField {
+    stars0: Vec<Star>,
+    stars1: Vec<Star>,
+    stars2: Vec<Star>,
+}
+
+impl StarField {
+    fn generate(radius: f32) -> StarField {
+        let mut rng = rand::weak_rng();
+        StarField {
+            stars0: (0..STARS0_COUNT).map(|_| Star::rand_spherical(&mut rng, radius)).collect(),
+            stars1: (0..STARS1_COUNT).map(|_| Star::rand_spherical(&mut rng, radius)).collect(),
+            stars2: (0..STARS2_COUNT).map(|_| Star::rand_spherical(&mut rng, radius)).collect(),
+        }
+    }
+}
+
+fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
+    stars.iter()
+        .map(|star| {
+            let position = math::array_p3(star.position.into());
+            Vertex { position: position }
+        })
+        .collect()
 }
 
 enum Loop {
@@ -247,6 +295,10 @@ struct Resources {
     delaunay_vertex_buffer: VertexBuffer<Vertex>,
     voronoi_vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: NoIndices,
+
+    stars0_vertex_buffer: VertexBuffer<Vertex>,
+    stars1_vertex_buffer: VertexBuffer<Vertex>,
+    stars2_vertex_buffer: VertexBuffer<Vertex>,
 
     text_vertex_buffer: VertexBuffer<text::Vertex>,
     text_index_buffer: IndexBuffer<u8>,
@@ -388,6 +440,11 @@ fn render(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32)
 
     target.clear(color::BLUE);
 
+    // TODO: Render centered at eye position
+    target.render_points(&resources.stars0_vertex_buffer, STAR0_SIZE, color::WHITE);
+    target.render_points(&resources.stars1_vertex_buffer, STAR1_SIZE, color::WHITE);
+    target.render_points(&resources.stars2_vertex_buffer, STAR2_SIZE, color::WHITE);
+
     if state.is_showing_mesh {
         target.render_points(&resources.delaunay_vertex_buffer, 5.0, color::RED);
         target.render_points(&resources.voronoi_vertex_buffer, 5.0, color::YELLOW);
@@ -438,6 +495,7 @@ fn main() {
         use rusttype::FontCollection;
 
         let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
+        let star_field = StarField::generate(STAR_FIELD_RADIUS);
         let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
 
         Resources {
@@ -449,6 +507,10 @@ fn main() {
 
             text_vertex_buffer: VertexBuffer::new(&display, &text::TEXTURE_VERTICES).unwrap(),
             text_index_buffer: IndexBuffer::new(&display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
+
+            stars0_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars0)).unwrap(),
+            stars1_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars1)).unwrap(),
+            stars2_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars2)).unwrap(),
 
             flat_shaded_program: Program::from_source(&display, FLAT_SHADED_VERT, FLAT_SHADED_FRAG, None).unwrap(),
             text_program: Program::from_source(&display, TEXT_VERT, TEXT_FRAG, None).unwrap(),
