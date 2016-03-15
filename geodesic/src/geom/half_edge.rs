@@ -141,25 +141,25 @@ impl Mesh {
     }
 
     fn add_midpoint(&self, id: usize, edge: Index, radius: f32, positions: &mut Vec<Position>, new_positions: &mut HashMap<usize, Index>) -> Index {
+        let p_index = positions.len();
         let p = self.midpoint(radius, edge);
         positions.push(p);
-        let p_index = positions.len()-1;
         new_positions.insert(id.clone(), p_index.clone());
         new_positions.insert(self.adjacent_id(id).clone(), p_index.clone());
         p_index
     }
     
     fn split_edge(&self, id: usize, edge: Index, p_index: Index, visited: &mut HashMap<usize, Index>, vertices: &mut Vec<HalfEdge>) -> Index {
+        let e_index = vertices.len();
         let mut new_edge = vertices[edge].clone();
         new_edge.attributes.position = p_index;
         vertices.push(new_edge);
-        let new_edge_index = vertices.len() - 1;
         
-        visited.insert(id.clone(), new_edge_index.clone());
+        visited.insert(id.clone(), e_index.clone());
         
         let ref mut v2 = vertices[edge];
-        v2.next = new_edge_index;
-        new_edge_index
+        v2.next = e_index;
+        e_index
     }
     
     pub fn subdivide(&self, radius: f32, count: usize) -> Mesh {
@@ -219,13 +219,16 @@ impl Mesh {
             let e1 = vertices[e0].next.clone();
             let e2 = vertices[e1].next.clone();
 
+            let id01: usize = (e0 << 32) | e1;
+            let id12: usize = (e1 << 32) | e2;
+            let id20: usize = (e2 << 32) | e0;
+
             // Split each of these edges. Keep track of mid point positions
             // so that when we're splitting the adjacent edges we can reuse
             // the position attribute.
             
             // TODO: DRY up the edge splitting.
-
-            let id01: usize = (e0 << 32) | e1;
+            
             let e3 = if visited_edges.contains_key(&id01) {
                 visited_edges.get(&id01).unwrap().clone()
             } else {
@@ -239,7 +242,6 @@ impl Mesh {
                 e_index
             };
             
-            let id12: usize = (e1 << 32) | e2;
             let e4 = if visited_edges.contains_key(&id12) {
                 visited_edges.get(&id12).unwrap().clone()
             } else {
@@ -253,7 +255,6 @@ impl Mesh {
                 e_index
             };
 
-            let id20: usize = (e2 << 32) | e0;
             let e5 = if visited_edges.contains_key(&id20) {
                 visited_edges.get(&id20).unwrap().clone()
             } else {
@@ -267,69 +268,55 @@ impl Mesh {
                 e_index
             };
 
-            // With each edge split we can now create the 3 new edges and faces...
-            // We create them counter-clockwise. Face 0 can be reused.
+            // With each edge split we can now create the 3 new faces...
+            // Face 0 can be reused.
 
-            ///////////////
-            // 0 -> 3 -> 5
-            // Create the edge from 3 -> 5
-            let mut v6 = vertices[e3].clone();
-            v6.next = e5;
+            let p3 = vertices[e3].attributes.position.clone();
+            let p4 = vertices[e4].attributes.position.clone();
+            let p5 = vertices[e5].attributes.position.clone();
+
+            // anticipated indexing YOLO!!!
+            let e6 = vertices.len();
+            let e7 = e6+1;
+            let e8 = e7+1;
+            let e9 = e8+1;
+            let e10 = e9+1;
+            let e11 = e10+1;
+
+            let f0 = vertices[e0].face.clone();
+            let f1 = {
+                faces.push(Face::new(e3));
+                faces.len()-1
+            };
+            let f2 = {
+                faces.push(Face::new(e8));
+                faces.len()-1
+            };
+            let f3 = {
+                faces.push(Face::new(e11));
+                faces.len()-1
+            };
+            
+            // 3 -> 5
+            let v6 = HalfEdge::new(p3, f0, e5, e10);
             vertices.push(v6);
-            let e6 = vertices.len() - 1;
-            // Update e0 
-            vertices[e0].next = e6;
-            vertices[e5].next = e0;
-
-            ///////////////
-            // 3 -> 1 -> 4
-            // Add a new face with e3 as the root
-            faces.push(Face::new(e3));
-            let f1 = faces.len() - 1;
-            // Update e3 and e1 with new face
-            vertices[e3].face = f1;
-            vertices[e1].face = f1;
-            // Create edge from 4 -> 3
-            let mut v7 = vertices[e4].clone();
-            v7.next = e3;
-            v7.face = f1;
+            // 4 -> 3
+            let v7 = HalfEdge::new(p4, f1, e3, e8);
             vertices.push(v7);
-            let e7 = vertices.len() - 1;
-            // Update e1
-            vertices[e1].next = e7;
-
-            ///////////////
-            // 3 -> 4 -> 5
-            // Create the edge from 3 -> 4
-            let mut v8 = vertices[e3].clone();
-            v8.next = e4;
+            // 3 -> 4
+            let v8 = HalfEdge::new(p3, f2, e9, e7);
             vertices.push(v8);
-            let e8 = vertices.len() - 1;
-            // Add a new face with 
-            faces.push(Face::new(e8));
-            let f2 = faces.len() - 1;
-            // Update edges with new face
-            vertices[e3].face = f2;
-            vertices[e1].face = f2;
-            v8.face = f2;
-
-            ///////////////
-            // 5 -> 4 -> 2
-            // Create the edge from 5 -> 4
-            let mut v9 = vertices[e5].clone();
-            v9.next = e4;
+            // 4 -> 5
+            let v9 = HalfEdge::new(p4, f2, e10, e11);
             vertices.push(v9);
-            let e9 = vertices.len() - 1;
-            // Add a new face with e9 as its root
-            faces.push(Face::new(e9));
-            let f3 = faces.len() - 1;
-            // Update edges with new face
-            v9.face = f3;
-            vertices[e4].face = f3;
-            vertices[e2].face = f3;
-            vertices[e2].next = e9;
-
-            // TODO: adjacency
+            // 5 -> 3
+            let v10 = HalfEdge::new(p5, f2, e8, e6);
+            vertices.push(v10);
+            // 5 -> 4
+            let mut v11 = HalfEdge::new(p5, f3, e4, 0);
+            vertices.push(v11);
+            
+            // TODO: update adjacency
         }
 
         Mesh {

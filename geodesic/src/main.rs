@@ -366,7 +366,7 @@ fn main() {
 
         let ori_geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
         let geometry = geom::half_edge::icosahedron(1.0);
-        let subdivided = geometry.subdivide(1.0, 1);
+        let subdivided = geometry.subdivide(1.0, 2);
         let star_field = StarField::generate(STAR_FIELD_RADIUS);
         let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
 
