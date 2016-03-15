@@ -1,4 +1,5 @@
 extern crate cgmath;
+extern crate find_folder;
 #[macro_use] extern crate glium;
 extern crate rand;
 extern crate rayon;
@@ -9,6 +10,7 @@ use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::Matrix4;
 use cgmath::{Point2, Point3, Point};
 use cgmath::Vector3;
+use find_folder::Search as FolderSearch;
 use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer};
 use glium::index::{PrimitiveType, NoIndices};
 use rand::Rng;
@@ -58,20 +60,6 @@ const STAR2_SIZE: f32 = 5.0;
 const STARS0_COUNT: usize = 100000;
 const STARS1_COUNT: usize = 10000;
 const STARS2_COUNT: usize = 1000;
-
-macro_rules! include_resource {
-    (shader: $path:expr) => { include_str!(concat!("../resources/shaders/", $path)) };
-    (font: $path:expr) => { include_bytes!(concat!("../resources/fonts/", $path)) };
-}
-
-const FLAT_SHADED_VERT: &'static str = include_resource!(shader: "flat_shaded.v.glsl");
-const FLAT_SHADED_FRAG: &'static str = include_resource!(shader: "flat_shaded.f.glsl");
-const TEXT_VERT: &'static str = include_resource!(shader: "text.v.glsl");
-const TEXT_FRAG: &'static str = include_resource!(shader: "text.f.glsl");
-const UNSHADED_VERT: &'static str = include_resource!(shader: "unshaded.v.glsl");
-const UNSHADED_FRAG: &'static str = include_resource!(shader: "unshaded.f.glsl");
-
-const BLOGGER_SANS_FONT: &'static [u8] = include_resource!(font: "blogger/Blogger Sans.ttf");
 
 pub fn create_delaunay_vertices(geometry: &Geometry) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
@@ -338,10 +326,45 @@ fn main() {
 
     let resources = {
         use rusttype::FontCollection;
+        use std::fs::File;
+        use std::io;
+        use std::io::prelude::*;
+        use std::path::Path;
 
         let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
         let star_field = StarField::generate(STAR_FIELD_RADIUS);
-        let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
+
+        let assets = FolderSearch::ParentsThenKids(3, 3)
+                .for_folder("resources")
+                .expect("Could not locate `resources` folder");
+
+        let load_shader = |assets: &Path, path| -> io::Result<String> {
+            let mut file = try!(File::open(assets.join(path)));
+            let mut buffer = String::new();
+            try!(file.read_to_string(&mut buffer));
+
+            Ok(buffer)
+        };
+
+        let flat_shaded_vert    = load_shader(&assets, "shaders/flat_shaded.v.glsl").unwrap();
+        let flat_shaded_frag    = load_shader(&assets, "shaders/flat_shaded.f.glsl").unwrap();
+        let text_vert           = load_shader(&assets, "shaders/text.v.glsl").unwrap();
+        let text_frag           = load_shader(&assets, "shaders/text.f.glsl").unwrap();
+        let unshaded_vert       = load_shader(&assets, "shaders/unshaded.v.glsl").unwrap();
+        let unshaded_frag       = load_shader(&assets, "shaders/unshaded.f.glsl").unwrap();
+
+        let flat_shaded_program = Program::from_source(&display, &flat_shaded_vert, &flat_shaded_frag, None).unwrap();
+        let text_program        = Program::from_source(&display, &text_vert, &text_frag, None).unwrap();
+        let unshaded_program    = Program::from_source(&display, &unshaded_vert, &unshaded_frag, None).unwrap();
+
+        let blogger_sans_font = {
+            let mut file = File::open(assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap();
+            let mut buffer = vec![];
+            file.read_to_end(&mut buffer).unwrap();
+
+            let font_collection = FontCollection::from_bytes(buffer);
+            font_collection.into_font().unwrap()
+        };
 
         Resources {
             context: display.get_context().clone(),
@@ -357,11 +380,11 @@ fn main() {
             stars1_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars1)).unwrap(),
             stars2_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars2)).unwrap(),
 
-            flat_shaded_program: Program::from_source(&display, FLAT_SHADED_VERT, FLAT_SHADED_FRAG, None).unwrap(),
-            text_program: Program::from_source(&display, TEXT_VERT, TEXT_FRAG, None).unwrap(),
-            unshaded_program: Program::from_source(&display, UNSHADED_VERT, UNSHADED_FRAG, None).unwrap(),
+            flat_shaded_program: flat_shaded_program,
+            text_program: text_program,
+            unshaded_program: unshaded_program,
 
-            blogger_sans_font: font_collection.into_font().unwrap(),
+            blogger_sans_font: blogger_sans_font,
         }
     };
 
