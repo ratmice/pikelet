@@ -74,25 +74,21 @@ const UNSHADED_FRAG: &'static str = include_resource!(shader: "unshaded.f.glsl")
 const BLOGGER_SANS_FONT: &'static [u8] = include_resource!(font: "blogger/Blogger Sans.ttf");
 
 pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
-    // const VERTICES_PER_FACE: usize = 3;
+    const VERTICES_PER_FACE: usize = 3;
 
-    let mut vertices = Vec::with_capacity(mesh.vertices.len());
+    let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
     for face in &mesh.faces {
         let e0 = face.root.clone();
-        let ref v0 = mesh.vertices[e0];
-        let p0 = mesh.positions[v0.attributes.position];
-        
         let e1 = mesh.vertices[e0].next.clone();
-        let ref v1 = mesh.vertices[e1];
-        let p1 = mesh.positions[v1.attributes.position];
-        
         let e2 = mesh.vertices[e1].next.clone();
-        let ref v2 = mesh.vertices[e2];
-        let p2 = mesh.positions[v2.attributes.position];
         
-        vertices.push( Vertex { position: p0.into() } );
-        vertices.push( Vertex { position: p1.into() } );
-        vertices.push( Vertex { position: p2.into() } );
+        let p0 = mesh.vertices[e0].attributes.position.clone();
+        let p1 = mesh.vertices[e1].attributes.position.clone();
+        let p2 = mesh.vertices[e2].attributes.position.clone();
+        
+        vertices.push( Vertex { position: mesh.positions[p0].into() } );
+        vertices.push( Vertex { position: mesh.positions[p1].into() } );
+        vertices.push( Vertex { position: mesh.positions[p2].into() } );
     }
 
     vertices
