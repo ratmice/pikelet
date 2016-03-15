@@ -171,18 +171,41 @@ impl Mesh {
         for (f0, face) in self.faces.iter().enumerate() {
             let e0 = face.root.clone();
             let e1 = self.vertices[e0].next.clone();
+            let e2 = self.vertices[e1].next.clone();
             
             let p = self.midpoint(radius, e0, e1, &self.vertices, &self.positions);
-            let p_index = positions.len();
-            println!("New position: {} / {}, {}, {}", p_index, p.x, p.y, p.z);
+            let p3 = positions.len();
+            println!("New position: {} / {}, {}, {}", p3, p.x, p.y, p.z);
             positions.push(p);
             
-            let new_edge = HalfEdge::new_boundary(p_index, vertices[e0].face.clone(), e1);
-            vertices[e0].next = vertices.len();
-            vertices.push(new_edge);
-        }
+            let p = self.midpoint(radius, e1, e2, &self.vertices, &self.positions);
+            let p4 = positions.len();
+            println!("New position: {} / {}, {}, {}", p4, p.x, p.y, p.z);
+            positions.push(p);
 
-        assert!(positions.len() > self.positions.len());
+            let p = self.midpoint(radius, e2, e0, &self.vertices, &self.positions);
+            let p5 = positions.len();
+            println!("New position: {} / {}, {}, {}", p5, p.x, p.y, p.z);
+            positions.push(p);
+
+            let new_edge = HalfEdge::new_boundary(p3, vertices[e0].face.clone(), e1);
+            let e3 = vertices.len();
+            vertices[e0].next = e3;
+            vertices.push(new_edge);
+            println!("Edge split: {} -> {} -> {}", e0, e3, e1);
+
+            let new_edge = HalfEdge::new_boundary(p4, vertices[e1].face.clone(), e2);
+            let e4 = vertices.len();
+            vertices[e1].next = e4;
+            vertices.push(new_edge);
+            println!("Edge split: {} -> {} -> {}", e1, e4, e2);
+
+            let new_edge = HalfEdge::new_boundary(p5, vertices[e2].face.clone(), e0);
+            let e5 = vertices.len();
+            vertices[e2].next = e5;
+            vertices.push(new_edge);
+            println!("Edge split: {} -> {} -> {}", e2, e5, e0);
+        }
 
         Mesh {
             positions: positions,

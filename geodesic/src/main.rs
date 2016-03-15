@@ -76,15 +76,19 @@ const BLOGGER_SANS_FONT: &'static [u8] = include_resource!(font: "blogger/Blogge
 pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
 
+    println!("--------------------");
+
     let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
     for face in &mesh.faces {
         let e0 = face.root.clone();
         let e1 = mesh.vertices[e0].next.clone();
         let e2 = mesh.vertices[e1].next.clone();
+        println!("Edge indexes: {} -> {} -> {}", e0, e1, e2);
         
         let p0 = mesh.vertices[e0].attributes.position.clone();
         let p1 = mesh.vertices[e1].attributes.position.clone();
         let p2 = mesh.vertices[e2].attributes.position.clone();
+        println!("Position indexes: {} -> {} -> {}", e0, e1, e2);
         
         vertices.push( Vertex { position: mesh.positions[p0].into() } );
         vertices.push( Vertex { position: mesh.positions[p1].into() } );
