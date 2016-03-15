@@ -133,7 +133,8 @@ impl Mesh {
         let ref p0 = positions[e0.attributes.position];
         let ref p1 = positions[e1.attributes.position];
 
-        math::set_radius(math::midpoint(p0, p1), radius)
+        //math::set_radius(math::midpoint(p0, p1), radius)
+        math::midpoint(p0, p1)
     }
 
     fn adjacent_id(&self, eid: usize) -> usize {
@@ -243,35 +244,17 @@ impl Mesh {
             let id12: usize = (e1 << 32) | e2;
             let id20: usize = (e2 << 32) | e0;
 
-            let p3 = if new_positions.contains_key(&id01) {
-                new_positions.get(&id01).unwrap().clone()
-            } else {
-                let index = positions.len();
-                let p = self.midpoint(radius, e0, &vertices, &positions);
-                positions.push(p);
-                self.cache_midpoint(id01, index, &mut new_positions);
-                index
-            };
+            let p3 = positions.len();
+            let p = self.midpoint(radius, e0, &vertices, &positions);
+            positions.push(p);
 
-            let p4 = if new_positions.contains_key(&id12) {
-                new_positions.get(&id12).unwrap().clone()
-            } else {
-                let index = positions.len();
-                let p = self.midpoint(radius, e1, &vertices, &positions);
-                positions.push(p);
-                self.cache_midpoint(id12, index, &mut new_positions);
-                index
-            };
+            let p4 = positions.len();
+            let p = self.midpoint(radius, e1, &vertices, &positions);
+            positions.push(p);
 
-            let p5 = if new_positions.contains_key(&id20) {
-                new_positions.get(&id20).unwrap().clone()
-            } else {
-                let index = positions.len();
-                let p = self.midpoint(radius, e2, &vertices, &positions);
-                positions.push(p);
-                self.cache_midpoint(id20, index, &mut new_positions);
-                index
-            };
+            let p5 = positions.len();
+            let p = self.midpoint(radius, e2, &vertices, &positions);
+            positions.push(p);
 
             let e3 = {
                 if visited_edges.contains_key(&id01) {

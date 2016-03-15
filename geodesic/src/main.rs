@@ -312,7 +312,7 @@ fn render_scene(state: &State, resources: &Resources, frame: Frame, hidpi_factor
 
     if state.is_showing_mesh {
         target.render_points(&resources.delaunay_vertex_buffer, 5.0, color::RED);
-        target.render_points(&resources.voronoi_vertex_buffer, 5.0, color::YELLOW);
+        // target.render_points(&resources.voronoi_vertex_buffer, 5.0, color::YELLOW);
         target.render_lines(&resources.voronoi_vertex_buffer, 0.5, color::WHITE);
     }
 
@@ -362,7 +362,7 @@ fn main() {
 
         let ori_geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
         let geometry = geom::half_edge::icosahedron(1.0);
-        let subdivided = geometry.subdivide(1.0, 2);
+        let subdivided = geometry.subdivide(1.0, 1);
         let star_field = StarField::generate(STAR_FIELD_RADIUS);
         let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
 
@@ -371,7 +371,8 @@ fn main() {
 
             // delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
             delaunay_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&subdivided)).unwrap(),
-            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&ori_geometry)).unwrap(),
+            // voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&ori_geometry)).unwrap(),
+            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&geometry)).unwrap(),
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
             text_vertex_buffer: VertexBuffer::new(&display, &text::TEXTURE_VERTICES).unwrap(),
