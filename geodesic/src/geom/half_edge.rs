@@ -137,47 +137,45 @@ impl Mesh {
         math::midpoint(p0, p1)
     }
 
-    fn adjacent_id(&self, eid: usize) -> usize {
-        ((eid & 0xFFFF) << 32) | (eid >> 32)
-    }
-
-    fn cache_midpoint(&self, id: usize, p_index: usize, new_positions: &mut HashMap<usize, Index>) {
-        new_positions.insert(id.clone(), p_index.clone());
-        new_positions.insert(self.adjacent_id(id).clone(), p_index.clone());
+    fn cache_midpoint(&self, edge: Index, adjacent_edge: Option<Index>, point: Index, new_positions: &mut HashMap<usize, Index>) {
+        new_positions.insert(edge.clone(), point.clone());
+        adjacent_edge.map(|adjacent_edge| {
+            new_positions.insert(adjacent_edge.clone(), point.clone());
+        });
     }
     
-    fn split_edge(&self, id: usize, edge: Index, p_index: Index, visited: &mut HashMap<usize, (Index, Index)>, vertices: &mut Vec<HalfEdge>) -> Index {
+    fn split_edge(&self, edge: Index, point: Index, visited: &mut HashMap<usize, (Index, Index)>, vertices: &mut Vec<HalfEdge>) -> Index {
         let a0_index = edge.clone();
         let a1_index = vertices.len();
 
         if vertices[a0_index].is_boundary() {
             let a = HalfEdge::new_boundary(
-                p_index, vertices[a0_index].face.clone(), vertices[a0_index].next.clone()
+                point, vertices[a0_index].face.clone(), vertices[a0_index].next.clone()
             );
             vertices.push(a);
             vertices[a0_index].next = a1_index;
-            visited.insert(id.clone(), (a0_index, a1_index));
+            visited.insert(a0_index.clone(), (a0_index, a1_index));
         } else {
             let b0_index = vertices[a0_index].adjacent.unwrap().clone();
             let b1_index = a1_index + 1;
             
             let a = HalfEdge::new(
-                p_index, vertices[a0_index].face.clone(),
+                point, vertices[a0_index].face.clone(),
                 vertices[a0_index].next.clone(), b0_index
             );
             vertices.push(a);
             vertices[a0_index].next = a1_index;
             vertices[a0_index].adjacent = Some(b1_index);
-            visited.insert(id.clone(), (a0_index, a1_index));
+            visited.insert(a0_index.clone(), (a0_index, a1_index));
 
             let b = HalfEdge::new(
-                p_index, vertices[b0_index].face.clone(),
+                point, vertices[b0_index].face.clone(),
                 vertices[b0_index].next.clone(), a0_index
             );
             vertices.push(b);
             vertices[b0_index].next = b1_index;
             vertices[b0_index].adjacent = Some(a1_index);
-            visited.insert(self.adjacent_id(id), (b0_index, b1_index));
+            visited.insert(b0_index, (b0_index, b1_index));
         }
 
         a1_index
@@ -234,7 +232,7 @@ impl Mesh {
         vertices.extend_from_slice(self.vertices.as_slice());
         faces.extend_from_slice(self.faces.as_slice());
         
-        for face in &self.faces {
+        for (f0, face) in self.faces.iter().enumerate() {
             // Get the Indexes of the incoming 3 half edge structs
             let e0 = face.root.clone();
             let e1 = vertices[e0].next.clone();
@@ -246,7 +244,7 @@ impl Mesh {
                 let index = positions.len();
                 let p = self.midpoint(radius, e0, &vertices, &positions);
                 positions.push(p);
-                self.cache_midpoint(e0, index, &mut new_positions);
+                self.cache_midpoint(e0, vertices[e0].adjacent.clone(), index, &mut new_positions);
                 index
             };
 
@@ -256,7 +254,7 @@ impl Mesh {
                 let index = positions.len();
                 let p = self.midpoint(radius, e1, &vertices, &positions);
                 positions.push(p);
-                self.cache_midpoint(e1, index, &mut new_positions);
+                self.cache_midpoint(e1, vertices[e1].adjacent.clone(), index, &mut new_positions);
                 index
             };
 
@@ -266,7 +264,7 @@ impl Mesh {
                 let index = positions.len();
                 let p = self.midpoint(radius, e2, &vertices, &positions);
                 positions.push(p);
-                self.cache_midpoint(e2, index, &mut new_positions);
+                self.cache_midpoint(e2, vertices[e2].adjacent.clone(), index, &mut new_positions);
                 index
             };
 
@@ -274,7 +272,7 @@ impl Mesh {
                 if visited_edges.contains_key(&e0) {
                     visited_edges.get(&e0).unwrap().1.clone()
                 } else {
-                    self.split_edge(e0, e0, p3, &mut visited_edges, &mut vertices)
+                    self.split_edge(e0, p3, &mut visited_edges, &mut vertices)
                 }
             };
             
@@ -282,7 +280,7 @@ impl Mesh {
                 if visited_edges.contains_key(&e1) {
                     visited_edges.get(&e1).unwrap().1.clone()
                 } else {
-                    self.split_edge(e1, e1, p4, &mut visited_edges, &mut vertices)
+                    self.split_edge(e1, p4, &mut visited_edges, &mut vertices)
                 }
             };
 
@@ -290,7 +288,7 @@ impl Mesh {
                 if visited_edges.contains_key(&e2) {
                     visited_edges.get(&e2).unwrap().1.clone()
                 } else {
-                    self.split_edge(e2, e2, p5, &mut visited_edges, &mut vertices)
+                    self.split_edge(e2, p5, &mut visited_edges, &mut vertices)
                 }
             };
 
@@ -304,19 +302,27 @@ impl Mesh {
             let e9 = e8+1;
             let e10 = e9+1;
             let e11 = e10+1;
-            let e12 = e11+1;
 
-            let f0 = vertices[e0].face.clone();
             let f1 = faces.len(); faces.push(Face::new(e3));
             let f2 = faces.len(); faces.push(Face::new(e8));
             let f3 = faces.len(); faces.push(Face::new(e11));
-            
+
             // 3 -> 5
             let v6 = HalfEdge::new(p3, f0, e5, e10);
             vertices.push(v6);
+            // Face 0
+            vertices[e0].next = e6;
+            vertices[e6].next = e5; // redundant
+            vertices[e5].next = e0;
+            
             // 4 -> 3
             let v7 = HalfEdge::new(p4, f1, e3, e8);
             vertices.push(v7);
+            // Face 1
+            vertices[e3].next = e1;
+            vertices[e1].next = e7;
+            vertices[e7].next = e3; // redundant
+
             // 3 -> 4
             let v8 = HalfEdge::new(p3, f2, e9, e7);
             vertices.push(v8);
@@ -326,11 +332,16 @@ impl Mesh {
             // 5 -> 3
             let v10 = HalfEdge::new(p5, f2, e8, e6);
             vertices.push(v10);
-            // 5 -> 4
-            let v11 = HalfEdge::new(p5, f3, e4, 0);
-            vertices.push(v11);
             
-            // TODO: update adjacency
+            // 5 -> 4
+            let v11 = HalfEdge::new(p5, f3, e4, e9);
+            vertices.push(v11);
+            // Face 3
+            vertices[e11].next = e4;
+            vertices[e4].next = e2;
+            vertices[e2].next = e11;
+            
+            // TODO: update/correct adjacency
         }
 
         Mesh {
