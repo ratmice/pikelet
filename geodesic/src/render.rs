@@ -60,7 +60,7 @@ pub struct Resources {
 }
 
 pub struct RenderTarget<'a> {
-    pub frame: Frame,
+    pub frame: &'a mut Frame,
     pub hidpi_factor: f32,
     pub resources: &'a Resources,
     pub camera: ComputedCamera,
@@ -169,9 +169,5 @@ impl<'a> RenderTarget<'a> {
                 ..draw_params()
             },
         ).unwrap();
-    }
-
-    pub fn finish(self) {
-        self.frame.finish().unwrap();
     }
 }

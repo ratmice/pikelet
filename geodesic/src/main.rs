@@ -1,6 +1,7 @@
 extern crate cgmath;
 extern crate find_folder;
 #[macro_use] extern crate glium;
+#[macro_use] extern crate imgui;
 extern crate rand;
 extern crate rayon;
 extern crate rusttype;
@@ -13,6 +14,7 @@ use cgmath::Vector3;
 use find_folder::Search as FolderSearch;
 use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer};
 use glium::index::{PrimitiveType, NoIndices};
+use imgui::Ui;
 use rand::Rng;
 use rayon::prelude::*;
 use std::mem;
@@ -23,6 +25,7 @@ use camera::{Camera, ComputedCamera};
 use geom::Geometry;
 use math::Polar;
 use render::{Resources, RenderTarget, Vertex};
+use ui::Context as UiContext;
 
 mod macros;
 
@@ -35,6 +38,7 @@ pub mod math;
 pub mod text;
 pub mod times;
 pub mod render;
+pub mod ui;
 
 const WINDOW_TITLE: &'static str = "Geodesic Test";
 const WINDOW_WIDTH: u32 = 800;
@@ -166,6 +170,7 @@ enum Loop {
 }
 
 struct State {
+    delta_time: f32,
     frames_per_second: f32,
 
     is_wireframe: bool,
@@ -203,7 +208,7 @@ impl State {
         }
     }
 
-    fn update<Events>(&mut self, actions: Events, delta_time: f32) -> Loop where
+    fn update<Events>(&mut self, events: Events, delta_time: f32) -> Loop where
         Events: IntoIterator,
         Events::Item: Into<input::Event>,
     {
@@ -211,10 +216,12 @@ impl State {
             self.camera_rotation_delta = Rad::new(0.0);
         }
 
-        for action in actions {
+        self.delta_time = delta_time;
+
+        for event in events {
             use input::Event::*;
 
-            match action.into() {
+            match event.into() {
                 CloseApp => return Loop::Break,
                 ToggleMesh => self.is_showing_mesh = !self.is_showing_mesh,
                 ToggleStarField => self.is_showing_star_field = !self.is_showing_star_field,
@@ -257,7 +264,7 @@ impl State {
     }
 }
 
-fn render_scene(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32) {
+fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_factor: f32) {
     let frame_dimensions = frame.get_dimensions();
 
     let mut target = RenderTarget {
@@ -289,9 +296,22 @@ fn render_scene(state: &State, resources: &Resources, frame: Frame, hidpi_factor
         target.render_solid(&resources.delaunay_vertex_buffer, state.light_dir, color::GREEN);
     }
 
-    target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK);
+    // FIXME: https://github.com/Gekkio/imgui-rs/issues/17
+    // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK);
+}
 
-    target.finish();
+fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> Ui<'a> {
+    let ui = ui_context.frame(state.window_dimensions, state.delta_time);
+
+    ui.window(im_str!("Stats"))
+        .size((300.0, 100.0), imgui::ImGuiSetCond_FirstUseEver)
+        .build(|| {
+            ui.text(im_str!("Some incredibly useful statistics..."));
+            ui.separator();
+            ui.text(im_str!("FPS: {}", state.frames_per_second));
+        });
+
+    ui
 }
 
 fn main() {
@@ -306,6 +326,7 @@ fn main() {
         .unwrap();
 
     let mut state = State {
+        delta_time: 0.0,
         frames_per_second: 0.0,
 
         is_wireframe: false,
@@ -388,17 +409,31 @@ fn main() {
         }
     };
 
+    let mut ui_context = UiContext::new();
+    let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
+
     for time in times::in_seconds() {
-        let events = display.poll_events();
+        let events: Vec<_> = display.poll_events().collect();
         let delta_time = time.delta() as f32;
 
         let hidpi_factor = display.get_window()
             .map(|window| window.hidpi_factor())
             .unwrap_or(1.0);
 
+        ui_context.update(events.iter(), hidpi_factor);
+
         match state.update(events, delta_time) {
             Loop::Break => break,
-            Loop::Continue => render_scene(&state, &resources, display.draw(), hidpi_factor),
+            Loop::Continue => {
+                let mut frame = display.draw();
+
+                render_scene(&mut frame, &state, &resources, hidpi_factor);
+
+                let ui = build_ui(&mut ui_context, &state);
+                ui_renderer.render(&mut frame, ui, hidpi_factor).unwrap();
+
+                frame.finish().unwrap()
+            }
         }
 
         thread::sleep(Duration::from_millis(10)); // battery saver ;)
