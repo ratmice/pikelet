@@ -41,7 +41,7 @@ pub mod render;
 pub mod ui;
 
 const WINDOW_TITLE: &'static str = "Geodesic Test";
-const WINDOW_WIDTH: u32 = 800;
+const WINDOW_WIDTH: u32 = 1000;
 const WINDOW_HEIGHT: u32 = 500;
 
 const CAMERA_XZ_RADIUS: f32 = 2.0;
@@ -305,12 +305,35 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
 fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> Ui<'a> {
     let ui = ui_context.frame(state.window_dimensions, state.delta_time);
 
-    ui.window(im_str!("Stats"))
-        .size((300.0, 100.0), imgui::ImGuiSetCond_FirstUseEver)
+    ui.window(im_str!("State"))
+        .size((250.0, 300.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
-            ui.text(im_str!("Some incredibly useful statistics..."));
+            ui.text(im_str!("delta_time: {:?}", state.delta_time));
+            ui.text(im_str!("frames_per_second: {:?}", state.frames_per_second));
+
             ui.separator();
-            ui.text(im_str!("FPS: {}", state.frames_per_second));
+
+            ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
+            ui.text(im_str!("is_showing_mesh: {:?}", state.is_showing_mesh));
+            ui.text(im_str!("is_showing_star_field: {:?}", state.is_showing_star_field));
+            ui.text(im_str!("is_showing_ui: {:?}", state.is_showing_ui));
+            ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
+            ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
+
+            ui.separator();
+
+            ui.text(im_str!("light_dir: {:?}", state.light_dir));
+
+            ui.separator();
+
+            ui.text(im_str!("mouse_position: {:?}", state.mouse_position));
+            ui.text(im_str!("window_dimensions: {:?}", state.window_dimensions));
+
+            ui.separator();
+
+            ui.text(im_str!("camera_rotation: {:?}", state.camera_rotation));
+            ui.text(im_str!("camera_rotation_delta: {:?}", state.camera_rotation_delta));
+            ui.text(im_str!("camera_distance: {:?}", state.camera_distance));
         });
 
     ui
