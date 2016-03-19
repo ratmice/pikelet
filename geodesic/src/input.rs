@@ -12,7 +12,6 @@ pub enum Event {
     ZoomStart,
     ZoomEnd,
     MousePosition(Point2<i32>),
-    Resize(u32, u32),
     NoOp,
 }
 
@@ -34,7 +33,6 @@ impl From<glutin::Event> for Event {
             MouseInput(Pressed, MouseButton::Right) => Event::ZoomStart,
             MouseInput(Released, MouseButton::Right) => Event::ZoomEnd,
             MouseMoved((x, y)) => Event::MousePosition(Point2::new(x, y)),
-            Resized(width, height) => Event::Resize(width, height),
             _ => Event::NoOp,
         }
     }

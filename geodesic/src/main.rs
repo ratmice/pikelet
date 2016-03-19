@@ -209,7 +209,7 @@ impl State {
         }
     }
 
-    fn update<Events>(&mut self, events: Events, delta_time: f32) -> Loop where
+    fn update<Events>(&mut self, events: Events, window_dimensions: (u32, u32), delta_time: f32) -> Loop where
         Events: IntoIterator,
         Events::Item: Into<input::Event>,
     {
@@ -218,6 +218,7 @@ impl State {
         }
 
         self.delta_time = delta_time;
+        self.window_dimensions = window_dimensions;
 
         for event in events {
             use input::Event::*;
@@ -233,7 +234,6 @@ impl State {
                 ZoomStart => self.is_zooming = true,
                 ZoomEnd => self.is_zooming = false,
                 MousePosition(position) => self.update_mouse_position(position, delta_time),
-                Resize(width, height) => self.window_dimensions = (width, height),
                 NoOp => {},
             }
         }
@@ -419,13 +419,13 @@ fn main() {
         let events: Vec<_> = display.poll_events().collect();
         let delta_time = time.delta() as f32;
 
-        let hidpi_factor = display.get_window()
-            .map(|window| window.hidpi_factor())
-            .unwrap_or(1.0);
+        let window = display.get_window().unwrap();
+        let window_dimensions = window.get_inner_size_points().unwrap();
+        let hidpi_factor = window.hidpi_factor();
 
         ui_context.update(events.iter(), hidpi_factor);
 
-        match state.update(events, delta_time) {
+        match state.update(events, window_dimensions, delta_time) {
             Loop::Break => break,
             Loop::Continue => {
                 let mut frame = display.draw();
