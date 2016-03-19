@@ -176,6 +176,7 @@ struct State {
     is_wireframe: bool,
     is_showing_mesh: bool,
     is_showing_star_field: bool,
+    is_showing_ui: bool,
     is_dragging: bool,
     is_zooming: bool,
 
@@ -226,6 +227,7 @@ impl State {
                 ToggleMesh => self.is_showing_mesh = !self.is_showing_mesh,
                 ToggleStarField => self.is_showing_star_field = !self.is_showing_star_field,
                 ToggleWireframe => self.is_wireframe = !self.is_wireframe,
+                ToggleUi => self.is_showing_ui = !self.is_showing_ui,
                 DragStart => self.is_dragging = true,
                 DragEnd => self.is_dragging = false,
                 ZoomStart => self.is_zooming = true,
@@ -332,6 +334,7 @@ fn main() {
         is_wireframe: false,
         is_showing_mesh: true,
         is_showing_star_field: false,
+        is_showing_ui: true,
         is_dragging: false,
         is_zooming: false,
 
@@ -429,8 +432,10 @@ fn main() {
 
                 render_scene(&mut frame, &state, &resources, hidpi_factor);
 
-                let ui = build_ui(&mut ui_context, &state);
-                ui_renderer.render(&mut frame, ui, hidpi_factor).unwrap();
+                if state.is_showing_ui {
+                    let ui = build_ui(&mut ui_context, &state);
+                    ui_renderer.render(&mut frame, ui, hidpi_factor).unwrap();
+                }
 
                 frame.finish().unwrap()
             }

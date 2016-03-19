@@ -6,6 +6,7 @@ pub enum Event {
     ToggleMesh,
     ToggleStarField,
     ToggleWireframe,
+    ToggleUi,
     DragStart,
     DragEnd,
     ZoomStart,
@@ -24,9 +25,10 @@ impl From<glutin::Event> for Event {
 
         match src {
             Closed | KeyboardInput(Pressed, _, Some(Key::Escape)) => Event::CloseApp,
-            KeyboardInput(Pressed, _, Some(Key::W)) => Event::ToggleWireframe,
-            KeyboardInput(Pressed, _, Some(Key::S)) => Event::ToggleStarField,
             KeyboardInput(Pressed, _, Some(Key::M)) => Event::ToggleMesh,
+            KeyboardInput(Pressed, _, Some(Key::S)) => Event::ToggleStarField,
+            KeyboardInput(Pressed, _, Some(Key::W)) => Event::ToggleWireframe,
+            KeyboardInput(Pressed, _, Some(Key::U)) => Event::ToggleUi,
             MouseInput(Pressed, MouseButton::Left) => Event::DragStart,
             MouseInput(Released, MouseButton::Left) => Event::DragEnd,
             MouseInput(Pressed, MouseButton::Right) => Event::ZoomStart,
