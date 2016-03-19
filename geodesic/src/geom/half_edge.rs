@@ -157,7 +157,12 @@ impl Mesh {
             visited.insert(a0_index.clone(), (a0_index, a1_index));
         } else {
             let b0_index = vertices[a0_index].adjacent.unwrap().clone();
-            let b1_index = a1_index + 1;
+            let already_split_adjacent_edge = visited.contains_key(&b0_index);
+            let b1_index = if already_split_adjacent_edge {
+                visited.get(&b0_index).unwrap().1.clone()
+            } else {
+                a1_index + 1
+            };
             
             let a = HalfEdge::new(
                 point, vertices[a0_index].face.clone(),
@@ -168,14 +173,16 @@ impl Mesh {
             vertices[a0_index].adjacent = Some(b1_index);
             visited.insert(a0_index.clone(), (a0_index, a1_index));
 
-            let b = HalfEdge::new(
-                point, vertices[b0_index].face.clone(),
-                vertices[b0_index].next.clone(), a0_index
-            );
-            vertices.push(b);
-            vertices[b0_index].next = b1_index;
-            vertices[b0_index].adjacent = Some(a1_index);
-            visited.insert(b0_index, (b0_index, b1_index));
+            if !already_split_adjacent_edge {
+                let b = HalfEdge::new(
+                    point, vertices[b0_index].face.clone(),
+                    vertices[b0_index].next.clone(), a0_index
+                );
+                vertices.push(b);
+                vertices[b0_index].next = b1_index;
+                vertices[b0_index].adjacent = Some(a1_index);
+                visited.insert(b0_index, (b0_index, b1_index));
+            }
         }
 
         a1_index
@@ -198,10 +205,10 @@ impl Mesh {
     //
     // NOTE: The method of subdivision is illustrated below:
     //
-    //          v0         |  v0 ____v3____ v2
+    //          v0         |  v0 ____v5____ v2
     //          /\         |    \    /\    /
     //         /  \        |     \  /  \  /
-    //    v3  /____\  v5   |   v4 \/____\/ v5
+    //    v3  /____\  v5   |   v3 \/____\/ v4
     //       /\    /\      |       \    /
     //      /  \  /  \     |        \  /
     //     /____\/____\    |         \/
@@ -235,8 +242,8 @@ impl Mesh {
         for (f0, face) in self.faces.iter().enumerate() {
             // Get the Indexes of the incoming 3 half edge structs
             let e0 = face.root.clone();
-            let e1 = vertices[e0].next.clone();
-            let e2 = vertices[e1].next.clone();
+            let e1 = self.vertices[e0].next.clone();
+            let e2 = self.vertices[e1].next.clone();
 
             let p3 = if new_positions.contains_key(&e0) {
                 new_positions.get(&e0).unwrap().clone()
@@ -340,8 +347,6 @@ impl Mesh {
             vertices[e11].next = e4;
             vertices[e4].next = e2;
             vertices[e2].next = e11;
-            
-            // TODO: update/correct adjacency
         }
 
         Mesh {
@@ -394,9 +399,9 @@ pub fn plane(scale: f32) -> Mesh {
     let vertices = vec![
         HalfEdge::new_boundary(0, 0, 1),
         HalfEdge::new_boundary(1, 0, 2),
-        HalfEdge::new(2, 0, 0, 5),
-        HalfEdge::new_boundary(0, 1, 4),
-        HalfEdge::new(2, 1, 5, 2),
+        HalfEdge::new(2, 0, 0, 3),
+        HalfEdge::new(0, 1, 4, 2),
+        HalfEdge::new_boundary(2, 1, 5),
         HalfEdge::new_boundary(3, 1, 3),
     ];
     

@@ -27,7 +27,7 @@ fn draw_params<'a>() -> DrawParameters<'a> {
     use glium::draw_parameters::{Smooth};
 
     DrawParameters {
-        backface_culling: BackfaceCullingMode::CullingDisabled,
+        backface_culling: BackfaceCullingMode::CullClockwise,
         depth: Depth {
             test: DepthTest::IfLess,
             write: true,

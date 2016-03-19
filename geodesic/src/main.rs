@@ -79,20 +79,22 @@ pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
     println!("--------------------");
 
     let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
-    for face in &mesh.faces {
+    for (fi, face) in mesh.faces.iter().enumerate() {
         let e0 = face.root.clone();
         let e1 = mesh.vertices[e0].next.clone();
         let e2 = mesh.vertices[e1].next.clone();
-        println!("Edge indexes: {} -> {} -> {}", e0, e1, e2);
         
         let p0 = mesh.vertices[e0].attributes.position.clone();
         let p1 = mesh.vertices[e1].attributes.position.clone();
         let p2 = mesh.vertices[e2].attributes.position.clone();
-        println!("Position indexes: {} -> {} -> {}", e0, e1, e2);
         
         vertices.push( Vertex { position: mesh.positions[p0].into() } );
         vertices.push( Vertex { position: mesh.positions[p1].into() } );
         vertices.push( Vertex { position: mesh.positions[p2].into() } );
+
+        println!("Face: {}", fi);
+        println!("\tEdge indexes: {} -> {} -> {}", e0, e1, e2);
+        println!("\tPosition indexes: {} -> {} -> {}", p0, p1, p2);
     }
 
     vertices
@@ -365,7 +367,7 @@ fn main() {
         use rusttype::FontCollection;
 
         let ori_geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
-        let geometry = geom::half_edge::triangle(1.0);
+        let geometry = geom::half_edge::icosahedron(1.0);
         let subdivided = geometry.subdivide(1.0, 1);
         let star_field = StarField::generate(STAR_FIELD_RADIUS);
         let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
