@@ -302,38 +302,47 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
     // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK);
 }
 
-fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> Ui<'a> {
+fn build_ui<'a>(ui_context: &'a mut UiContext, state: &mut State) -> Ui<'a> {
     let ui = ui_context.frame(state.window_dimensions, state.delta_time);
 
     ui.window(im_str!("State"))
-        .size((250.0, 300.0), imgui::ImGuiSetCond_FirstUseEver)
+        .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
+        .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
-            ui.text(im_str!("delta_time: {:?}", state.delta_time));
-            ui.text(im_str!("frames_per_second: {:?}", state.frames_per_second));
+            ui.tree_node(im_str!("Render options")).build(|| {
+                ui.checkbox(im_str!("Wireframe"), &mut state.is_wireframe);
+                ui.checkbox(im_str!("Show mesh"), &mut state.is_showing_mesh);
+                ui.checkbox(im_str!("Show starfield"), &mut state.is_showing_star_field);
+            });
 
-            ui.separator();
+            ui.tree_node(im_str!("State")).build(|| {
+                ui.text(im_str!("delta_time: {:?}", state.delta_time));
+                ui.text(im_str!("frames_per_second: {:?}", state.frames_per_second));
 
-            ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
-            ui.text(im_str!("is_showing_mesh: {:?}", state.is_showing_mesh));
-            ui.text(im_str!("is_showing_star_field: {:?}", state.is_showing_star_field));
-            ui.text(im_str!("is_showing_ui: {:?}", state.is_showing_ui));
-            ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
-            ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
+                ui.separator();
 
-            ui.separator();
+                ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
+                ui.text(im_str!("is_showing_mesh: {:?}", state.is_showing_mesh));
+                ui.text(im_str!("is_showing_star_field: {:?}", state.is_showing_star_field));
+                ui.text(im_str!("is_showing_ui: {:?}", state.is_showing_ui));
+                ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
+                ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
 
-            ui.text(im_str!("light_dir: {:?}", state.light_dir));
+                ui.separator();
 
-            ui.separator();
+                ui.text(im_str!("light_dir: {:?}", state.light_dir));
 
-            ui.text(im_str!("mouse_position: {:?}", state.mouse_position));
-            ui.text(im_str!("window_dimensions: {:?}", state.window_dimensions));
+                ui.separator();
 
-            ui.separator();
+                ui.text(im_str!("mouse_position: {:?}", state.mouse_position));
+                ui.text(im_str!("window_dimensions: {:?}", state.window_dimensions));
 
-            ui.text(im_str!("camera_rotation: {:?}", state.camera_rotation));
-            ui.text(im_str!("camera_rotation_delta: {:?}", state.camera_rotation_delta));
-            ui.text(im_str!("camera_distance: {:?}", state.camera_distance));
+                ui.separator();
+
+                ui.text(im_str!("camera_rotation: {:?}", state.camera_rotation));
+                ui.text(im_str!("camera_rotation_delta: {:?}", state.camera_rotation_delta));
+                ui.text(im_str!("camera_distance: {:?}", state.camera_distance));
+            });
         });
 
     ui
@@ -456,7 +465,7 @@ fn main() {
                 render_scene(&mut frame, &state, &resources, hidpi_factor);
 
                 if state.is_showing_ui {
-                    let ui = build_ui(&mut ui_context, &state);
+                    let ui = build_ui(&mut ui_context, &mut state);
                     ui_renderer.render(&mut frame, ui, hidpi_factor).unwrap();
                 }
 
