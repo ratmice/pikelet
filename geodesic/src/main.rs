@@ -23,6 +23,7 @@ use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
 use geom::Geometry;
+use input::Event;
 use math::Polar;
 use render::{Resources, RenderTarget, Vertex};
 use ui::Context as UiContext;
@@ -191,6 +192,29 @@ struct State {
 }
 
 impl State {
+    fn init() -> State {
+        State {
+            delta_time: 0.0,
+            frames_per_second: 0.0,
+
+            is_wireframe: false,
+            is_showing_mesh: true,
+            is_showing_star_field: false,
+            is_showing_ui: true,
+            is_dragging: false,
+            is_zooming: false,
+
+            light_dir: LIGHT_DIR,
+
+            mouse_position: Point2::origin(),
+            window_dimensions: (WINDOW_WIDTH, WINDOW_HEIGHT),
+
+            camera_rotation: Rad::new(0.0),
+            camera_rotation_delta: Rad::new(0.0),
+            camera_distance: CAMERA_XZ_RADIUS,
+        }
+    }
+
     fn update_mouse_position(&mut self, new_position: Point2<i32>, delta_time: f32) {
         let mouse_position_delta = {
             let old_position = mem::replace(&mut self.mouse_position, new_position);
@@ -210,8 +234,7 @@ impl State {
     }
 
     fn update<Events>(&mut self, events: Events, window_dimensions: (u32, u32), delta_time: f32) -> Loop where
-        Events: IntoIterator,
-        Events::Item: Into<input::Event>,
+        Events: IntoIterator<Item = Event>,
     {
         if self.is_dragging {
             self.camera_rotation_delta = Rad::new(0.0);
@@ -223,12 +246,13 @@ impl State {
         for event in events {
             use input::Event::*;
 
-            match event.into() {
+            match event {
                 CloseApp => return Loop::Break,
-                ToggleMesh => self.is_showing_mesh = !self.is_showing_mesh,
-                ToggleStarField => self.is_showing_star_field = !self.is_showing_star_field,
-                ToggleWireframe => self.is_wireframe = !self.is_wireframe,
+                SetShowingMesh(value) => self.is_showing_mesh = value,
+                SetShowingStarField(value) => self.is_showing_star_field = value,
+                SetWireframe(value) => self.is_wireframe = value,
                 ToggleUi => self.is_showing_ui = !self.is_showing_ui,
+                ResetState => *self = State::init(),
                 DragStart => self.is_dragging = true,
                 DragEnd => self.is_dragging = false,
                 ZoomStart => self.is_zooming = true,
@@ -302,7 +326,17 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
     // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK);
 }
 
-fn build_ui<'a>(ui_context: &'a mut UiContext, state: &mut State) -> Ui<'a> {
+fn run_ui<'a>(ui_context: &'a mut UiContext, events: &mut Vec<Event>, state: &State) -> Ui<'a> {
+    fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool> {
+        let mut value = initial_value;
+        ui.checkbox(text, &mut value);
+
+        match value != initial_value {
+            true => Some(value),
+            false => None,
+        }
+    }
+
     let ui = ui_context.frame(state.window_dimensions, state.delta_time);
 
     ui.window(im_str!("State"))
@@ -310,9 +344,11 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &mut State) -> Ui<'a> {
         .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
             ui.tree_node(im_str!("Render options")).build(|| {
-                ui.checkbox(im_str!("Wireframe"), &mut state.is_wireframe);
-                ui.checkbox(im_str!("Show mesh"), &mut state.is_showing_mesh);
-                ui.checkbox(im_str!("Show starfield"), &mut state.is_showing_star_field);
+                use input::Event::*;
+
+                checkbox(&ui, im_str!("Wireframe"), state.is_wireframe).map(|v| events.push(SetWireframe(v)));
+                checkbox(&ui, im_str!("Show mesh"), state.is_showing_mesh).map(|v| events.push(SetShowingMesh(v)));
+                checkbox(&ui, im_str!("Show starfield"), state.is_showing_star_field).map(|v| events.push(SetShowingStarField(v)));
             });
 
             ui.tree_node(im_str!("State")).build(|| {
@@ -343,6 +379,10 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &mut State) -> Ui<'a> {
                 ui.text(im_str!("camera_rotation_delta: {:?}", state.camera_rotation_delta));
                 ui.text(im_str!("camera_distance: {:?}", state.camera_distance));
             });
+
+            if ui.small_button(im_str!("Reset state")) {
+                events.push(Event::ResetState);
+            }
         });
 
     ui
@@ -359,26 +399,7 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let mut state = State {
-        delta_time: 0.0,
-        frames_per_second: 0.0,
-
-        is_wireframe: false,
-        is_showing_mesh: true,
-        is_showing_star_field: false,
-        is_showing_ui: true,
-        is_dragging: false,
-        is_zooming: false,
-
-        light_dir: LIGHT_DIR,
-
-        mouse_position: Point2::origin(),
-        window_dimensions: (WINDOW_WIDTH, WINDOW_HEIGHT),
-
-        camera_rotation: Rad::new(0.0),
-        camera_rotation_delta: Rad::new(0.0),
-        camera_distance: CAMERA_XZ_RADIUS,
-    };
+    let mut state = State::init();
 
     let resources = {
         use rusttype::FontCollection;
@@ -446,16 +467,23 @@ fn main() {
 
     let mut ui_context = UiContext::new();
     let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
+    let mut ui_events = vec![];
 
     for time in times::in_seconds() {
-        let events: Vec<_> = display.poll_events().collect();
-        let delta_time = time.delta() as f32;
+        // FIXME: lots of confusing mutations if the event buffer...
+
+        let display_events: Vec<_> = display.poll_events().collect();
 
         let window = display.get_window().unwrap();
         let window_dimensions = window.get_inner_size_points().unwrap();
         let hidpi_factor = window.hidpi_factor();
+        let delta_time = time.delta() as f32;
 
-        ui_context.update(events.iter(), hidpi_factor);
+        ui_context.update(display_events.iter(), hidpi_factor);
+
+        let events = display_events.into_iter()
+            .map(Event::from)
+            .chain(mem::replace(&mut ui_events, vec![]));
 
         match state.update(events, window_dimensions, delta_time) {
             Loop::Break => break,
@@ -465,7 +493,7 @@ fn main() {
                 render_scene(&mut frame, &state, &resources, hidpi_factor);
 
                 if state.is_showing_ui {
-                    let ui = build_ui(&mut ui_context, &mut state);
+                    let ui = run_ui(&mut ui_context, &mut ui_events, &mut state);
                     ui_renderer.render(&mut frame, ui, hidpi_factor).unwrap();
                 }
 
