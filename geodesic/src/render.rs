@@ -2,16 +2,12 @@ use cgmath::Angle;
 use cgmath::{Matrix4, SquareMatrix};
 use cgmath::Point2;
 use cgmath::Vector3;
-use glium::{DrawError, Frame, IndexBuffer, Program, VertexBuffer};
+use glium::{self, index, program, texture, vertex};
+use glium::{Frame, IndexBuffer, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface};
 use glium::backend::Context;
 use glium::index::NoIndices;
-use glium::index::BufferCreationError as IndexBufferCreationError;
-use glium::program::ProgramChooserCreationError;
-use glium::texture::TextureCreationError;
-use glium::vertex::BufferCreationError as VertexBufferCreationError;
 use rusttype::Font;
-use std::fmt;
 use std::rc::Rc;
 
 use camera::ComputedCamera;
@@ -22,55 +18,34 @@ use text::Vertex as TextVertex;
 
 pub type RenderResult<T> = Result<T, RenderError>;
 
-#[derive(Clone, Debug)]
-pub enum RenderError {
-    Vertex(VertexBufferCreationError),
-    Index(IndexBufferCreationError),
-    Program(ProgramChooserCreationError),
-    Texture(TextureCreationError),
-    Draw(DrawError),
-}
-
-impl fmt::Display for RenderError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::RenderError::*;
-        match *self {
-            Vertex(_) => write!(f, "Vertex buffer creation failed"),
-            Index(_) => write!(f, "Index buffer creation failed"),
-            Program(ref e) => write!(f, "Program creation failed: {}", e),
-            Texture(_) => write!(f, "Texture creation failed"),
-            Draw(ref e) => write!(f, "Drawing failed: {}", e),
+quick_error! {
+    #[derive(Debug)]
+    pub enum RenderError {
+        Draw(error: glium::DrawError) {
+            from()
+            description(error.description())
+            cause(error)
         }
-    }
-}
-
-impl From<VertexBufferCreationError> for RenderError {
-    fn from(e: VertexBufferCreationError) -> RenderError {
-        RenderError::Vertex(e)
-    }
-}
-
-impl From<IndexBufferCreationError> for RenderError {
-    fn from(e: IndexBufferCreationError) -> RenderError {
-        RenderError::Index(e)
-    }
-}
-
-impl From<ProgramChooserCreationError> for RenderError {
-    fn from(e: ProgramChooserCreationError) -> RenderError {
-        RenderError::Program(e)
-    }
-}
-
-impl From<TextureCreationError> for RenderError {
-    fn from(e: TextureCreationError) -> RenderError {
-        RenderError::Texture(e)
-    }
-}
-
-impl From<DrawError> for RenderError {
-    fn from(e: DrawError) -> RenderError {
-        RenderError::Draw(e)
+        Index(error: index::BufferCreationError) {
+            from()
+            description(error.description())
+            cause(error)
+        }
+        Program(error: program::ProgramChooserCreationError) {
+            from()
+            description(error.description())
+            cause(error)
+        }
+        Texture(error: texture::TextureCreationError) {
+            from()
+            description(error.description())
+            cause(error)
+        }
+        Vertex(error: vertex::BufferCreationError) {
+            from()
+            description(error.description())
+            cause(error)
+        }
     }
 }
 
