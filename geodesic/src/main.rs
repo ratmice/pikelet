@@ -179,6 +179,7 @@ struct State {
     is_showing_star_field: bool,
     is_showing_ui: bool,
     is_dragging: bool,
+    is_ui_capturing_mouse: bool,
     is_zooming: bool,
 
     mouse_position: Point2<i32>,
@@ -202,6 +203,7 @@ impl State {
             is_showing_star_field: false,
             is_showing_ui: true,
             is_dragging: false,
+            is_ui_capturing_mouse: false,
             is_zooming: false,
 
             light_dir: LIGHT_DIR,
@@ -221,25 +223,23 @@ impl State {
             new_position - old_position
         };
 
-        if self.is_dragging {
-            let (window_width, _) = self.window_dimensions;
-            let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
-            self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
-        }
+        if !self.is_ui_capturing_mouse {
+            if self.is_dragging {
+                let (window_width, _) = self.window_dimensions;
+                let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
+                self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
+            }
 
-        if self.is_zooming {
-            let zoom_delta = mouse_position_delta.x as f32 * delta_time;
-            self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
+            if self.is_zooming {
+                let zoom_delta = mouse_position_delta.x as f32 * delta_time;
+                self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
+            }
         }
     }
 
     fn update<Events>(&mut self, events: Events, window_dimensions: (u32, u32), delta_time: f32) -> Loop where
         Events: IntoIterator<Item = Event>,
     {
-        if self.is_dragging {
-            self.camera_rotation_delta = Rad::new(0.0);
-        }
-
         self.delta_time = delta_time;
         self.window_dimensions = window_dimensions;
 
@@ -250,6 +250,7 @@ impl State {
                 CloseApp => return Loop::Break,
                 SetShowingMesh(value) => self.is_showing_mesh = value,
                 SetShowingStarField(value) => self.is_showing_star_field = value,
+                SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
                 SetWireframe(value) => self.is_wireframe = value,
                 ToggleUi => self.is_showing_ui = !self.is_showing_ui,
                 ResetState => *self = State::init(),
@@ -260,6 +261,10 @@ impl State {
                 MousePosition(position) => self.update_mouse_position(position, delta_time),
                 NoOp => {},
             }
+        }
+
+        if self.is_dragging && !self.is_ui_capturing_mouse {
+            self.camera_rotation_delta = Rad::new(0.0);
         }
 
         self.frames_per_second = 1.0 / delta_time;
@@ -384,6 +389,10 @@ fn run_ui<'a>(ui_context: &'a mut UiContext, events: &mut Vec<Event>, state: &St
                 events.push(Event::ResetState);
             }
         });
+
+    if ui.want_capture_mouse() != state.is_ui_capturing_mouse {
+        events.push(Event::SetUiCapturingMouse(ui.want_capture_mouse()));
+    }
 
     ui
 }

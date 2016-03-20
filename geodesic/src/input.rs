@@ -5,6 +5,7 @@ pub enum Event {
     CloseApp,
     SetShowingMesh(bool),
     SetShowingStarField(bool),
+    SetUiCapturingMouse(bool),
     SetWireframe(bool),
     ToggleUi,
     ResetState,
