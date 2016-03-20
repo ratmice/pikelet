@@ -367,6 +367,7 @@ fn run_ui<'a>(ui_context: &'a mut UiContext, events: &mut Vec<Event>, state: &St
                 ui.text(im_str!("is_showing_star_field: {:?}", state.is_showing_star_field));
                 ui.text(im_str!("is_showing_ui: {:?}", state.is_showing_ui));
                 ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
+                ui.text(im_str!("is_ui_capturing_mouse: {:?}", state.is_ui_capturing_mouse));
                 ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
 
                 ui.separator();
