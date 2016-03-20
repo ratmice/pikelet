@@ -165,6 +165,8 @@ fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
     star_vertices
 }
 
+#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, Eq)]
 enum Loop {
     Continue,
     Break,
@@ -217,7 +219,7 @@ impl State {
         }
     }
 
-    fn update_mouse_position(&mut self, new_position: Point2<i32>, delta_time: f32) {
+    fn apply_mouse_update(&mut self, new_position: Point2<i32>) {
         let mouse_position_delta = {
             let old_position = mem::replace(&mut self.mouse_position, new_position);
             new_position - old_position
@@ -227,14 +229,36 @@ impl State {
             if self.is_dragging {
                 let (window_width, _) = self.window_dimensions;
                 let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
-                self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
+                self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.delta_time;
             }
 
             if self.is_zooming {
-                let zoom_delta = mouse_position_delta.x as f32 * delta_time;
+                let zoom_delta = mouse_position_delta.x as f32 * self.delta_time;
                 self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
             }
         }
+    }
+
+    fn apply_event_update(&mut self, event: Event) -> Loop {
+        use input::Event::*;
+
+        match event {
+            CloseApp => return Loop::Break,
+            SetShowingMesh(value) => self.is_showing_mesh = value,
+            SetShowingStarField(value) => self.is_showing_star_field = value,
+            SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
+            SetWireframe(value) => self.is_wireframe = value,
+            ToggleUi => self.is_showing_ui = !self.is_showing_ui,
+            ResetState => *self = State::init(),
+            DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
+            DragEnd => self.is_dragging = false,
+            ZoomStart => self.is_zooming = true,
+            ZoomEnd => self.is_zooming = false,
+            MousePosition(position) => self.apply_mouse_update(position),
+            NoOp => {},
+        }
+
+        Loop::Continue
     }
 
     fn update<Events>(&mut self, events: Events, window_dimensions: (u32, u32), delta_time: f32) -> Loop where
@@ -242,32 +266,18 @@ impl State {
     {
         self.delta_time = delta_time;
         self.window_dimensions = window_dimensions;
+        self.frames_per_second = 1.0 / delta_time;
 
-        for event in events {
-            use input::Event::*;
-
-            match event {
-                CloseApp => return Loop::Break,
-                SetShowingMesh(value) => self.is_showing_mesh = value,
-                SetShowingStarField(value) => self.is_showing_star_field = value,
-                SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
-                SetWireframe(value) => self.is_wireframe = value,
-                ToggleUi => self.is_showing_ui = !self.is_showing_ui,
-                ResetState => *self = State::init(),
-                DragStart => self.is_dragging = true,
-                DragEnd => self.is_dragging = false,
-                ZoomStart => self.is_zooming = true,
-                ZoomEnd => self.is_zooming = false,
-                MousePosition(position) => self.update_mouse_position(position, delta_time),
-                NoOp => {},
-            }
-        }
-
-        if self.is_dragging && !self.is_ui_capturing_mouse {
+        if self.is_dragging {
             self.camera_rotation_delta = Rad::new(0.0);
         }
 
-        self.frames_per_second = 1.0 / delta_time;
+        for event in events {
+            if self.apply_event_update(event) == Loop::Break {
+                return Loop::Break;
+            }
+        }
+
         self.camera_rotation = self.camera_rotation - self.camera_rotation_delta;
 
         Loop::Continue
