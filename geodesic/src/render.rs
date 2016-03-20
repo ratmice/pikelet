@@ -2,11 +2,16 @@ use cgmath::Angle;
 use cgmath::{Matrix4, SquareMatrix};
 use cgmath::Point2;
 use cgmath::Vector3;
-use glium::{Frame, IndexBuffer, Program, VertexBuffer};
+use glium::{DrawError, Frame, IndexBuffer, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface};
 use glium::backend::Context;
 use glium::index::NoIndices;
+use glium::index::BufferCreationError as IndexBufferCreationError;
+use glium::program::ProgramChooserCreationError;
+use glium::texture::TextureCreationError;
+use glium::vertex::BufferCreationError as VertexBufferCreationError;
 use rusttype::Font;
+use std::fmt;
 use std::rc::Rc;
 
 use camera::ComputedCamera;
@@ -14,6 +19,60 @@ use color::Color;
 use math;
 use text::TextData;
 use text::Vertex as TextVertex;
+
+pub type RenderResult<T> = Result<T, RenderError>;
+
+#[derive(Clone, Debug)]
+pub enum RenderError {
+    Vertex(VertexBufferCreationError),
+    Index(IndexBufferCreationError),
+    Program(ProgramChooserCreationError),
+    Texture(TextureCreationError),
+    Draw(DrawError),
+}
+
+impl fmt::Display for RenderError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::RenderError::*;
+        match *self {
+            Vertex(_) => write!(f, "Vertex buffer creation failed"),
+            Index(_) => write!(f, "Index buffer creation failed"),
+            Program(ref e) => write!(f, "Program creation failed: {}", e),
+            Texture(_) => write!(f, "Texture creation failed"),
+            Draw(ref e) => write!(f, "Drawing failed: {}", e),
+        }
+    }
+}
+
+impl From<VertexBufferCreationError> for RenderError {
+    fn from(e: VertexBufferCreationError) -> RenderError {
+        RenderError::Vertex(e)
+    }
+}
+
+impl From<IndexBufferCreationError> for RenderError {
+    fn from(e: IndexBufferCreationError) -> RenderError {
+        RenderError::Index(e)
+    }
+}
+
+impl From<ProgramChooserCreationError> for RenderError {
+    fn from(e: ProgramChooserCreationError) -> RenderError {
+        RenderError::Program(e)
+    }
+}
+
+impl From<TextureCreationError> for RenderError {
+    fn from(e: TextureCreationError) -> RenderError {
+        RenderError::Texture(e)
+    }
+}
+
+impl From<DrawError> for RenderError {
+    fn from(e: DrawError) -> RenderError {
+        RenderError::Draw(e)
+    }
+}
 
 #[derive(Copy, Clone)]
 pub struct Vertex {
@@ -72,12 +131,12 @@ impl<'a> RenderTarget<'a> {
         self.frame.clear_color_and_depth(color, 1.0);
     }
 
-    pub fn render_hud_text(&mut self, text: &str, text_size: f32, position: Point2<f32>, color: Color) {
+    pub fn render_hud_text(&mut self, text: &str, text_size: f32, position: Point2<f32>, color: Color) -> RenderResult<()> {
         use glium::texture::Texture2d;
         use glium::uniforms::MagnifySamplerFilter;
 
         let text_data = TextData::new(&self.resources.blogger_sans_font, text, text_size * self.hidpi_factor);
-        let text_texture = Texture2d::new(&self.resources.context, &text_data).unwrap();
+        let text_texture = try!(Texture2d::new(&self.resources.context, &text_data));
 
         let params = {
             use glium::Blend;
@@ -99,7 +158,7 @@ impl<'a> RenderTarget<'a> {
             }
         };
 
-        self.frame.draw(
+        try!(self.frame.draw(
             &self.resources.text_vertex_buffer,
             &self.resources.text_index_buffer,
             &self.resources.text_program,
@@ -110,11 +169,13 @@ impl<'a> RenderTarget<'a> {
                 model:    math::array_m4(text_data.matrix(position * self.hidpi_factor)),
             },
             &params,
-        ).unwrap();
+        ));
+
+        Ok(())
     }
 
-    pub fn render_points(&mut self, vertex_buffer: &VertexBuffer<Vertex>, point_size: f32, color: Color) {
-        self.frame.draw(
+    pub fn render_points(&mut self, vertex_buffer: &VertexBuffer<Vertex>, point_size: f32, color: Color) -> RenderResult<()> {
+        try!(self.frame.draw(
             vertex_buffer,
             &self.resources.index_buffer,
             &self.resources.unshaded_program,
@@ -129,11 +190,13 @@ impl<'a> RenderTarget<'a> {
                 point_size: Some(point_size),
                 ..draw_params()
             },
-        ).unwrap();
+        ));
+
+        Ok(())
     }
 
-    pub fn render_lines(&mut self, vertex_buffer: &VertexBuffer<Vertex>, line_width: f32, color: Color) {
-        self.frame.draw(
+    pub fn render_lines(&mut self, vertex_buffer: &VertexBuffer<Vertex>, line_width: f32, color: Color) -> RenderResult<()> {
+        try!(self.frame.draw(
             vertex_buffer,
             &self.resources.index_buffer,
             &self.resources.unshaded_program,
@@ -148,11 +211,13 @@ impl<'a> RenderTarget<'a> {
                 line_width: Some(line_width),
                 ..draw_params()
             },
-        ).unwrap();
+        ));
+
+        Ok(())
     }
 
-    pub fn render_solid(&mut self, vertex_buffer: &VertexBuffer<Vertex>, light_dir: Vector3<f32>, color: Color) {
-        self.frame.draw(
+    pub fn render_solid(&mut self, vertex_buffer: &VertexBuffer<Vertex>, light_dir: Vector3<f32>, color: Color) -> RenderResult<()> {
+        try!(self.frame.draw(
             vertex_buffer,
             &self.resources.index_buffer,
             &self.resources.flat_shaded_program,
@@ -168,6 +233,8 @@ impl<'a> RenderTarget<'a> {
                 polygon_mode: PolygonMode::Fill,
                 ..draw_params()
             },
-        ).unwrap();
+        ));
+
+        Ok(())
     }
 }

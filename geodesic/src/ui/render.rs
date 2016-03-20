@@ -1,69 +1,14 @@
 use cgmath;
-use glium::{index, vertex, DrawError, IndexBuffer, Program, Surface, Texture2d, VertexBuffer};
+use glium::{IndexBuffer, Program, Surface, Texture2d, VertexBuffer};
 use glium::backend::{Context, Facade};
 use glium::index::PrimitiveType;
 use glium::program::ProgramChooserCreationError;
-use glium::texture::TextureCreationError;
 use imgui::{DrawList, Ui, ImDrawIdx, ImDrawVert, ImGui};
 use std::borrow::Cow;
-use std::fmt;
 use std::rc::Rc;
 
 use math;
-
-pub type RendererResult<T> = Result<T, RendererError>;
-
-#[derive(Clone, Debug)]
-pub enum RendererError {
-    Vertex(vertex::BufferCreationError),
-    Index(index::BufferCreationError),
-    Program(ProgramChooserCreationError),
-    Texture(TextureCreationError),
-    Draw(DrawError),
-}
-
-impl fmt::Display for RendererError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::RendererError::*;
-        match *self {
-            Vertex(_) => write!(f, "Vertex buffer creation failed"),
-            Index(_) => write!(f, "Index buffer creation failed"),
-            Program(ref e) => write!(f, "Program creation failed: {}", e),
-            Texture(_) => write!(f, "Texture creation failed"),
-            Draw(ref e) => write!(f, "Drawing failed: {}", e),
-        }
-    }
-}
-
-impl From<vertex::BufferCreationError> for RendererError {
-    fn from(e: vertex::BufferCreationError) -> RendererError {
-        RendererError::Vertex(e)
-    }
-}
-
-impl From<index::BufferCreationError> for RendererError {
-    fn from(e: index::BufferCreationError) -> RendererError {
-        RendererError::Index(e)
-    }
-}
-
-impl From<ProgramChooserCreationError> for RendererError {
-    fn from(e: ProgramChooserCreationError) -> RendererError {
-        RendererError::Program(e)
-    }
-}
-
-impl From<TextureCreationError> for RendererError {
-    fn from(e: TextureCreationError) -> RendererError {
-        RendererError::Texture(e)
-    }
-}
-
-impl From<DrawError> for RendererError {
-    fn from(e: DrawError) -> RendererError {
-        RendererError::Draw(e)
-    }
-}
+use render::RenderResult;
 
 pub struct Renderer {
     ctx: Rc<Context>,
@@ -71,7 +16,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn init<F: Facade>(imgui: &mut ImGui, ctx: &F) -> RendererResult<Renderer> {
+    pub fn init<F: Facade>(imgui: &mut ImGui, ctx: &F) -> RenderResult<Renderer> {
         let device_objects = try!(DeviceObjects::init(imgui, ctx));
         Ok(Renderer {
             ctx: ctx.get_context().clone(),
@@ -79,11 +24,11 @@ impl Renderer {
         })
     }
 
-    pub fn render<'a, S: Surface>(&mut self, surface: &mut S, ui: Ui<'a>, hidpi_factor: f32) -> RendererResult<()> {
+    pub fn render<'a, S: Surface>(&mut self, surface: &mut S, ui: Ui<'a>, hidpi_factor: f32) -> RenderResult<()> {
         ui.render(|draw_list| self.render_draw_list(surface, draw_list, hidpi_factor))
     }
 
-    fn render_draw_list<'a, S: Surface>(&mut self, surface: &mut S, draw_list: DrawList<'a>, hidpi_factor: f32) -> RendererResult<()> {
+    fn render_draw_list<'a, S: Surface>(&mut self, surface: &mut S, draw_list: DrawList<'a>, hidpi_factor: f32) -> RenderResult<()> {
         use glium::{Blend, DrawParameters, Rect};
         use glium::uniforms::MagnifySamplerFilter;
 
@@ -153,7 +98,7 @@ fn compile_default_program<F: Facade>(ctx: &F) -> Result<Program, ProgramChooser
 }
 
 impl DeviceObjects {
-    pub fn init<F: Facade>(im_gui: &mut ImGui, ctx: &F) -> RendererResult<DeviceObjects> {
+    pub fn init<F: Facade>(im_gui: &mut ImGui, ctx: &F) -> RenderResult<DeviceObjects> {
         use glium::texture::{ClientFormat, RawImage2d};
 
         let vertex_buffer = try!(VertexBuffer::empty_dynamic(ctx, 0));
@@ -179,7 +124,7 @@ impl DeviceObjects {
     }
 
     pub fn upload_vertex_buffer<F: Facade>(&mut self, ctx: &F,
-                                           vtx_buffer: &[ImDrawVert]) -> RendererResult<()> {
+                                           vtx_buffer: &[ImDrawVert]) -> RenderResult<()> {
         self.vertex_buffer.invalidate();
         if let Some(slice) = self.vertex_buffer.slice_mut(0..vtx_buffer.len()) {
             slice.write(vtx_buffer);
@@ -190,7 +135,7 @@ impl DeviceObjects {
     }
 
     pub fn upload_index_buffer<F: Facade>(&mut self, ctx: &F,
-                                          idx_buffer: &[ImDrawIdx]) -> RendererResult<()> {
+                                          idx_buffer: &[ImDrawIdx]) -> RenderResult<()> {
         self.index_buffer.invalidate();
         if let Some(slice) = self.index_buffer.slice_mut(0..idx_buffer.len()) {
             slice.write(idx_buffer);

@@ -2,9 +2,9 @@ use glium::backend::Facade;
 use glium::glutin;
 use imgui::{ImGui, ImGuiKey, Ui};
 
+use render::RenderResult;
+
 pub use self::render::Renderer;
-pub use self::render::RendererResult;
-pub use self::render::RendererError;
 
 mod render;
 
@@ -44,7 +44,7 @@ impl Context {
         }
     }
 
-    pub fn init_renderer<F: Facade>(&mut self, facade: &F) -> RendererResult<Renderer> {
+    pub fn init_renderer<F: Facade>(&mut self, facade: &F) -> RenderResult<Renderer> {
         Renderer::init(&mut self.imgui, facade)
     }
 

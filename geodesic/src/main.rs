@@ -320,25 +320,25 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
 
     if state.is_showing_star_field {
         // TODO: Render centered at eye position
-        target.render_points(&resources.stars0_vertex_buffer, STAR0_SIZE, color::WHITE);
-        target.render_points(&resources.stars1_vertex_buffer, STAR1_SIZE, color::WHITE);
-        target.render_points(&resources.stars2_vertex_buffer, STAR2_SIZE, color::WHITE);
+        target.render_points(&resources.stars0_vertex_buffer, STAR0_SIZE, color::WHITE).unwrap();
+        target.render_points(&resources.stars1_vertex_buffer, STAR1_SIZE, color::WHITE).unwrap();
+        target.render_points(&resources.stars2_vertex_buffer, STAR2_SIZE, color::WHITE).unwrap();
     }
 
     if state.is_showing_mesh {
-        target.render_points(&resources.delaunay_vertex_buffer, 5.0, color::RED);
-        target.render_points(&resources.voronoi_vertex_buffer, 5.0, color::YELLOW);
-        target.render_lines(&resources.voronoi_vertex_buffer, 0.5, color::WHITE);
+        target.render_points(&resources.delaunay_vertex_buffer, 5.0, color::RED).unwrap();
+        target.render_points(&resources.voronoi_vertex_buffer, 5.0, color::YELLOW).unwrap();
+        target.render_lines(&resources.voronoi_vertex_buffer, 0.5, color::WHITE).unwrap();
     }
 
     if state.is_wireframe {
-        target.render_lines(&resources.delaunay_vertex_buffer, 0.5, color::BLACK);
+        target.render_lines(&resources.delaunay_vertex_buffer, 0.5, color::BLACK).unwrap();
     } else {
-        target.render_solid(&resources.delaunay_vertex_buffer, state.light_dir, color::GREEN);
+        target.render_solid(&resources.delaunay_vertex_buffer, state.light_dir, color::GREEN).unwrap();
     }
 
     // FIXME: https://github.com/Gekkio/imgui-rs/issues/17
-    // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK);
+    // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK).unwrap();
 }
 
 fn run_ui<'a>(ui_context: &'a mut UiContext, events: &mut Vec<Event>, state: &State) -> Ui<'a> {
