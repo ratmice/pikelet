@@ -1,5 +1,8 @@
 extern crate cgmath;
+extern crate find_folder;
 #[macro_use] extern crate glium;
+#[macro_use] extern crate imgui;
+#[macro_use] extern crate quick_error;
 extern crate rand;
 extern crate rayon;
 extern crate rusttype;
@@ -9,8 +12,10 @@ use cgmath::{Angle, PerspectiveFov, Rad};
 use cgmath::Matrix4;
 use cgmath::{Point2, Point3, Point};
 use cgmath::Vector3;
+use find_folder::Search as FolderSearch;
 use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer};
 use glium::index::{PrimitiveType, NoIndices};
+use imgui::Ui;
 use rand::Rng;
 use rayon::prelude::*;
 use std::mem;
@@ -19,8 +24,10 @@ use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
 use geom::Geometry;
+use input::Event;
 use math::Polar;
 use render::{Resources, RenderTarget, Vertex};
+use ui::Context as UiContext;
 
 mod macros;
 
@@ -33,9 +40,10 @@ pub mod math;
 pub mod text;
 pub mod times;
 pub mod render;
+pub mod ui;
 
 const WINDOW_TITLE: &'static str = "Geodesic Test";
-const WINDOW_WIDTH: u32 = 800;
+const WINDOW_WIDTH: u32 = 1000;
 const WINDOW_HEIGHT: u32 = 500;
 
 const CAMERA_XZ_RADIUS: f32 = 2.0;
@@ -58,20 +66,6 @@ const STAR2_SIZE: f32 = 5.0;
 const STARS0_COUNT: usize = 100000;
 const STARS1_COUNT: usize = 10000;
 const STARS2_COUNT: usize = 1000;
-
-macro_rules! include_resource {
-    (shader: $path:expr) => { include_str!(concat!("../resources/shaders/", $path)) };
-    (font: $path:expr) => { include_bytes!(concat!("../resources/fonts/", $path)) };
-}
-
-const FLAT_SHADED_VERT: &'static str = include_resource!(shader: "flat_shaded.v.glsl");
-const FLAT_SHADED_FRAG: &'static str = include_resource!(shader: "flat_shaded.f.glsl");
-const TEXT_VERT: &'static str = include_resource!(shader: "text.v.glsl");
-const TEXT_FRAG: &'static str = include_resource!(shader: "text.f.glsl");
-const UNSHADED_VERT: &'static str = include_resource!(shader: "unshaded.v.glsl");
-const UNSHADED_FRAG: &'static str = include_resource!(shader: "unshaded.f.glsl");
-
-const BLOGGER_SANS_FONT: &'static [u8] = include_resource!(font: "blogger/Blogger Sans.ttf");
 
 pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
@@ -199,18 +193,23 @@ fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
     star_vertices
 }
 
+#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, Eq)]
 enum Loop {
     Continue,
     Break,
 }
 
 struct State {
+    delta_time: f32,
     frames_per_second: f32,
 
     is_wireframe: bool,
     is_showing_mesh: bool,
     is_showing_star_field: bool,
+    is_showing_ui: bool,
     is_dragging: bool,
+    is_ui_capturing_mouse: bool,
     is_zooming: bool,
 
     mouse_position: Point2<i32>,
@@ -224,51 +223,89 @@ struct State {
 }
 
 impl State {
-    fn update_mouse_position(&mut self, new_position: Point2<i32>, delta_time: f32) {
+    fn init() -> State {
+        State {
+            delta_time: 0.0,
+            frames_per_second: 0.0,
+
+            is_wireframe: false,
+            is_showing_mesh: true,
+            is_showing_star_field: false,
+            is_showing_ui: true,
+            is_dragging: false,
+            is_ui_capturing_mouse: false,
+            is_zooming: false,
+
+            light_dir: LIGHT_DIR,
+
+            mouse_position: Point2::origin(),
+            window_dimensions: (WINDOW_WIDTH, WINDOW_HEIGHT),
+
+            camera_rotation: Rad::new(0.0),
+            camera_rotation_delta: Rad::new(0.0),
+            camera_distance: CAMERA_XZ_RADIUS,
+        }
+    }
+
+    fn apply_mouse_update(&mut self, new_position: Point2<i32>) {
         let mouse_position_delta = {
             let old_position = mem::replace(&mut self.mouse_position, new_position);
             new_position - old_position
         };
 
-        if self.is_dragging {
-            let (window_width, _) = self.window_dimensions;
-            let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
-            self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * delta_time;
-        }
+        if !self.is_ui_capturing_mouse {
+            if self.is_dragging {
+                let (window_width, _) = self.window_dimensions;
+                let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
+                self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.delta_time;
+            }
 
-        if self.is_zooming {
-            let zoom_delta = mouse_position_delta.x as f32 * delta_time;
-            self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
+            if self.is_zooming {
+                let zoom_delta = mouse_position_delta.x as f32 * self.delta_time;
+                self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
+            }
         }
     }
 
-    fn update<Events>(&mut self, actions: Events, delta_time: f32) -> Loop where
-        Events: IntoIterator,
-        Events::Item: Into<input::Event>,
+    fn apply_event_update(&mut self, event: Event) -> Loop {
+        use input::Event::*;
+
+        match event {
+            CloseApp => return Loop::Break,
+            SetShowingMesh(value) => self.is_showing_mesh = value,
+            SetShowingStarField(value) => self.is_showing_star_field = value,
+            SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
+            SetWireframe(value) => self.is_wireframe = value,
+            ToggleUi => self.is_showing_ui = !self.is_showing_ui,
+            ResetState => *self = State::init(),
+            DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
+            DragEnd => self.is_dragging = false,
+            ZoomStart => self.is_zooming = true,
+            ZoomEnd => self.is_zooming = false,
+            MousePosition(position) => self.apply_mouse_update(position),
+            NoOp => {},
+        }
+
+        Loop::Continue
+    }
+
+    fn update<Events>(&mut self, events: Events, window_dimensions: (u32, u32), delta_time: f32) -> Loop where
+        Events: IntoIterator<Item = Event>,
     {
+        self.delta_time = delta_time;
+        self.window_dimensions = window_dimensions;
+        self.frames_per_second = 1.0 / delta_time;
+
         if self.is_dragging {
             self.camera_rotation_delta = Rad::new(0.0);
         }
 
-        for action in actions {
-            use input::Event::*;
-
-            match action.into() {
-                CloseApp => return Loop::Break,
-                ToggleMesh => self.is_showing_mesh = !self.is_showing_mesh,
-                ToggleStarField => self.is_showing_star_field = !self.is_showing_star_field,
-                ToggleWireframe => self.is_wireframe = !self.is_wireframe,
-                DragStart => self.is_dragging = true,
-                DragEnd => self.is_dragging = false,
-                ZoomStart => self.is_zooming = true,
-                ZoomEnd => self.is_zooming = false,
-                MousePosition(position) => self.update_mouse_position(position, delta_time),
-                Resize(width, height) => self.window_dimensions = (width, height),
-                NoOp => {},
+        for event in events {
+            if self.apply_event_update(event) == Loop::Break {
+                return Loop::Break;
             }
         }
 
-        self.frames_per_second = 1.0 / delta_time;
         self.camera_rotation = self.camera_rotation - self.camera_rotation_delta;
 
         Loop::Continue
@@ -296,7 +333,7 @@ impl State {
     }
 }
 
-fn render_scene(state: &State, resources: &Resources, frame: Frame, hidpi_factor: f32) {
+fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_factor: f32) {
     let frame_dimensions = frame.get_dimensions();
 
     let mut target = RenderTarget {
@@ -311,26 +348,92 @@ fn render_scene(state: &State, resources: &Resources, frame: Frame, hidpi_factor
 
     if state.is_showing_star_field {
         // TODO: Render centered at eye position
-        target.render_points(&resources.stars0_vertex_buffer, STAR0_SIZE, color::WHITE);
-        target.render_points(&resources.stars1_vertex_buffer, STAR1_SIZE, color::WHITE);
-        target.render_points(&resources.stars2_vertex_buffer, STAR2_SIZE, color::WHITE);
+        target.render_points(&resources.stars0_vertex_buffer, STAR0_SIZE, color::WHITE).unwrap();
+        target.render_points(&resources.stars1_vertex_buffer, STAR1_SIZE, color::WHITE).unwrap();
+        target.render_points(&resources.stars2_vertex_buffer, STAR2_SIZE, color::WHITE).unwrap();
     }
 
     if state.is_showing_mesh {
-        target.render_points(&resources.delaunay_vertex_buffer, 5.0, color::RED);
-        target.render_points(&resources.voronoi_vertex_buffer, 5.0, color::YELLOW);
-        target.render_lines(&resources.voronoi_vertex_buffer, 0.5, color::WHITE);
+        target.render_points(&resources.delaunay_vertex_buffer, 5.0, color::RED).unwrap();
+        target.render_points(&resources.voronoi_vertex_buffer, 5.0, color::YELLOW).unwrap();
+        target.render_lines(&resources.voronoi_vertex_buffer, 0.5, color::WHITE).unwrap();
     }
 
     if state.is_wireframe {
-        target.render_lines(&resources.delaunay_vertex_buffer, 0.5, color::BLACK);
+        target.render_lines(&resources.delaunay_vertex_buffer, 0.5, color::BLACK).unwrap();
     } else {
-        target.render_solid(&resources.delaunay_vertex_buffer, state.light_dir, color::GREEN);
+        target.render_solid(&resources.delaunay_vertex_buffer, state.light_dir, color::GREEN).unwrap();
     }
 
-    target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK);
+    // FIXME: https://github.com/Gekkio/imgui-rs/issues/17
+    // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK).unwrap();
+}
 
-    target.finish();
+fn run_ui<'a>(ui_context: &'a mut UiContext, events: &mut Vec<Event>, state: &State) -> Ui<'a> {
+    fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool> {
+        let mut value = initial_value;
+        ui.checkbox(text, &mut value);
+
+        match value != initial_value {
+            true => Some(value),
+            false => None,
+        }
+    }
+
+    let ui = ui_context.frame(state.window_dimensions, state.delta_time);
+
+    ui.window(im_str!("State"))
+        .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
+        .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
+        .build(|| {
+            ui.tree_node(im_str!("Render options")).build(|| {
+                use input::Event::*;
+
+                checkbox(&ui, im_str!("Wireframe"), state.is_wireframe).map(|v| events.push(SetWireframe(v)));
+                checkbox(&ui, im_str!("Show mesh"), state.is_showing_mesh).map(|v| events.push(SetShowingMesh(v)));
+                checkbox(&ui, im_str!("Show starfield"), state.is_showing_star_field).map(|v| events.push(SetShowingStarField(v)));
+            });
+
+            ui.tree_node(im_str!("State")).build(|| {
+                ui.text(im_str!("delta_time: {:?}", state.delta_time));
+                ui.text(im_str!("frames_per_second: {:?}", state.frames_per_second));
+
+                ui.separator();
+
+                ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
+                ui.text(im_str!("is_showing_mesh: {:?}", state.is_showing_mesh));
+                ui.text(im_str!("is_showing_star_field: {:?}", state.is_showing_star_field));
+                ui.text(im_str!("is_showing_ui: {:?}", state.is_showing_ui));
+                ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
+                ui.text(im_str!("is_ui_capturing_mouse: {:?}", state.is_ui_capturing_mouse));
+                ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
+
+                ui.separator();
+
+                ui.text(im_str!("light_dir: {:?}", state.light_dir));
+
+                ui.separator();
+
+                ui.text(im_str!("mouse_position: {:?}", state.mouse_position));
+                ui.text(im_str!("window_dimensions: {:?}", state.window_dimensions));
+
+                ui.separator();
+
+                ui.text(im_str!("camera_rotation: {:?}", state.camera_rotation));
+                ui.text(im_str!("camera_rotation_delta: {:?}", state.camera_rotation_delta));
+                ui.text(im_str!("camera_distance: {:?}", state.camera_distance));
+            });
+
+            if ui.small_button(im_str!("Reset state")) {
+                events.push(Event::ResetState);
+            }
+        });
+
+    if ui.want_capture_mouse() != state.is_ui_capturing_mouse {
+        events.push(Event::SetUiCapturingMouse(ui.want_capture_mouse()));
+    }
+
+    ui
 }
 
 fn main() {
@@ -344,40 +447,55 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let mut state = State {
-        frames_per_second: 0.0,
-
-        is_wireframe: false,
-        is_showing_mesh: true,
-        is_showing_star_field: false,
-        is_dragging: false,
-        is_zooming: false,
-
-        light_dir: LIGHT_DIR,
-
-        mouse_position: Point2::origin(),
-        window_dimensions: (WINDOW_WIDTH, WINDOW_HEIGHT),
-
-        camera_rotation: Rad::new(0.0),
-        camera_rotation_delta: Rad::new(0.0),
-        camera_distance: CAMERA_XZ_RADIUS,
-    };
+    let mut state = State::init();
 
     let resources = {
         use rusttype::FontCollection;
+        use std::fs::File;
+        use std::io;
+        use std::io::prelude::*;
+        use std::path::Path;
 
-        let ori_geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
-        let geometry = geom::half_edge::icosahedron(1.0);
-        let subdivided = geometry.subdivide(1.0, 1);
+        let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
         let star_field = StarField::generate(STAR_FIELD_RADIUS);
-        let font_collection = FontCollection::from_bytes(BLOGGER_SANS_FONT);
+
+        let assets = FolderSearch::ParentsThenKids(3, 3)
+                .for_folder("resources")
+                .expect("Could not locate `resources` folder");
+
+        let load_shader = |assets: &Path, path| -> io::Result<String> {
+            let mut file = try!(File::open(assets.join(path)));
+            let mut buffer = String::new();
+            try!(file.read_to_string(&mut buffer));
+
+            Ok(buffer)
+        };
+
+        let flat_shaded_vert    = load_shader(&assets, "shaders/flat_shaded.v.glsl").unwrap();
+        let flat_shaded_frag    = load_shader(&assets, "shaders/flat_shaded.f.glsl").unwrap();
+        let text_vert           = load_shader(&assets, "shaders/text.v.glsl").unwrap();
+        let text_frag           = load_shader(&assets, "shaders/text.f.glsl").unwrap();
+        let unshaded_vert       = load_shader(&assets, "shaders/unshaded.v.glsl").unwrap();
+        let unshaded_frag       = load_shader(&assets, "shaders/unshaded.f.glsl").unwrap();
+
+        let flat_shaded_program = Program::from_source(&display, &flat_shaded_vert, &flat_shaded_frag, None).unwrap();
+        let text_program        = Program::from_source(&display, &text_vert, &text_frag, None).unwrap();
+        let unshaded_program    = Program::from_source(&display, &unshaded_vert, &unshaded_frag, None).unwrap();
+
+        let blogger_sans_font = {
+            let mut file = File::open(assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap();
+            let mut buffer = vec![];
+            file.read_to_end(&mut buffer).unwrap();
+
+            let font_collection = FontCollection::from_bytes(buffer);
+            font_collection.into_font().unwrap()
+        };
 
         Resources {
             context: display.get_context().clone(),
 
-            // delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
-            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&subdivided)).unwrap(),
-            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&geometry)).unwrap(),
+            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
+            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&geometry)).unwrap(),
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
             text_vertex_buffer: VertexBuffer::new(&display, &text::TEXTURE_VERTICES).unwrap(),
@@ -387,25 +505,48 @@ fn main() {
             stars1_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars1)).unwrap(),
             stars2_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars2)).unwrap(),
 
-            flat_shaded_program: Program::from_source(&display, FLAT_SHADED_VERT, FLAT_SHADED_FRAG, None).unwrap(),
-            text_program: Program::from_source(&display, TEXT_VERT, TEXT_FRAG, None).unwrap(),
-            unshaded_program: Program::from_source(&display, UNSHADED_VERT, UNSHADED_FRAG, None).unwrap(),
+            flat_shaded_program: flat_shaded_program,
+            text_program: text_program,
+            unshaded_program: unshaded_program,
 
-            blogger_sans_font: font_collection.into_font().unwrap(),
+            blogger_sans_font: blogger_sans_font,
         }
     };
 
+    let mut ui_context = UiContext::new();
+    let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
+    let mut ui_events = vec![];
+
     for time in times::in_seconds() {
-        let events = display.poll_events();
+        // FIXME: lots of confusing mutations if the event buffer...
+
+        let display_events: Vec<_> = display.poll_events().collect();
+
+        let window = display.get_window().unwrap();
+        let window_dimensions = window.get_inner_size_points().unwrap();
+        let hidpi_factor = window.hidpi_factor();
         let delta_time = time.delta() as f32;
 
-        let hidpi_factor = display.get_window()
-            .map(|window| window.hidpi_factor())
-            .unwrap_or(1.0);
+        ui_context.update(display_events.iter(), hidpi_factor);
 
-        match state.update(events, delta_time) {
+        let events = display_events.into_iter()
+            .map(Event::from)
+            .chain(mem::replace(&mut ui_events, vec![]));
+
+        match state.update(events, window_dimensions, delta_time) {
             Loop::Break => break,
-            Loop::Continue => render_scene(&state, &resources, display.draw(), hidpi_factor),
+            Loop::Continue => {
+                let mut frame = display.draw();
+
+                render_scene(&mut frame, &state, &resources, hidpi_factor);
+
+                if state.is_showing_ui {
+                    let ui = run_ui(&mut ui_context, &mut ui_events, &mut state);
+                    ui_renderer.render(&mut frame, ui, hidpi_factor).unwrap();
+                }
+
+                frame.finish().unwrap()
+            }
         }
 
         thread::sleep(Duration::from_millis(10)); // battery saver ;)

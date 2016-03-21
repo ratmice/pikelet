@@ -1,7 +1,7 @@
 use cgmath::{Matrix4, Point2};
 use glium::Surface;
 use glium::texture::{ClientFormat, RawImage2d, Texture2dDataSource};
-use rusttype::{self, Font, Pixels};
+use rusttype::{self, Font, Scale};
 use std::borrow::Cow;
 
 #[derive(Copy, Clone, Debug)]
@@ -37,7 +37,7 @@ pub struct TextData {
 impl TextData {
     pub fn new(font: &Font, text: &str, height: f32) -> TextData {
         let pixel_height = height.ceil() as usize;
-        let scale = Pixels(height);
+        let scale = Scale::uniform(height);
 
         let v_metrics = font.v_metrics(scale);
         let offset = rusttype::point(0.0, v_metrics.ascent);
@@ -45,7 +45,7 @@ impl TextData {
         let glyphs: Vec<_> = font.layout(&text, scale, offset).collect();
 
         let width = glyphs.iter()
-            .map(|glyph| glyph.h_metrics().advance_width)
+            .map(|glyph| glyph.unpositioned().h_metrics().advance_width)
             .fold(0.0, |x, y| x + y)
             .ceil() as usize;
 
