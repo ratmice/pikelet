@@ -13,7 +13,7 @@ use cgmath::Matrix4;
 use cgmath::{Point2, Point3, Point};
 use cgmath::Vector3;
 use find_folder::Search as FolderSearch;
-use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer};
+use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
 use glium::index::{PrimitiveType, NoIndices};
 use imgui::Ui;
 use rand::Rng;
@@ -212,6 +212,8 @@ struct State {
     is_ui_capturing_mouse: bool,
     is_zooming: bool,
 
+    culling_mode: BackfaceCullingMode,
+
     mouse_position: Point2<i32>,
     window_dimensions: (u32, u32),
 
@@ -235,6 +237,8 @@ impl State {
             is_dragging: false,
             is_ui_capturing_mouse: false,
             is_zooming: false,
+
+            culling_mode: BackfaceCullingMode::CullClockwise,
 
             light_dir: LIGHT_DIR,
 
@@ -342,6 +346,7 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
         resources: resources,
         camera: state.create_scene_camera(frame_dimensions),
         hud_matrix: state.create_hud_camera(frame_dimensions),
+        culling_mode: state.culling_mode,
     };
 
     target.clear(color::BLUE);
@@ -408,6 +413,8 @@ fn run_ui<'a>(ui_context: &'a mut UiContext, events: &mut Vec<Event>, state: &St
                 ui.text(im_str!("is_ui_capturing_mouse: {:?}", state.is_ui_capturing_mouse));
                 ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
 
+                ui.text(im_str!("culling_mode: {:?}", state.culling_mode));
+
                 ui.separator();
 
                 ui.text(im_str!("light_dir: {:?}", state.light_dir));
@@ -456,7 +463,10 @@ fn main() {
         use std::io::prelude::*;
         use std::path::Path;
 
-        let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
+        let radius = 1.0;
+        //let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
+        let geometry = geom::half_edge::icosahedron(radius);
+        let subdivided = geometry.subdivide(radius, POLYHEDRON_SUBDIVS);
         let star_field = StarField::generate(STAR_FIELD_RADIUS);
 
         let assets = FolderSearch::ParentsThenKids(3, 3)
@@ -494,8 +504,8 @@ fn main() {
         Resources {
             context: display.get_context().clone(),
 
-            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
-            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&geometry)).unwrap(),
+            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&subdivided)).unwrap(),
+            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&geometry)).unwrap(),
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
             text_vertex_buffer: VertexBuffer::new(&display, &text::TEXTURE_VERTICES).unwrap(),
