@@ -465,7 +465,7 @@ fn main() {
 
         let radius = 1.0;
         //let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
-        let geometry = geom::half_edge::icosahedron(radius);
+        let geometry = geom::half_edge::tetrahedron(radius);
         let subdivided = geometry.subdivide(radius, POLYHEDRON_SUBDIVS);
         let star_field = StarField::generate(STAR_FIELD_RADIUS);
 

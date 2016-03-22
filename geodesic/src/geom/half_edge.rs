@@ -412,6 +412,49 @@ pub fn plane(scale: f32) -> Mesh {
     }
 }
 
+pub fn tetrahedron(scale: f32) -> Mesh {
+    let extent = scale / 2.0;
+
+    let positions = vec![
+        Point3::new(extent, extent, extent),
+        Point3::new(extent, -extent, -extent),
+        Point3::new(-extent, extent, -extent),
+        Point3::new(-extent, -extent, extent),
+    ];
+
+    let faces = vec![
+        Face::new(0),
+        Face::new(3),
+        Face::new(6),
+        Face::new(9),
+    ];
+
+    let vertices = vec![
+        // Face 0
+        HalfEdge::new(0, 0,  1,  5),
+        HalfEdge::new(3, 0,  2, 11),
+        HalfEdge::new(1, 0,  0,  6),
+        // Face 1
+        HalfEdge::new(0, 1,  4,  8),
+        HalfEdge::new(1, 1,  5,  9),
+        HalfEdge::new(2, 1,  3,  0),
+        // Face 2
+        HalfEdge::new(0, 2,  7,  2),
+        HalfEdge::new(2, 2,  8, 10),
+        HalfEdge::new(3, 2,  6,  3),
+        // Face 3
+        HalfEdge::new(2, 3, 10,  4),
+        HalfEdge::new(1, 3, 11,  7),
+        HalfEdge::new(3, 3,  9,  1),
+    ];
+
+    Mesh {
+        positions: positions,
+        vertices: vertices,
+        faces: faces
+    }
+}
+
 pub fn icosahedron(radius: f32) -> Mesh {
     // The coordinates of the iocosahedron are are described by the
     // cyclic permutations of (±ϕ, ±1, 0), where ϕ is the [Golden Ratio]
