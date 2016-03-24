@@ -342,7 +342,7 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
     // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK).unwrap();
 }
 
-fn run_ui<'a>(ui_context: &'a mut UiContext, events: &mut Vec<Event>, state: &State) -> Ui<'a> {
+fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>, Vec<Event>) {
     fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool> {
         let mut value = initial_value;
         ui.checkbox(text, &mut value);
@@ -353,7 +353,12 @@ fn run_ui<'a>(ui_context: &'a mut UiContext, events: &mut Vec<Event>, state: &St
         }
     }
 
+    if !state.is_showing_ui {
+        return (None, vec![]);
+    }
+
     let ui = ui_context.frame(state.window_dimensions, state.delta_time);
+    let mut events = vec![];
 
     ui.window(im_str!("State"))
         .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
@@ -406,7 +411,7 @@ fn run_ui<'a>(ui_context: &'a mut UiContext, events: &mut Vec<Event>, state: &St
         events.push(Event::SetUiCapturingMouse(ui.want_capture_mouse()));
     }
 
-    ui
+    (Some(ui), events)
 }
 
 fn main() {
@@ -488,7 +493,6 @@ fn main() {
 
     let mut ui_context = UiContext::new();
     let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
-    let mut ui_events = vec![];
 
     for time in times::in_seconds() {
         // FIXME: lots of confusing mutations if the event buffer...
@@ -501,10 +505,11 @@ fn main() {
         let delta_time = time.delta() as f32;
 
         ui_context.update(display_events.iter(), hidpi_factor);
+        let (ui, ui_events) = build_ui(&mut ui_context, &mut state);
 
         let events = display_events.into_iter()
             .map(Event::from)
-            .chain(mem::replace(&mut ui_events, vec![]));
+            .chain(ui_events);
 
         match state.update(events, window_dimensions, delta_time) {
             Loop::Break => break,
@@ -513,8 +518,7 @@ fn main() {
 
                 render_scene(&mut frame, &state, &resources, hidpi_factor);
 
-                if state.is_showing_ui {
-                    let ui = run_ui(&mut ui_context, &mut ui_events, &mut state);
+                if let Some(ui) = ui {
                     ui_renderer.render(&mut frame, ui, hidpi_factor).unwrap();
                 }
 
