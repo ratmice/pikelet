@@ -75,12 +75,12 @@ pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
     let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
     for (fi, face) in mesh.faces.iter().enumerate() {
         let e0 = face.root.clone();
-        let e1 = mesh.vertices[e0].next.clone();
-        let e2 = mesh.vertices[e1].next.clone();
+        let e1 = mesh.edges[e0].next.clone();
+        let e2 = mesh.edges[e1].next.clone();
         
-        let p0 = mesh.vertices[e0].attributes.position.clone();
-        let p1 = mesh.vertices[e1].attributes.position.clone();
-        let p2 = mesh.vertices[e2].attributes.position.clone();
+        let p0 = mesh.edges[e0].position.clone();
+        let p1 = mesh.edges[e1].position.clone();
+        let p2 = mesh.edges[e2].position.clone();
         
         vertices.push( Vertex { position: mesh.positions[p0].into() } );
         vertices.push( Vertex { position: mesh.positions[p1].into() } );
@@ -465,8 +465,8 @@ fn main() {
 
         let radius = 1.0;
         //let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
-        let geometry = geom::half_edge::tetrahedron(radius);
-        let subdivided = geometry.subdivide(radius, POLYHEDRON_SUBDIVS);
+        let geometry = geom::primitives::icosahedron(radius);
+        let subdivided = geometry.subdivide_arc(radius, POLYHEDRON_SUBDIVS);
         let star_field = StarField::generate(STAR_FIELD_RADIUS);
 
         let assets = FolderSearch::ParentsThenKids(3, 3)

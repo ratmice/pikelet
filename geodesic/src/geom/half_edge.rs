@@ -5,41 +5,12 @@ use math;
 ///////////////////////////////////////////////////////////////////////////////
 // Some basic type aliases in order to attemp self-documentation
 
-pub type Index = usize;
+pub type EdgeIndex = usize;
+pub type PositionIndex = usize;
+pub type FaceIndex = usize;
 pub type Position = Point3<f32>;
-pub type Normal = Point3<f32>;
-pub type Color = Vector4<f32>;
 
-///////////////////////////////////////////////////////////////////////////////
-// Principle mesh attribute index struct
-// TODO: Attributes need to be arbitrary.
-//       Like a hashmap from "name" -> Vec<T>.
-//
-//       Some examples:
-//         - P -> Vec<Position>
-//         - C -> Vec<Color>
-//         - N -> Vec<Point3>
-//         - scatter -> Vec<f32>
-//         - elevation -> Vec<f32>
-//         - inclination -> Vec<f32>
-//
-//       Obviously some of those are principle
-//       types used to draw stuff, but others
-//       would be used in procgen tasks perhaps.
-//       This is a common trick in apps like Houdini.
-//
-#[derive(Clone, Debug)]
-pub struct AttributeIndex {
-    pub position: Index,        // Positions are required.
-}
-
-impl AttributeIndex {
-    pub fn new(position: Index) -> AttributeIndex {
-        AttributeIndex {
-            position: position
-        }
-    }
-}
+//pub type MidpointFn = (&Position, &Position) -> Position;
 
 ///////////////////////////////////////////////////////////////////////////////
 // The Face
@@ -54,11 +25,11 @@ impl AttributeIndex {
 #[derive(Clone, Debug)]
 pub struct Face {
     // The index of the first edge to define this face.
-    pub root: Index,
+    pub root: EdgeIndex,
 }
 
 impl Face {
-    pub fn new(root: Index) -> Face {
+    pub fn new(root: EdgeIndex) -> Face {
         Face { root: root }
     }
 }
@@ -73,32 +44,32 @@ impl Face {
 #[derive(Clone, Debug)]
 pub struct HalfEdge {
     // Attribute index for this vertex.
-    pub attributes: AttributeIndex,
+    pub position: PositionIndex,
 
     // The face that this edge is associated with.
-    pub face: Index,
+    pub face: FaceIndex,
 
     // The index of the next edge/vert around the face.
-    pub next: Index,
+    pub next: EdgeIndex,
 
     // Oppositely oriented adjacent HalfEdge.
     // If this is None then we have a boundary edge.
-    pub adjacent: Option<Index>,
+    pub adjacent: Option<EdgeIndex>,
 }
 
 impl HalfEdge {
-    pub fn new(point: Index, face: Index, next: Index, adjacent: Index) -> HalfEdge {
+    pub fn new(point: PositionIndex, face: FaceIndex, next: EdgeIndex, adjacent: EdgeIndex) -> HalfEdge {
         HalfEdge {
-            attributes: AttributeIndex::new(point),
+            position: point,
             face: face,
             next: next,
             adjacent: Some(adjacent)
         }
     }
 
-    pub fn new_boundary(point: Index, face: Index, next: Index) -> HalfEdge {
+    pub fn new_boundary(point: PositionIndex, face: FaceIndex, next: EdgeIndex) -> HalfEdge {
         HalfEdge {
-            attributes: AttributeIndex::new(point),
+            position: point,
             face: face,
             next: next,
             adjacent: None
@@ -120,89 +91,22 @@ pub struct Mesh {
 
     // Connectivity information
     pub faces: Vec<Face>,
-    pub vertices: Vec<HalfEdge>
+    pub edges: Vec<HalfEdge>
 }
 
 impl Mesh {
-
-    // Return the Position of the midpoint along an edge
-    fn midpoint(&self, radius: f32, edge_index: Index, vertices: &Vec<HalfEdge>, positions: &Vec<Position>) -> Position {
-        let e0 = vertices[edge_index].clone();
-        let e1 = vertices[e0.next].clone();
-        
-        let ref p0 = positions[e0.attributes.position];
-        let ref p1 = positions[e1.attributes.position];
-
-        // math::set_radius(math::midpoint(p0, p1), radius)
-        math::midpoint(p0, p1)
-    }
-
-    fn cache_midpoint(&self, edge: Index, adjacent_edge: Option<Index>, point: Index, new_positions: &mut HashMap<usize, Index>) {
-        new_positions.insert(edge.clone(), point.clone());
-        adjacent_edge.map(|adjacent_edge| {
-            new_positions.insert(adjacent_edge.clone(), point.clone());
-        });
-    }
     
-    fn split_edge(&self, edge: Index, point: Index, visited: &mut HashMap<usize, (Index, Index)>, vertices: &mut Vec<HalfEdge>) -> Index {
-        let a0_index = edge.clone();
-        let a1_index = vertices.len();
-
-        if vertices[a0_index].is_boundary() {
-            let a = HalfEdge::new_boundary(
-                point, vertices[a0_index].face.clone(), vertices[a0_index].next.clone()
-            );
-            vertices.push(a);
-            vertices[a0_index].next = a1_index;
-            visited.insert(a0_index.clone(), (a0_index, a1_index));
-        } else {
-            let b0_index = vertices[a0_index].adjacent.unwrap().clone();
-            let already_split_adjacent_edge = visited.contains_key(&b0_index);
-            let b1_index = if already_split_adjacent_edge {
-                visited.get(&b0_index).unwrap().1.clone()
-            } else {
-                a1_index + 1
-            };
-            
-            let a = HalfEdge::new(
-                point, vertices[a0_index].face.clone(),
-                vertices[a0_index].next.clone(), b0_index
-            );
-            vertices.push(a);
-            vertices[a0_index].next = a1_index;
-            vertices[a0_index].adjacent = Some(b1_index);
-            visited.insert(a0_index.clone(), (a0_index, a1_index));
-
-            if !already_split_adjacent_edge {
-                let b = HalfEdge::new(
-                    point, vertices[b0_index].face.clone(),
-                    vertices[b0_index].next.clone(), a0_index
-                );
-                vertices.push(b);
-                vertices[b0_index].next = b1_index;
-                vertices[b0_index].adjacent = Some(a1_index);
-                visited.insert(b0_index, (b0_index, b1_index));
-            }
-        }
-
-        a1_index
-    }
-    
-    pub fn subdivide(&self, radius: f32, count: usize) -> Mesh {
-        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(radius))
+    pub fn subdivide(&self, count: usize) -> Mesh {
+        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(&midpoint))
     }
 
-    // - For each face, get the edge loop, split each each edge.
-    // - Once each edge is split you make 3 new faces.
-    // - Always split adjacent edges in order to maintain correct indexing.
-    //
-    // Keep track of any attributes so that we don't duplicate them.
-    //
-    // NOTE: We're baking in the idea that a mesh *only* ever contains
-    //       triangles. That's fine of course, but if any other functions
-    //       potentially generate faces with more than 3 edges you'll
-    //       need to triangulate the Mesh first.
-    //
+    pub fn subdivide_arc(&self, radius: f32, count: usize) -> Mesh {
+        let _fn = |p0: &Position, p1: &Position| {midpoint_arc(radius, p0, p1)};
+        (0..count).fold(self.clone(), |acc, _| {
+            acc.subdivide_once(&_fn)
+        })
+    }
+
     // NOTE: The method of subdivision is illustrated below:
     //
     //          v0         |  v0 ____v5____ v2
@@ -214,381 +118,122 @@ impl Mesh {
     //     /____\/____\    |         \/
     //   v1     v4     v2  |         v1
     //
-    pub fn subdivide_once(&self, radius: f32) -> Mesh {
-        // I don't know a general way to individually calculate the
-        // amount to reserve for attributes. Points in particular
-        // don't end up with values that divide into whole numbers.
-        // The number of edges/vertices for polyhedra made of triangles
-        // seemed to grow by a factor of 4. I figured this is a generally
-        // good and even amount to reserve. Yes in some cases this might
-        // grab more than is needed (and up to a point would blow the
-        // stack anyway); but it's worth stating that the Mesh api is meant
-        // to serve as a foundation for procedural modeling primitives
-        // that ultimately would get baked into buffers and these entities
-        // generated aren't intended to be ludicrously dense.
+    pub fn subdivide_once<F>(&self, mpFn: &F) -> Mesh
+        where F: Fn(&Position, &Position) -> Position
+    {
         const RESERVATION_FACTOR: usize = 4;
 
-        let mut visited_edges: HashMap<Index, (Index, Index)> = HashMap::new();
-        let mut new_positions: HashMap<Index, Index> = HashMap::new();
-        
-        let mut positions = Vec::with_capacity(self.positions.len() * RESERVATION_FACTOR);
-        let mut vertices = Vec::with_capacity(self.vertices.len() * RESERVATION_FACTOR);
+        let mut new_positions: HashMap<EdgeIndex, PositionIndex> = HashMap::new();
+
+        let mut positions = self.positions.clone();
+        let mut edges = Vec::with_capacity(self.edges.len() * RESERVATION_FACTOR);
         let mut faces = Vec::with_capacity(self.faces.len() * RESERVATION_FACTOR);
-        
-        positions.extend_from_slice(self.positions.as_slice());
-        vertices.extend_from_slice(self.vertices.as_slice());
-        faces.extend_from_slice(self.faces.as_slice());
-        
-        for (f0, face) in self.faces.iter().enumerate() {
-            // Get the Indexes of the incoming 3 half edge structs
-            let e0 = face.root.clone();
-            let e1 = self.vertices[e0].next.clone();
-            let e2 = self.vertices[e1].next.clone();
 
-            let p3 = if new_positions.contains_key(&e0) {
-                new_positions.get(&e0).unwrap().clone()
-            } else {
-                let index = positions.len();
-                let p = self.midpoint(radius, e0, &vertices, &positions);
-                positions.push(p);
-                self.cache_midpoint(e0, vertices[e0].adjacent.clone(), index, &mut new_positions);
-                index
-            };
-
-            let p4 = if new_positions.contains_key(&e1) {
-                new_positions.get(&e1).unwrap().clone()
-            } else {
-                let index = positions.len();
-                let p = self.midpoint(radius, e1, &vertices, &positions);
-                positions.push(p);
-                self.cache_midpoint(e1, vertices[e1].adjacent.clone(), index, &mut new_positions);
-                index
-            };
-
-            let p5 = if new_positions.contains_key(&e2) {
-                new_positions.get(&e2).unwrap().clone()
-            } else {
-                let index = positions.len();
-                let p = self.midpoint(radius, e2, &vertices, &positions);
-                positions.push(p);
-                self.cache_midpoint(e2, vertices[e2].adjacent.clone(), index, &mut new_positions);
-                index
-            };
-
-            let e3 = {
-                if visited_edges.contains_key(&e0) {
-                    visited_edges.get(&e0).unwrap().1.clone()
-                } else {
-                    self.split_edge(e0, p3, &mut visited_edges, &mut vertices)
-                }
-            };
-            
-            let e4 = {
-                if visited_edges.contains_key(&e1) {
-                    visited_edges.get(&e1).unwrap().1.clone()
-                } else {
-                    self.split_edge(e1, p4, &mut visited_edges, &mut vertices)
-                }
-            };
-
-            let e5 = {
-                if visited_edges.contains_key(&e2) {
-                    visited_edges.get(&e2).unwrap().1.clone()
-                } else {
-                    self.split_edge(e2, p5, &mut visited_edges, &mut vertices)
-                }
-            };
-
-            // With each edge split we can now create the 3 new faces...
-            // Face 0 can be reused.
-
-            // anticipated indexing YOLO!!!
-            let e6 = vertices.len();
-            let e7 = e6+1;
-            let e8 = e7+1;
-            let e9 = e8+1;
-            let e10 = e9+1;
-            let e11 = e10+1;
-
-            let f1 = faces.len(); faces.push(Face::new(e3));
-            let f2 = faces.len(); faces.push(Face::new(e8));
-            let f3 = faces.len(); faces.push(Face::new(e11));
-
-            // 3 -> 5
-            let v6 = HalfEdge::new(p3, f0, e5, e10);
-            vertices.push(v6);
-            // Face 0
-            vertices[e0].next = e6;
-            vertices[e6].next = e5; // redundant
-            vertices[e5].next = e0;
-            
-            // 4 -> 3
-            let v7 = HalfEdge::new(p4, f1, e3, e8);
-            vertices.push(v7);
-            // Face 1
-            vertices[e3].next = e1;
-            vertices[e1].next = e7;
-            vertices[e7].next = e3; // redundant
-
-            // 3 -> 4
-            let v8 = HalfEdge::new(p3, f2, e9, e7);
-            vertices.push(v8);
-            // 4 -> 5
-            let v9 = HalfEdge::new(p4, f2, e10, e11);
-            vertices.push(v9);
-            // 5 -> 3
-            let v10 = HalfEdge::new(p5, f2, e8, e6);
-            vertices.push(v10);
-            
-            // 5 -> 4
-            let v11 = HalfEdge::new(p5, f3, e4, e9);
-            vertices.push(v11);
-            // Face 3
-            vertices[e11].next = e4;
-            vertices[e4].next = e2;
-            vertices[e2].next = e11;
+        // Create Points for all mid points
+        for (index, edge) in self.edges.iter().enumerate() {
+            let mp = self.edge_midpoint(edge, mpFn);
+            let mp_index = positions.len();
+            new_positions.insert(index, mp_index);
+            positions.push(mp);
+            // TODO: we are duplicating points!
         }
 
+        // Create our new faces
+        for face in self.faces.iter() {
+            let in_e0 = face.root.clone();
+            let in_e1 = self.edges[in_e0].next.clone();
+            let in_e2 = self.edges[in_e1].next.clone();
+
+            assert!(self.edges[in_e2].next == in_e0);
+
+            // New face indices
+            let f0 = faces.len();
+            let f1 = f0 + 1;
+            let f2 = f0 + 2;
+            let f3 = f0 + 3;
+
+            // Edge indices: f0     // Edge indices: f1
+            let e0 = edges.len();   let e3 = e0 + 3;
+            let e1 = e0 + 1;        let e4 = e0 + 4;
+            let e2 = e0 + 2;        let e5 = e0 + 5;
+
+            // Edge indices: f2     // Edge indices: f3
+            let e6 = e0 + 6;        let  e9 = e0 +  9;
+            let e7 = e0 + 7;        let e10 = e0 + 10;
+            let e8 = e0 + 8;        let e11 = e0 + 11;
+
+            // Original position indices
+            let p0 = self.edges[in_e0].position.clone();
+            let p1 = self.edges[in_e1].position.clone();
+            let p2 = self.edges[in_e2].position.clone();
+            
+            // Midpoint position indices
+            let p3 = new_positions.get(&in_e0).unwrap().clone();
+            let p4 = new_positions.get(&in_e1).unwrap().clone();
+            let p5 = new_positions.get(&in_e2).unwrap().clone();
+
+            // face 0
+            faces.push(
+                make_face(f0, e0, e1, e2, p0, p3, p5, &mut edges)
+            );
+
+            // face 1
+            faces.push(
+                make_face(f1, e3, e4, e5, p3, p1, p4, &mut edges)
+            );
+
+            // face 2
+            faces.push(
+                make_face(f2, e6, e7, e8, p3, p4, p5, &mut edges)
+            );
+
+            // face 3
+            faces.push(
+                make_face(f3, e9, e10, e11, p5, p4, p2, &mut edges)
+            );
+        }
+
+        // TODO: adjacency determination
+        
         Mesh {
             positions: positions,
             faces: faces,
-            vertices: vertices
+            edges: edges
         }
     }
-}
 
-pub fn triangle(scale: f32) -> Mesh {
-    let extent = scale / 2.0;
-    let positions = vec![
-        Point3::new(0.0, extent, 0.0),
-        Point3::new(-extent, -extent, 0.0),
-        Point3::new(extent, -extent, 0.0)
-    ];
-    
-    let faces = vec![
-        Face::new(0)
-    ];
-    
-    let vertices = vec![
-        HalfEdge::new_boundary(0, 0, 1),
-        HalfEdge::new_boundary(1, 0, 2),
-        HalfEdge::new_boundary(2, 0, 0),
-    ];
-    
-    Mesh {
-        positions: positions,
-        vertices: vertices,
-        faces: faces
+    fn edge_midpoint<F>(&self, edge: &HalfEdge, mpFn: &F) -> Position
+        where F: Fn(&Position, &Position) -> Position
+    {
+        let ref p0 = self.positions[edge.position];
+        let ref p1 = self.positions[self.edges[edge.next].position];
+        mpFn(p0, p1)
     }
 }
 
-pub fn plane(scale: f32) -> Mesh {
-    let extent = scale / 2.0;
-    let positions = vec![
-        Point3::new(-extent, extent, 0.0),
-        Point3::new(-extent, -extent, 0.0),
-        Point3::new(extent, -extent, 0.0),
-        Point3::new(extent, extent, 0.0),
-    ];
-    
-    let faces = vec![
-        Face::new(0),
-        Face::new(3)
-    ];
-    
-    let vertices = vec![
-        HalfEdge::new_boundary(0, 0, 1),
-        HalfEdge::new_boundary(1, 0, 2),
-        HalfEdge::new(2, 0, 0, 3),
-        HalfEdge::new(0, 1, 4, 2),
-        HalfEdge::new_boundary(2, 1, 5),
-        HalfEdge::new_boundary(3, 1, 3),
-    ];
-    
-    Mesh {
-        positions: positions,
-        vertices: vertices,
-        faces: faces
-    }
+fn make_face(f: FaceIndex, e0: EdgeIndex, e1: EdgeIndex, e2: EdgeIndex,
+             p0: PositionIndex, p1: PositionIndex, p2: PositionIndex,
+             edges: &mut Vec<HalfEdge>) -> Face
+{
+    edges.push(
+        HalfEdge::new_boundary(p0.clone(), f.clone(), e1.clone())
+    );
+
+    edges.push(
+        HalfEdge::new_boundary(p1.clone(), f.clone(), e2.clone())
+    );
+
+    edges.push(
+        HalfEdge::new_boundary(p2.clone(), f.clone(), e0.clone())
+    );
+
+    Face::new(e0)
 }
 
-pub fn tetrahedron(scale: f32) -> Mesh {
-    let extent = scale / 2.0;
-
-    let positions = vec![
-        Point3::new(extent, extent, extent),
-        Point3::new(extent, -extent, -extent),
-        Point3::new(-extent, extent, -extent),
-        Point3::new(-extent, -extent, extent),
-    ];
-
-    let faces = vec![
-        Face::new(0),
-        Face::new(3),
-        Face::new(6),
-        Face::new(9),
-    ];
-
-    let vertices = vec![
-        // Face 0
-        HalfEdge::new(0, 0,  1,  5),
-        HalfEdge::new(3, 0,  2, 11),
-        HalfEdge::new(1, 0,  0,  6),
-        // Face 1
-        HalfEdge::new(0, 1,  4,  8),
-        HalfEdge::new(1, 1,  5,  9),
-        HalfEdge::new(2, 1,  3,  0),
-        // Face 2
-        HalfEdge::new(0, 2,  7,  2),
-        HalfEdge::new(2, 2,  8, 10),
-        HalfEdge::new(3, 2,  6,  3),
-        // Face 3
-        HalfEdge::new(2, 3, 10,  4),
-        HalfEdge::new(1, 3, 11,  7),
-        HalfEdge::new(3, 3,  9,  1),
-    ];
-
-    Mesh {
-        positions: positions,
-        vertices: vertices,
-        faces: faces
-    }
+fn midpoint(p0: &Position, p1: &Position) -> Position {
+    math::midpoint(p0, p1)
 }
 
-pub fn icosahedron(radius: f32) -> Mesh {
-    // The coordinates of the iocosahedron are are described by the
-    // cyclic permutations of (±ϕ, ±1, 0), where ϕ is the [Golden Ratio]
-    // (https://en.wikipedia.org/wiki/Golden_ratio).
-    // NOTE: The order here is such that 0 - 11 line up with the logical
-    //       winding of faces over the "net" of the polyhedron.
-    //       (would be cool if you could annotate source code with images
-    //        to explain notes like this!)
-    let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
-    let positions = vec![
-        math::set_radius(Point3::new( 0.0,  phi, -1.0), radius),
-        math::set_radius(Point3::new(-phi,  1.0,  0.0), radius),
-        math::set_radius(Point3::new( 0.0,  phi,  1.0), radius),
-        math::set_radius(Point3::new( phi,  1.0,  0.0), radius),
-        math::set_radius(Point3::new( 1.0,  0.0, -phi), radius),
-        math::set_radius(Point3::new(-1.0,  0.0, -phi), radius),
-        math::set_radius(Point3::new(-1.0,  0.0,  phi), radius),
-        math::set_radius(Point3::new( 1.0,  0.0,  phi), radius),
-        math::set_radius(Point3::new( phi, -1.0,  0.0), radius),
-        math::set_radius(Point3::new( 0.0, -phi, -1.0), radius),
-        math::set_radius(Point3::new(-phi, -1.0,  0.0), radius),
-        math::set_radius(Point3::new( 0.0, -phi,  1.0), radius),
-    ];
-
-                       // Edges around
-    let faces = vec![  // the face:
-        Face::new( 0), //  0,  1,  2
-        Face::new( 3), //  3,  4,  5
-        Face::new( 6), //  6,  7,  8
-        Face::new( 9), //  9, 10, 11
-        Face::new(12), // 12, 13, 14
-        Face::new(15), // 15, 16, 17
-        Face::new(18), // 18, 19, 20
-        Face::new(21), // 21, 22, 23
-        Face::new(24), // 24, 25, 26
-        Face::new(27), // 27, 28, 29
-        Face::new(30), // 30, 31, 32
-        Face::new(33), // 33, 34, 35
-        Face::new(36), // 36, 37, 38
-        Face::new(39), // 39, 40, 41
-        Face::new(42), // 42, 43, 44
-        Face::new(45), // 45, 46, 47
-        Face::new(48), // 48, 49, 50
-        Face::new(51), // 51, 52, 53
-        Face::new(54), // 54, 55, 56
-        Face::new(57), // 57, 58, 59
-    ];
-    
-    let vertices = vec![
-        // Face 0     // point, face, next, adj
-        HalfEdge::new(       0,    0,    1,  14),
-        HalfEdge::new(       1,    0,    2,  17),
-        HalfEdge::new(       2,    0,    0,   3),
-        // Face 1
-        HalfEdge::new(       0,    1,    4,   2),
-        HalfEdge::new(       2,    1,    5,  23),
-        HalfEdge::new(       3,    1,    3,   6),
-        // Face 2
-        HalfEdge::new(       0,    2,    7,   5),
-        HalfEdge::new(       3,    2,    8,  29),
-        HalfEdge::new(       4,    2,    6,   9),
-        // Face 3
-        HalfEdge::new(       0,    3,   10,   8),
-        HalfEdge::new(       4,    3,   11,  35),
-        HalfEdge::new(       5,    3,    9,  12),
-        // Face 4
-        HalfEdge::new(       0,    4,   13,  11),
-        HalfEdge::new(       5,    4,   14,  41),
-        HalfEdge::new(       1,    4,   12,   0),
-        // Face 5
-        HalfEdge::new(       1,    5,   16,  44),
-        HalfEdge::new(       6,    5,   17,  18),
-        HalfEdge::new(       2,    5,   15,   1),
-        // Face 6
-        HalfEdge::new(       2,    6,   19,  16),
-        HalfEdge::new(       7,    6,   20,  47),
-        HalfEdge::new(       3,    6,   18,  21),
-        // Face 7
-        HalfEdge::new(       3,    7,   22,  20),
-        HalfEdge::new(       8,    7,   23,  24),
-        HalfEdge::new(       4,    7,   21,   4),
-        // Face 8
-        HalfEdge::new(       4,    8,   25,  22),
-        HalfEdge::new(       9,    8,   26,  50),
-        HalfEdge::new(       5,    8,   24,  27),
-        // Face 9
-        HalfEdge::new(       5,    9,   28,  26),
-        HalfEdge::new(      10,    9,   29,  30),
-        HalfEdge::new(       1,    9,   27,   7),
-        // Face 10
-        HalfEdge::new(       2,   10,   31,  29),
-        HalfEdge::new(       6,   10,   32,  53),
-        HalfEdge::new(       7,   10,   30,  33),
-        // Face 11
-        HalfEdge::new(       3,   11,   34,  32),
-        HalfEdge::new(       7,   11,   35,  36),
-        HalfEdge::new(       8,   11,   33,  10),
-        // Face 12
-        HalfEdge::new(       4,   12,   37,  34),
-        HalfEdge::new(       8,   12,   38,  56),
-        HalfEdge::new(       9,   12,   36,  39),
-        // Face 13
-        HalfEdge::new(       5,   13,   40,  38),
-        HalfEdge::new(       9,   13,   41,  42),
-        HalfEdge::new(      10,   13,   39,  13),
-        // Face 14
-        HalfEdge::new(       1,   14,   43,  40),
-        HalfEdge::new(      10,   14,   44,  59),
-        HalfEdge::new(       6,   14,   42,  15),
-        // Face 15
-        HalfEdge::new(       6,   15,   46,  58),
-        HalfEdge::new(      11,   15,   47,  48),
-        HalfEdge::new(       7,   15,   45,  19),
-        // Face 16
-        HalfEdge::new(       7,   16,   49,  46),
-        HalfEdge::new(      11,   16,   50,  51),
-        HalfEdge::new(       8,   16,   48,  25),
-        // Face 17
-        HalfEdge::new(       8,   17,   52,  49),
-        HalfEdge::new(      11,   17,   53,  54),
-        HalfEdge::new(       9,   17,   51,  31),
-        // Face 18
-        HalfEdge::new(       9,   18,   55,  52),
-        HalfEdge::new(      11,   18,   56,  57),
-        HalfEdge::new(      10,   18,   54,  37),
-        // Face 19
-        HalfEdge::new(      10,   19,   58,  55),
-        HalfEdge::new(      11,   19,   59,  45),
-        HalfEdge::new(       6,   19,   57,  43),
-    ];
-
-    Mesh {
-        positions: positions,
-        faces: faces,
-        vertices: vertices
-    }
+fn midpoint_arc(radius: f32, p0: &Position, p1: &Position) -> Position {
+    math::set_radius(math::midpoint(p0, p1), radius)
 }

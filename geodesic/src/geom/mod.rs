@@ -4,6 +4,7 @@ use index::{self, ElementIndex};
 use math;
 
 pub mod half_edge;
+pub mod primitives;
 
 element_index!(NodeIndex, Node);
 element_index!(EdgeIndex, Edge);
