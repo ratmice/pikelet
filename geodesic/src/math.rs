@@ -19,7 +19,7 @@ pub fn centroid(points: &[Point3<f32>]) -> Point3<f32> {
 
 pub fn face_normal(p0: Point3<f32>, p1: Point3<f32>, p2: Point3<f32>) -> Vector3<f32> {
     let cross = (p1 - p0).cross(p2 - p0);
-    cross / cross.length()
+    cross / cross.magnitude()
 }
 
 pub fn set_radius(point: Point3<f32>, radius: f32) -> Point3<f32> {
@@ -74,10 +74,10 @@ impl<A: Angle> From<Point3<A::Unitless>> for Polar<A> {
     fn from(src: Point3<A::Unitless>) -> Polar<A> {
         // From https://en.wikipedia.org/wiki/Spherical_coordinate_system#Cartesian_coordinates
 
-        let radius = src.to_vec().length();
+        let radius = src.to_vec().magnitude();
 
         Polar::new(
-            src.to_vec().length(),
+            src.to_vec().magnitude(),
             A::acos(src.z / radius),
             A::atan(src.y / src.x),
         )

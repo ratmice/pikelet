@@ -77,7 +77,7 @@ impl Context {
                     Key::LAlt | Key::RAlt => self.imgui.set_key_alt(state == Pressed),
                     _ => {},
                 },
-                MouseMoved((width, height)) => {
+                MouseMoved(width, height) => {
                     let width = width as f32 / hidpi_factor;
                     let height = height as f32 / hidpi_factor;
                     self.mouse_pos = (width as i32, height as i32);
@@ -85,8 +85,8 @@ impl Context {
                 MouseInput(state, MouseButton::Left) => self.mouse_pressed.0 = state == Pressed,
                 MouseInput(state, MouseButton::Right) => self.mouse_pressed.1 = state == Pressed,
                 MouseInput(state, MouseButton::Middle) => self.mouse_pressed.2 = state == Pressed,
-                MouseWheel(MouseScrollDelta::LineDelta(_, y)) => self.mouse_wheel = y,
-                MouseWheel(MouseScrollDelta::PixelDelta(_, y)) => self.mouse_wheel = y,
+                MouseWheel(MouseScrollDelta::LineDelta(_, y), _) => self.mouse_wheel = y,
+                MouseWheel(MouseScrollDelta::PixelDelta(_, y), _) => self.mouse_wheel = y,
                 ReceivedCharacter(c) => self.imgui.add_input_character(c),
                 _ => {},
             }

@@ -1,4 +1,3 @@
-use cgmath::Angle;
 use cgmath::{Matrix4, SquareMatrix};
 use cgmath::Point2;
 use cgmath::Vector3;

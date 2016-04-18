@@ -32,7 +32,7 @@ impl From<glutin::Event> for Event {
             MouseInput(Released, MouseButton::Left) => Event::DragEnd,
             MouseInput(Pressed, MouseButton::Right) => Event::ZoomStart,
             MouseInput(Released, MouseButton::Right) => Event::ZoomEnd,
-            MouseMoved((x, y)) => Event::MousePosition(Point2::new(x, y)),
+            MouseMoved(x, y) => Event::MousePosition(Point2::new(x, y)),
             _ => Event::NoOp,
         }
     }
