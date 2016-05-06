@@ -1,4 +1,5 @@
 use cgmath;
+use cgmath::conv::*;
 use glium::{IndexBuffer, Program, Surface, Texture2d, VertexBuffer};
 use glium::backend::{Context, Facade};
 use glium::index::PrimitiveType;
@@ -7,7 +8,6 @@ use imgui::{DrawList, Ui, ImDrawIdx, ImDrawVert, ImGui};
 use std::borrow::Cow;
 use std::rc::Rc;
 
-use math;
 use render::RenderResult;
 
 pub struct Renderer {
@@ -53,7 +53,7 @@ impl Renderer {
                     .expect("Invalid index buffer range"),
                 &self.device_objects.program,
                 &uniform! {
-                    matrix: math::array_m4(matrix),
+                    matrix: array4x4(matrix),
                     texture: self.device_objects.texture.sampled()
                         .magnify_filter(MagnifySamplerFilter::Nearest),
                 },

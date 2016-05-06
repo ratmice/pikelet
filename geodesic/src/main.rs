@@ -8,6 +8,7 @@ extern crate rayon;
 extern crate rusttype;
 extern crate time;
 
+use cgmath::conv::*;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
@@ -118,10 +119,7 @@ impl StarField {
 fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
     let mut star_vertices = Vec::with_capacity(stars.len());
     stars.par_iter()
-        .map(|star| {
-            let position = math::array_p3(star.position.into());
-            Vertex { position: position }
-        })
+        .map(|star| Vertex { position: array3::<_, Point3<_>>(star.position.into()) })
         .collect_into(&mut star_vertices);
 
     star_vertices

@@ -1,6 +1,6 @@
-use cgmath::{Matrix4, SquareMatrix};
-use cgmath::Point2;
-use cgmath::Vector3;
+use cgmath::conv::*;
+use cgmath::prelude::*;
+use cgmath::{Matrix4, Point2, Vector3};
 use glium::{self, index, program, texture, vertex};
 use glium::{Frame, IndexBuffer, Program, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface, BackfaceCullingMode};
@@ -11,7 +11,6 @@ use std::rc::Rc;
 
 use camera::ComputedCamera;
 use color::Color;
-use math;
 use text::TextData;
 use text::Vertex as TextVertex;
 
@@ -140,8 +139,8 @@ impl<'a> RenderTarget<'a> {
             &uniform! {
                 color:    color,
                 text:     text_texture.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
-                proj:     math::array_m4(self.hud_matrix),
-                model:    math::array_m4(text_data.matrix(position * self.hidpi_factor)),
+                proj:     array4x4(self.hud_matrix),
+                model:    array4x4(text_data.matrix(position * self.hidpi_factor)),
             },
             &params,
         ));
@@ -156,9 +155,9 @@ impl<'a> RenderTarget<'a> {
             &self.resources.unshaded_program,
             &uniform! {
                 color:      color,
-                model:      math::array_m4(Matrix4::from_scale(1.025)),
-                view:       math::array_m4(self.camera.view),
-                proj:       math::array_m4(self.camera.projection),
+                model:      array4x4(Matrix4::from_scale(1.025)),
+                view:       array4x4(self.camera.view),
+                proj:       array4x4(self.camera.projection),
             },
             &DrawParameters {
                 polygon_mode: PolygonMode::Point,
@@ -178,9 +177,9 @@ impl<'a> RenderTarget<'a> {
             &self.resources.unshaded_program,
             &uniform! {
                 color:      color,
-                model:      math::array_m4(Matrix4::from_scale(1.025)),
-                view:       math::array_m4(self.camera.view),
-                proj:       math::array_m4(self.camera.projection),
+                model:      array4x4(Matrix4::from_scale(1.025)),
+                view:       array4x4(self.camera.view),
+                proj:       array4x4(self.camera.projection),
             },
             &DrawParameters {
                 polygon_mode: PolygonMode::Line,
@@ -200,11 +199,11 @@ impl<'a> RenderTarget<'a> {
             &self.resources.flat_shaded_program,
             &uniform! {
                 color:      color,
-                light_dir:  math::array_v3(light_dir),
-                model:      math::array_m4(Matrix4::identity()),
-                view:       math::array_m4(self.camera.view),
-                proj:       math::array_m4(self.camera.projection),
-                eye:        math::array_p3(self.camera.position),
+                light_dir:  array3(light_dir),
+                model:      array4x4(Matrix4::<f32>::identity()),
+                view:       array4x4(self.camera.view),
+                proj:       array4x4(self.camera.projection),
+                eye:        array3(self.camera.position),
             },
             &DrawParameters {
                 polygon_mode: PolygonMode::Fill,
