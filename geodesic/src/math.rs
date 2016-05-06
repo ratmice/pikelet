@@ -1,5 +1,6 @@
 use cgmath::prelude::*;
 use cgmath::{One, Zero, Point3, Vector3};
+use num_traits::{Float, cast};
 use rand::{Rand, Rng};
 use rand::distributions::range::SampleRange;
 
@@ -55,7 +56,7 @@ impl<A: Angle> Polar<A> {
         Polar::new(
             radius,
             A::full_turn() * u,
-            A::acos((v + v) - A::Unitless::one())
+            A::acos((v + v) - A::Unitless::one()),
         )
     }
 }
@@ -85,5 +86,90 @@ impl<A: Angle> Into<Point3<A::Unitless>> for Polar<A> {
             self.radius * sin_inclination * A::sin(self.azimuth),
             self.radius * A::cos(self.inclination),
         )
+    }
+}
+
+#[derive(Copy, Clone, PartialOrd, PartialEq)]
+pub struct LatLong<A: Angle> {
+    pub lat: A,
+    pub long: A,
+}
+
+impl<A: Angle> LatLong<A> {
+    pub fn new(lat: A, long: A) -> LatLong<A> {
+        LatLong { lat: lat, long: long }
+    }
+
+    pub fn great_circle_distance(self, other: LatLong<A>) -> A::Unitless {
+        // http://www.movable-type.co.uk/scripts/latlong.html
+        // http://www.fssnip.net/4a
+
+        fn hav<A: Angle>(a: A) -> A::Unitless {
+            let two: A::Unitless = cast(2.0).unwrap();
+            let tmp = A::sin(a / two);
+            tmp * tmp
+        }
+
+        let one = A::Unitless::one();
+        let two: A::Unitless = cast(2.0).unwrap();
+
+        let dlat = other.lat - self.lat;
+        let dlong = other.long - self.long;
+
+        let a = hav(dlat) + A::cos(self.lat) * A::cos(other.lat) * hav(dlong);
+
+        // Naughty!
+        Float::atan2(Float::sqrt(a), Float::sqrt(one - a)) * two
+    }
+
+    pub fn bearing(self, other: Self) -> A {
+        // http://williams.best.vwh.net/avform.htm#Crs
+        // http://mathforum.org/library/drmath/view/55417.html
+
+        let dlong = other.long - self.long;
+        let x = A::sin(dlong) * A::cos(other.lat);
+        let y = A::cos(self.lat) * A::sin(other.lat)
+              - A::sin(self.lat) * A::cos(other.lat) * A::cos(dlong);
+
+        A::atan2(x, y) % A::full_turn()
+    }
+}
+
+impl<A: Angle> From<Vector3<A::Unitless>> for LatLong<A> {
+    fn from(src: Vector3<A::Unitless>) -> LatLong<A> {
+        // From https://en.wikipedia.org/wiki/Spherical_coordinate_system#Cartesian_coordinates
+
+        LatLong {
+            lat: A::atan(src.y / src.x),
+            long: A::acos(src.z / src.magnitude()),
+        }
+    }
+}
+
+impl<A: Angle> Into<Vector3<A::Unitless>> for LatLong<A> {
+    fn into(self) -> Vector3<A::Unitless> {
+        // From https://en.wikipedia.org/wiki/Spherical_coordinate_system#Cartesian_coordinates
+        let sin_lat = A::sin(self.lat);
+        Vector3 {
+            x: sin_lat * A::cos(self.long),
+            y: sin_lat * A::sin(self.long),
+            z: A::cos(self.lat),
+        }
+    }
+}
+
+impl<A: Angle> Rand for LatLong<A> where
+    A::Unitless: Rand + SampleRange,
+{
+    fn rand<R: Rng>(rng: &mut R) -> LatLong<A> {
+        // From http://mathworld.wolfram.com/SpherePointPicking.html
+
+        let u: A::Unitless = rng.gen_range(A::Unitless::zero(), A::Unitless::one());
+        let v: A::Unitless = rng.gen_range(A::Unitless::zero(), A::Unitless::one());
+
+        LatLong {
+            lat: A::acos((v + v) - A::Unitless::one()),
+            long: A::full_turn() * u,
+        }
     }
 }

@@ -2,6 +2,7 @@ extern crate cgmath;
 extern crate find_folder;
 #[macro_use] extern crate glium;
 #[macro_use] extern crate imgui;
+extern crate num_traits;
 #[macro_use] extern crate quick_error;
 extern crate rand;
 extern crate rayon;
