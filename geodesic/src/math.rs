@@ -5,7 +5,7 @@ use cgmath::{Vector3, Vector, EuclideanVector};
 use rand::{Rand, Rng};
 use rand::distributions::range::SampleRange;
 
-pub fn midpoint(p0: Point3<f32>, p1: Point3<f32>) -> Point3<f32> {
+pub fn midpoint(p0: &Point3<f32>, p1: &Point3<f32>) -> Point3<f32> {
     Point3::from_vec(p0.to_vec() + p1.to_vec()) * 0.5
 }
 

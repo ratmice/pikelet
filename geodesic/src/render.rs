@@ -3,7 +3,7 @@ use cgmath::Point2;
 use cgmath::Vector3;
 use glium::{self, index, program, texture, vertex};
 use glium::{Frame, IndexBuffer, Program, VertexBuffer};
-use glium::{DrawParameters, PolygonMode, Surface};
+use glium::{DrawParameters, PolygonMode, Surface, BackfaceCullingMode};
 use glium::backend::Context;
 use glium::index::NoIndices;
 use rusttype::Font;
@@ -98,6 +98,7 @@ pub struct RenderTarget<'a> {
     pub resources: &'a Resources,
     pub camera: ComputedCamera,
     pub hud_matrix: Matrix4<f32>,
+    pub culling_mode: BackfaceCullingMode,
 }
 
 impl<'a> RenderTarget<'a> {
@@ -162,6 +163,7 @@ impl<'a> RenderTarget<'a> {
             &DrawParameters {
                 polygon_mode: PolygonMode::Point,
                 point_size: Some(point_size),
+                backface_culling: self.culling_mode,
                 ..draw_params()
             },
         ));
@@ -183,6 +185,7 @@ impl<'a> RenderTarget<'a> {
             &DrawParameters {
                 polygon_mode: PolygonMode::Line,
                 line_width: Some(line_width),
+                backface_culling: self.culling_mode,
                 ..draw_params()
             },
         ));
@@ -205,6 +208,7 @@ impl<'a> RenderTarget<'a> {
             },
             &DrawParameters {
                 polygon_mode: PolygonMode::Fill,
+                backface_culling: self.culling_mode,
                 ..draw_params()
             },
         ));

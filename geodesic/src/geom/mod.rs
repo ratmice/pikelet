@@ -3,6 +3,9 @@ use cgmath::Point3;
 use index::{self, ElementIndex};
 use math;
 
+pub mod half_edge;
+pub mod primitives;
+
 element_index!(NodeIndex, Node);
 element_index!(EdgeIndex, Edge);
 element_index!(FaceIndex, Face);
@@ -34,6 +37,7 @@ pub struct Geometry {
 }
 
 fn vec_len2<T>() -> Vec<T> { Vec::with_capacity(2) }
+fn vec_len5<T>() -> Vec<T> { Vec::with_capacity(5) }
 fn vec_len6<T>() -> Vec<T> { Vec::with_capacity(6) }
 
 const BASE_RADIUS: f32 = 1.0;
@@ -44,9 +48,9 @@ impl Geometry {
     }
 
     pub fn subdivide_once(&self) -> Geometry {
-        let mut nodes = Vec::with_capacity(self.nodes.len() * 2); // pentagons?
-        let mut edges = Vec::with_capacity(self.edges.len() * 2); // pentagons?
-        let mut faces = Vec::with_capacity(self.faces.len() * 4); // pentagons?
+        let mut nodes = Vec::with_capacity(self.nodes.len() * 2);
+        let mut edges = Vec::with_capacity(self.edges.len() * 2);
+        let mut faces = Vec::with_capacity(self.faces.len() * 4);
 
         let push_node = |nodes: &mut Vec<_>, node| {
             nodes.push(node);
@@ -73,9 +77,9 @@ impl Geometry {
             let p0 = index::get(&self.nodes, face.nodes[0]).position;
             let p1 = index::get(&self.nodes, face.nodes[1]).position;
             let p2 = index::get(&self.nodes, face.nodes[2]).position;
-            let p3 = math::set_radius(math::midpoint(p0, p1), BASE_RADIUS);
-            let p4 = math::set_radius(math::midpoint(p1, p2), BASE_RADIUS);
-            let p5 = math::set_radius(math::midpoint(p2, p0), BASE_RADIUS);
+            let p3 = math::set_radius(math::midpoint(&p0, &p1), BASE_RADIUS);
+            let p4 = math::set_radius(math::midpoint(&p1, &p2), BASE_RADIUS);
+            let p5 = math::set_radius(math::midpoint(&p2, &p0), BASE_RADIUS);
 
             let n0 = push_node(&mut nodes, Node { position: p0, edges: vec_len6(), faces: vec_len6() });
             let n1 = push_node(&mut nodes, Node { position: p1, edges: vec_len6(), faces: vec_len6() });
@@ -87,23 +91,23 @@ impl Geometry {
             let n0_n3 = push_edge(&mut edges, Edge { nodes: [n0, n3], faces: vec_len2() });
             let n3_n5 = push_edge(&mut edges, Edge { nodes: [n3, n5], faces: vec_len2() });
             let n5_n0 = push_edge(&mut edges, Edge { nodes: [n5, n0], faces: vec_len2() });
-            
-            //let n5_n3 = push_edge(&mut edges, Edge { nodes: [n5, n3], faces: vec_len2() });
+
+            let n5_n3 = push_edge(&mut edges, Edge { nodes: [n5, n3], faces: vec_len2() });
             let n3_n4 = push_edge(&mut edges, Edge { nodes: [n3, n4], faces: vec_len2() });
             let n4_n5 = push_edge(&mut edges, Edge { nodes: [n4, n5], faces: vec_len2() });
-            
+
             let n3_n1 = push_edge(&mut edges, Edge { nodes: [n3, n1], faces: vec_len2() });
             let n1_n4 = push_edge(&mut edges, Edge { nodes: [n1, n4], faces: vec_len2() });
-            //let n4_n3 = push_edge(&mut edges, Edge { nodes: [n4, n3], faces: vec_len2() });
+            let n4_n3 = push_edge(&mut edges, Edge { nodes: [n4, n3], faces: vec_len2() });
 
-            //let n5_n4 = push_edge(&mut edges, Edge { nodes: [n5, n4], faces: vec_len2() });
+            let n5_n4 = push_edge(&mut edges, Edge { nodes: [n5, n4], faces: vec_len2() });
             let n4_n2 = push_edge(&mut edges, Edge { nodes: [n4, n2], faces: vec_len2() });
             let n2_n5 = push_edge(&mut edges, Edge { nodes: [n2, n5], faces: vec_len2() });
 
             faces.push(Face { nodes: [n0, n3, n5], edges: [n0_n3, n3_n5, n5_n0] });
-            faces.push(Face { nodes: [n5, n3, n4], edges: [n3_n5, n3_n4, n4_n5] });
-            faces.push(Face { nodes: [n3, n1, n4], edges: [n3_n1, n1_n4, n3_n4] });
-            faces.push(Face { nodes: [n5, n4, n2], edges: [n4_n5, n4_n2, n2_n5] });
+            faces.push(Face { nodes: [n5, n3, n4], edges: [n5_n3, n3_n4, n4_n5] });
+            faces.push(Face { nodes: [n3, n1, n4], edges: [n3_n1, n1_n4, n4_n3] });
+            faces.push(Face { nodes: [n5, n4, n2], edges: [n5_n4, n4_n2, n2_n5] });
         }
 
         Geometry {
@@ -160,18 +164,18 @@ pub fn icosahedron() -> Geometry {
     // (https://en.wikipedia.org/wiki/Golden_ratio).
     let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
     let nodes = vec![
-        Node { position: math::set_radius(Point3::new( phi,  1.0,  0.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( phi, -1.0,  0.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new(-phi,  1.0,  0.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new(-phi, -1.0,  0.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 0.0,  phi,  1.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 0.0,  phi, -1.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 0.0, -phi,  1.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 0.0, -phi, -1.0), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 1.0,  0.0,  phi), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new(-1.0,  0.0,  phi), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new( 1.0,  0.0, -phi), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
-        Node { position: math::set_radius(Point3::new(-1.0,  0.0, -phi), BASE_RADIUS), edges: vec_len6(), faces: vec_len6() },
+        Node { position: math::set_radius(Point3::new( phi,  1.0,  0.0), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
+        Node { position: math::set_radius(Point3::new( phi, -1.0,  0.0), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
+        Node { position: math::set_radius(Point3::new(-phi,  1.0,  0.0), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
+        Node { position: math::set_radius(Point3::new(-phi, -1.0,  0.0), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
+        Node { position: math::set_radius(Point3::new( 0.0,  phi,  1.0), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
+        Node { position: math::set_radius(Point3::new( 0.0,  phi, -1.0), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
+        Node { position: math::set_radius(Point3::new( 0.0, -phi,  1.0), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
+        Node { position: math::set_radius(Point3::new( 0.0, -phi, -1.0), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
+        Node { position: math::set_radius(Point3::new( 1.0,  0.0,  phi), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
+        Node { position: math::set_radius(Point3::new(-1.0,  0.0,  phi), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
+        Node { position: math::set_radius(Point3::new( 1.0,  0.0, -phi), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
+        Node { position: math::set_radius(Point3::new(-1.0,  0.0, -phi), BASE_RADIUS), edges: vec_len5(), faces: vec_len5() },
     ];
 
     let edges = vec![

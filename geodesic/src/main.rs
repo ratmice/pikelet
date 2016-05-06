@@ -13,7 +13,7 @@ use cgmath::Matrix4;
 use cgmath::{Point2, Point3, Point};
 use cgmath::Vector3;
 use find_folder::Search as FolderSearch;
-use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer};
+use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
 use glium::index::{PrimitiveType, NoIndices};
 use imgui::Ui;
 use rand::Rng;
@@ -66,6 +66,33 @@ const STAR2_SIZE: f32 = 5.0;
 const STARS0_COUNT: usize = 100000;
 const STARS1_COUNT: usize = 10000;
 const STARS2_COUNT: usize = 1000;
+
+pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
+    const VERTICES_PER_FACE: usize = 3;
+
+    println!("--------------------");
+
+    let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
+    for (fi, face) in mesh.faces.iter().enumerate() {
+        let e0 = face.root.clone();
+        let e1 = mesh.edges[e0].next.clone();
+        let e2 = mesh.edges[e1].next.clone();
+        
+        let p0 = mesh.edges[e0].position.clone();
+        let p1 = mesh.edges[e1].position.clone();
+        let p2 = mesh.edges[e2].position.clone();
+        
+        vertices.push( Vertex { position: mesh.positions[p0].into() } );
+        vertices.push( Vertex { position: mesh.positions[p1].into() } );
+        vertices.push( Vertex { position: mesh.positions[p2].into() } );
+
+        println!("Face: {}", fi);
+        println!("\tEdge indexes: {} -> {} -> {}", e0, e1, e2);
+        println!("\tPosition indexes: {} -> {} -> {}", p0, p1, p2);
+    }
+
+    vertices
+}
 
 pub fn create_delaunay_vertices(geometry: &Geometry) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
@@ -185,6 +212,8 @@ struct State {
     is_ui_capturing_mouse: bool,
     is_zooming: bool,
 
+    culling_mode: BackfaceCullingMode,
+
     mouse_position: Point2<i32>,
     window_dimensions: (u32, u32),
 
@@ -208,6 +237,8 @@ impl State {
             is_dragging: false,
             is_ui_capturing_mouse: false,
             is_zooming: false,
+
+            culling_mode: BackfaceCullingMode::CullClockwise,
 
             light_dir: LIGHT_DIR,
 
@@ -315,6 +346,7 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
         resources: resources,
         camera: state.create_scene_camera(frame_dimensions),
         hud_matrix: state.create_hud_camera(frame_dimensions),
+        culling_mode: state.culling_mode,
     };
 
     target.clear(color::BLUE);
@@ -386,6 +418,8 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
                 ui.text(im_str!("is_ui_capturing_mouse: {:?}", state.is_ui_capturing_mouse));
                 ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
 
+                ui.text(im_str!("culling_mode: {:?}", state.culling_mode));
+
                 ui.separator();
 
                 ui.text(im_str!("light_dir: {:?}", state.light_dir));
@@ -434,7 +468,10 @@ fn main() {
         use std::io::prelude::*;
         use std::path::Path;
 
-        let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
+        let radius = 1.0;
+        //let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
+        let geometry = geom::primitives::icosahedron(radius);
+        let subdivided = geometry.subdivide_arc(radius, POLYHEDRON_SUBDIVS);
         let star_field = StarField::generate(STAR_FIELD_RADIUS);
 
         let assets = FolderSearch::ParentsThenKids(3, 3)
@@ -472,8 +509,8 @@ fn main() {
         Resources {
             context: display.get_context().clone(),
 
-            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_delaunay_vertices(&geometry)).unwrap(),
-            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_voronoi_vertices(&geometry)).unwrap(),
+            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&subdivided)).unwrap(),
+            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&geometry)).unwrap(),
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
             text_vertex_buffer: VertexBuffer::new(&display, &text::TEXTURE_VERTICES).unwrap(),
