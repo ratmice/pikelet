@@ -95,12 +95,12 @@ pub struct Mesh {
 impl Mesh {
 
     pub fn subdivide(&self, count: usize) -> Mesh {
-        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(&midpoint))
+        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(&math::midpoint))
     }
 
     pub fn subdivide_arc(&self, radius: f32, count: usize) -> Mesh {
         (0..count).fold(self.clone(), |acc, _| {
-            acc.subdivide_once(&|p0, p1| midpoint_arc(radius, p0, p1))
+            acc.subdivide_once(&|p0, p1| math::midpoint_arc(radius, p0, p1))
         })
     }
 
@@ -116,7 +116,7 @@ impl Mesh {
     //   v1     v4     v2  |         v1
     //
     pub fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh
-        where F: Fn(&Position, &Position) -> Position
+        where F: Fn(Position, Position) -> Position
     {
         const RESERVATION_FACTOR: usize = 4;
 
@@ -200,10 +200,10 @@ impl Mesh {
     }
 
     fn edge_midpoint<F>(&self, edge: &HalfEdge, midpoint_fn: &F) -> Position
-        where F: Fn(&Position, &Position) -> Position
+        where F: Fn(Position, Position) -> Position
     {
-        let ref p0 = self.positions[edge.position];
-        let ref p1 = self.positions[self.edges[edge.next].position];
+        let p0 = self.positions[edge.position];
+        let p1 = self.positions[self.edges[edge.next].position];
         midpoint_fn(p0, p1)
     }
 }
@@ -225,12 +225,4 @@ fn make_face(f: FaceIndex, e0: EdgeIndex, e1: EdgeIndex, e2: EdgeIndex,
     );
 
     Face::new(e0)
-}
-
-fn midpoint(p0: &Position, p1: &Position) -> Position {
-    math::midpoint(p0, p1)
-}
-
-fn midpoint_arc(radius: f32, p0: &Position, p1: &Position) -> Position {
-    math::set_radius(math::midpoint(p0, p1), radius)
 }

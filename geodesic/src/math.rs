@@ -1,10 +1,14 @@
 use cgmath::prelude::*;
-use cgmath::{One, Zero, Matrix4, Point3, Vector3};
+use cgmath::{One, Zero, Point3, Vector3};
 use rand::{Rand, Rng};
 use rand::distributions::range::SampleRange;
 
-pub fn midpoint(p0: &Point3<f32>, p1: &Point3<f32>) -> Point3<f32> {
+pub fn midpoint(p0: Point3<f32>, p1: Point3<f32>) -> Point3<f32> {
     Point3::from_vec(p0.to_vec() + p1.to_vec()) * 0.5
+}
+
+pub fn midpoint_arc(radius: f32, p0: Point3<f32>, p1: Point3<f32>) -> Point3<f32> {
+    set_radius(midpoint(p0, p1), radius)
 }
 
 pub fn centroid(points: &[Point3<f32>]) -> Point3<f32> {
@@ -16,7 +20,7 @@ pub fn centroid(points: &[Point3<f32>]) -> Point3<f32> {
 }
 
 pub fn face_normal(p0: Point3<f32>, p1: Point3<f32>, p2: Point3<f32>) -> Vector3<f32> {
-    let cross = (p1 - p0).cross(p2 - p0);
+    let cross = Vector3::cross(p1 - p0, p2 - p0);
     cross / cross.magnitude()
 }
 
