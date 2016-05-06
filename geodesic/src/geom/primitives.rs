@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use cgmath::{Vector4, Point3};
+use cgmath::Point3;
 use math;
 
 use super::half_edge::*;
@@ -11,17 +10,17 @@ pub fn triangle(scale: f32) -> Mesh {
         Point3::new(-extent, -extent, 0.0),
         Point3::new(extent, -extent, 0.0)
     ];
-    
+
     let faces = vec![
         Face::new(0)
     ];
-    
+
     let edges = vec![
         HalfEdge::new_boundary(0, 0, 1),
         HalfEdge::new_boundary(1, 0, 2),
         HalfEdge::new_boundary(2, 0, 0),
     ];
-    
+
     Mesh {
         positions: positions,
         edges: edges,
@@ -37,12 +36,12 @@ pub fn plane(scale: f32) -> Mesh {
         Point3::new(extent, -extent, 0.0),
         Point3::new(extent, extent, 0.0),
     ];
-    
+
     let faces = vec![
         Face::new(0),
         Face::new(3)
     ];
-    
+
     let edges = vec![
         HalfEdge::new_boundary(0, 0, 1),
         HalfEdge::new_boundary(1, 0, 2),
@@ -51,7 +50,7 @@ pub fn plane(scale: f32) -> Mesh {
         HalfEdge::new_boundary(2, 1, 5),
         HalfEdge::new_boundary(3, 1, 3),
     ];
-    
+
     Mesh {
         positions: positions,
         edges: edges,
@@ -149,7 +148,7 @@ pub fn icosahedron(radius: f32) -> Mesh {
         Face::new(54), // 54, 55, 56
         Face::new(57), // 57, 58, 59
     ];
-    
+
     let edges = vec![
         // Face 0     // point, face, next, adj
         HalfEdge::new(       0,    0,    1,  14),

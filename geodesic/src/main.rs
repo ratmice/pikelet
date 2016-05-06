@@ -77,11 +77,11 @@ pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
         let e0 = face.root.clone();
         let e1 = mesh.edges[e0].next.clone();
         let e2 = mesh.edges[e1].next.clone();
-        
+
         let p0 = mesh.edges[e0].position.clone();
         let p1 = mesh.edges[e1].position.clone();
         let p2 = mesh.edges[e2].position.clone();
-        
+
         vertices.push( Vertex { position: mesh.positions[p0].into() } );
         vertices.push( Vertex { position: mesh.positions[p1].into() } );
         vertices.push( Vertex { position: mesh.positions[p2].into() } );

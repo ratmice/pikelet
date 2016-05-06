@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use cgmath::{Vector4, Point3};
+use cgmath::Point3;
 use math;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -9,8 +9,6 @@ pub type EdgeIndex = usize;
 pub type PositionIndex = usize;
 pub type FaceIndex = usize;
 pub type Position = Point3<f32>;
-
-//pub type MidpointFn = (&Position, &Position) -> Position;
 
 ///////////////////////////////////////////////////////////////////////////////
 // The Face
@@ -95,15 +93,14 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    
+
     pub fn subdivide(&self, count: usize) -> Mesh {
         (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(&midpoint))
     }
 
     pub fn subdivide_arc(&self, radius: f32, count: usize) -> Mesh {
-        let _fn = |p0: &Position, p1: &Position| {midpoint_arc(radius, p0, p1)};
         (0..count).fold(self.clone(), |acc, _| {
-            acc.subdivide_once(&_fn)
+            acc.subdivide_once(&|p0, p1| midpoint_arc(radius, p0, p1))
         })
     }
 
@@ -118,7 +115,7 @@ impl Mesh {
     //     /____\/____\    |         \/
     //   v1     v4     v2  |         v1
     //
-    pub fn subdivide_once<F>(&self, mpFn: &F) -> Mesh
+    pub fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh
         where F: Fn(&Position, &Position) -> Position
     {
         const RESERVATION_FACTOR: usize = 4;
@@ -131,7 +128,7 @@ impl Mesh {
 
         // Create Points for all mid points
         for (index, edge) in self.edges.iter().enumerate() {
-            let mp = self.edge_midpoint(edge, mpFn);
+            let mp = self.edge_midpoint(edge, midpoint_fn);
             let mp_index = positions.len();
             new_positions.insert(index, mp_index);
             positions.push(mp);
@@ -166,7 +163,7 @@ impl Mesh {
             let p0 = self.edges[in_e0].position.clone();
             let p1 = self.edges[in_e1].position.clone();
             let p2 = self.edges[in_e2].position.clone();
-            
+
             // Midpoint position indices
             let p3 = new_positions.get(&in_e0).unwrap().clone();
             let p4 = new_positions.get(&in_e1).unwrap().clone();
@@ -194,7 +191,7 @@ impl Mesh {
         }
 
         // TODO: adjacency determination
-        
+
         Mesh {
             positions: positions,
             faces: faces,
@@ -202,12 +199,12 @@ impl Mesh {
         }
     }
 
-    fn edge_midpoint<F>(&self, edge: &HalfEdge, mpFn: &F) -> Position
+    fn edge_midpoint<F>(&self, edge: &HalfEdge, midpoint_fn: &F) -> Position
         where F: Fn(&Position, &Position) -> Position
     {
         let ref p0 = self.positions[edge.position];
         let ref p1 = self.positions[self.edges[edge.next].position];
-        mpFn(p0, p1)
+        midpoint_fn(p0, p1)
     }
 }
 
