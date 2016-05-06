@@ -401,7 +401,6 @@ fn main() {
         use std::path::Path;
 
         let radius = 1.0;
-        //let geometry = geom::icosahedron().subdivide(POLYHEDRON_SUBDIVS);
         let geometry = geom::primitives::icosahedron(radius);
         let subdivided = geometry.subdivide_arc(radius, POLYHEDRON_SUBDIVS);
         let star_field = StarField::generate(STAR_FIELD_RADIUS);
