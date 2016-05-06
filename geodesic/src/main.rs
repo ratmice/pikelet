@@ -8,10 +8,8 @@ extern crate rayon;
 extern crate rusttype;
 extern crate time;
 
-use cgmath::{Angle, PerspectiveFov, Rad};
-use cgmath::Matrix4;
-use cgmath::{Point2, Point3, Point};
-use cgmath::Vector3;
+use cgmath::prelude::*;
+use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
 use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
 use glium::index::{PrimitiveType, NoIndices};

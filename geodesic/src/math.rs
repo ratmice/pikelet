@@ -1,7 +1,5 @@
-use cgmath::{Angle, One, Zero};
-use cgmath::Matrix4;
-use cgmath::{Point3, Point};
-use cgmath::{Vector3, Vector, EuclideanVector};
+use cgmath::prelude::*;
+use cgmath::{One, Zero, Matrix4, Point3, Vector3};
 use rand::{Rand, Rng};
 use rand::distributions::range::SampleRange;
 
