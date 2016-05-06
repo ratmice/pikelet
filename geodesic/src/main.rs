@@ -21,18 +21,14 @@ use std::thread;
 use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
-use geom::Geometry;
 use input::Event;
 use math::Polar;
 use render::{Resources, RenderTarget, Vertex};
 use ui::Context as UiContext;
 
-mod macros;
-
 pub mod camera;
 pub mod color;
 pub mod geom;
-pub mod index;
 pub mod input;
 pub mod math;
 pub mod text;
@@ -65,7 +61,7 @@ const STARS0_COUNT: usize = 100000;
 const STARS1_COUNT: usize = 10000;
 const STARS2_COUNT: usize = 1000;
 
-pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
+pub fn create_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
 
     println!("--------------------");
@@ -88,66 +84,6 @@ pub fn create_foo_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
         println!("\tEdge indexes: {} -> {} -> {}", e0, e1, e2);
         println!("\tPosition indexes: {} -> {} -> {}", p0, p1, p2);
     }
-
-    vertices
-}
-
-pub fn create_delaunay_vertices(geometry: &Geometry) -> Vec<Vertex> {
-    const VERTICES_PER_FACE: usize = 3;
-
-    let mut vertices = Vec::with_capacity(geometry.faces.len() * VERTICES_PER_FACE);
-
-    for face in &geometry.faces {
-        let n0 = index::get(&geometry.nodes, face.nodes[0]).position;
-        let n1 = index::get(&geometry.nodes, face.nodes[1]).position;
-        let n2 = index::get(&geometry.nodes, face.nodes[2]).position;
-
-        vertices.push(Vertex { position: n0.into() });
-        vertices.push(Vertex { position: n1.into() });
-        vertices.push(Vertex { position: n2.into() });
-    }
-
-    vertices
-}
-
-pub fn create_voronoi_vertices(geometry: &Geometry) -> Vec<Vertex> {
-    // const MAX_FACES_PER_NODE: usize = 6;
-    // const VERTICES_PER_FACE: usize = 3;
-
-    let mut vertices = Vec::with_capacity(geometry.faces.len());
-
-    for face in geometry.faces.iter() {
-        let n0 = index::get(&geometry.nodes, face.nodes[0]).position;
-        let n1 = index::get(&geometry.nodes, face.nodes[1]).position;
-        let n2 = index::get(&geometry.nodes, face.nodes[2]).position;
-        let mut points = Vec::with_capacity(3);
-        points.push(n0);
-        points.push(n1);
-        points.push(n2);
-        let centroid = math::centroid(&points);
-        vertices.push(Vertex { position: centroid.into() });
-    }
-
-    // for (i, node) in geometry.nodes.iter().enumerate() {
-    //     let midpoints: Vec<_> =
-    //         geometry.adjacent_nodes(geom::NodeIndex(i)).iter()
-    //             .map(|n| math::midpoint(node.position, n.position))
-    //             .collect();
-
-    //     let centroid = math::centroid(&midpoints);
-    //     vertices.push(Vertex { position: centroid.into() });
-
-    //     let first = midpoints[0];
-    //     let mut prev = first;
-
-    //     for &curr in midpoints[1..].iter().chain(Some(&first)) {
-    //         vertices.push(Vertex { position: centroid.into() });
-    //         vertices.push(Vertex { position: curr.into() });
-    //         vertices.push(Vertex { position: prev.into() });
-
-    //         prev = curr;
-    //     }
-    // }
 
     vertices
 }
@@ -507,8 +443,8 @@ fn main() {
         Resources {
             context: display.get_context().clone(),
 
-            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&subdivided)).unwrap(),
-            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_foo_vertices(&geometry)).unwrap(),
+            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_vertices(&subdivided)).unwrap(),
+            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_vertices(&geometry)).unwrap(),
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
             text_vertex_buffer: VertexBuffer::new(&display, &text::TEXTURE_VERTICES).unwrap(),
