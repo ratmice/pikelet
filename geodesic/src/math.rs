@@ -89,6 +89,7 @@ impl<A: Angle> Into<Point3<A::Unitless>> for Polar<A> {
     }
 }
 
+/// A location on a unit sphere, described using latitude and longitude.
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
 pub struct LatLong<A: Angle> {
     pub lat: A,
@@ -100,7 +101,8 @@ impl<A: Angle> LatLong<A> {
         LatLong { lat: lat, long: long }
     }
 
-    pub fn great_circle_distance(self, other: LatLong<A>) -> A::Unitless {
+    /// The great circle distance between two locations.
+    pub fn distance(self, other: LatLong<A>) -> A::Unitless {
         // http://www.movable-type.co.uk/scripts/latlong.html
         // http://www.fssnip.net/4a
 
@@ -110,7 +112,7 @@ impl<A: Angle> LatLong<A> {
             tmp * tmp
         }
 
-        let one = A::Unitless::one();
+        let one: A::Unitless = cast(1.0).unwrap();
         let two: A::Unitless = cast(2.0).unwrap();
 
         let dlat = other.lat - self.lat;
@@ -122,6 +124,30 @@ impl<A: Angle> LatLong<A> {
         Float::atan2(Float::sqrt(a), Float::sqrt(one - a)) * two
     }
 
+    /// The midpoint of the great circle between the two given points.
+    pub fn midpoint(self, other: Self) -> Self {
+        // http://www.movable-type.co.uk/scripts/latlong.html
+
+        let cos_self_lat = A::cos(self.lat);
+        let cos_other_lat = A::cos(other.lat);
+
+        let x = cos_other_lat * A::cos(other.long - self.long);
+        let y = cos_other_lat * A::sin(other.long - self.long);
+
+        let lat_x = A::sin(self.lat) + A::sin(other.lat);
+        let lat_y = Float::sqrt((cos_self_lat + x) * (cos_self_lat + x) + y * y);
+
+        LatLong {
+            lat: A::atan2(lat_x, lat_y),
+            long: self.long + A::atan2(y, cos_self_lat + x),
+        }
+    }
+
+    /// The relative [bearing] to another location.
+    ///
+    /// Note that this varies over a great circle path!
+    ///
+    /// [bearing]: https://en.wikipedia.org/wiki/Bearing_(navigation)
     pub fn bearing(self, other: Self) -> A {
         // http://williams.best.vwh.net/avform.htm#Crs
         // http://mathforum.org/library/drmath/view/55417.html
