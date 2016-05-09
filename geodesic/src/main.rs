@@ -16,7 +16,7 @@ use find_folder::Search as FolderSearch;
 use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
 use glium::index::{PrimitiveType, NoIndices};
 use imgui::Ui;
-use rand::Rng;
+use rand::{Rand, Rng};
 use rayon::prelude::*;
 use std::mem;
 use std::thread;
@@ -24,7 +24,7 @@ use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
 use input::Event;
-use math::Polar;
+use math::GeoPoint;
 use render::{Resources, RenderTarget, Vertex};
 use ui::Context as UiContext;
 
@@ -91,12 +91,12 @@ pub fn create_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
 }
 
 struct Star {
-    pub position: Polar<Rad<f32>>,
+    pub position: GeoPoint<f32>,
 }
 
-impl Star {
-    fn rand_spherical<R: Rng>(rng: &mut R, radius: f32) -> Self {
-        Star { position: Polar::rand_spherical(rng, radius) }
+impl Rand for Star {
+    fn rand<R: Rng>(rng: &mut R) -> Self {
+        Star { position: rng.gen() }
     }
 }
 
@@ -107,12 +107,12 @@ struct StarField {
 }
 
 impl StarField {
-    fn generate(radius: f32) -> StarField {
+    fn generate() -> StarField {
         let mut rng = rand::weak_rng();
         StarField {
-            stars0: (0..STARS0_COUNT).map(|_| Star::rand_spherical(&mut rng, radius)).collect(),
-            stars1: (0..STARS1_COUNT).map(|_| Star::rand_spherical(&mut rng, radius)).collect(),
-            stars2: (0..STARS2_COUNT).map(|_| Star::rand_spherical(&mut rng, radius)).collect(),
+            stars0: (0..STARS0_COUNT).map(|_| rng.gen()).collect(),
+            stars1: (0..STARS1_COUNT).map(|_| rng.gen()).collect(),
+            stars2: (0..STARS2_COUNT).map(|_| rng.gen()).collect(),
         }
     }
 }
@@ -120,7 +120,7 @@ impl StarField {
 fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
     let mut star_vertices = Vec::with_capacity(stars.len());
     stars.par_iter()
-        .map(|star| Vertex { position: array3::<_, Point3<_>>(star.position.into()) })
+        .map(|star| Vertex { position: array3(star.position.to_point(STAR_FIELD_RADIUS)) })
         .collect_into(&mut star_vertices);
 
     star_vertices
@@ -165,7 +165,7 @@ impl State {
 
             is_wireframe: false,
             is_showing_mesh: true,
-            is_showing_star_field: false,
+            is_showing_star_field: true,
             is_showing_ui: true,
             is_dragging: false,
             is_ui_capturing_mouse: false,
@@ -404,7 +404,7 @@ fn main() {
         let radius = 1.0;
         let geometry = geom::primitives::icosahedron(radius);
         let subdivided = geometry.subdivide_arc(radius, POLYHEDRON_SUBDIVS);
-        let star_field = StarField::generate(STAR_FIELD_RADIUS);
+        let star_field = StarField::generate();
 
         let assets = FolderSearch::ParentsThenKids(3, 3)
                 .for_folder("resources")
