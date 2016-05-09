@@ -49,6 +49,22 @@ impl<A: Angle> From<GeoPoint<A::Unitless>> for LatLong<A> {
     }
 }
 
+impl<A: Angle> Rand for LatLong<A> where
+    A::Unitless: BaseFloat + Rand + SampleRange,
+{
+    fn rand<R: Rng>(rng: &mut R) -> LatLong<A> {
+        // From http://mathworld.wolfram.com/SpherePointPicking.html
+
+        let u = rng.gen_range(A::Unitless::zero(), A::Unitless::one());
+        let v = rng.gen_range(A::Unitless::zero(), A::Unitless::one());
+
+        LatLong {
+            lat: A::acos((v + v) - A::Unitless::one()),
+            long: A::full_turn() * u,
+        }
+    }
+}
+
 impl<A: Angle> From<LatLong<A>> for GeoPoint<A::Unitless> {
     fn from(src: LatLong<A>) -> GeoPoint<A::Unitless> {
         // From https://en.wikipedia.org/wiki/Spherical_coordinate_system#Cartesian_coordinates
@@ -107,14 +123,6 @@ impl<T: BaseFloat> Rand for GeoPoint<T> where
     T: Rand + SampleRange,
 {
     fn rand<R: Rng>(rng: &mut R) -> GeoPoint<T> {
-        // From http://mathworld.wolfram.com/SpherePointPicking.html
-
-        let u = rng.gen_range(T::zero(), T::one());
-        let v = rng.gen_range(T::zero(), T::one());
-
-        GeoPoint::from(LatLong {
-            lat: Rad::acos((v + v) - T::one()),
-            long: Rad::full_turn() * u,
-        })
+        GeoPoint::from(LatLong::<Rad<T>>::rand(rng))
     }
 }
