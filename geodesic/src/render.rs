@@ -155,7 +155,7 @@ impl<'a> RenderTarget<'a> {
             &self.resources.unshaded_program,
             &uniform! {
                 color:      color,
-                model:      array4x4(Matrix4::from_scale(1.025)),
+                model:      array4x4(Matrix4::from_scale(1.025f32)),
                 view:       array4x4(self.camera.view),
                 proj:       array4x4(self.camera.projection),
             },
@@ -177,7 +177,7 @@ impl<'a> RenderTarget<'a> {
             &self.resources.unshaded_program,
             &uniform! {
                 color:      color,
-                model:      array4x4(Matrix4::from_scale(1.025)),
+                model:      array4x4(Matrix4::from_scale(1.025f32)),
                 view:       array4x4(self.camera.view),
                 proj:       array4x4(self.camera.projection),
             },
