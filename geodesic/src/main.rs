@@ -403,7 +403,7 @@ fn main() {
 
         let radius = 1.0;
         let geometry = geom::primitives::icosahedron(radius);
-        let subdivided = geometry.subdivide_arc(radius, POLYHEDRON_SUBDIVS);
+        let subdivided = geometry.subdivide(POLYHEDRON_SUBDIVS, &|a, b| math::midpoint_arc(radius, a, b));
         let star_field = StarField::generate();
 
         let assets = FolderSearch::ParentsThenKids(3, 3)

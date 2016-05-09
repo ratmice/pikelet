@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use cgmath::Point3;
-use math;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Some basic type aliases in order to attemp self-documentation
@@ -93,15 +92,10 @@ pub struct Mesh {
 }
 
 impl Mesh {
-
-    pub fn subdivide(&self, count: usize) -> Mesh {
-        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(&math::midpoint))
-    }
-
-    pub fn subdivide_arc(&self, radius: f32, count: usize) -> Mesh {
-        (0..count).fold(self.clone(), |acc, _| {
-            acc.subdivide_once(&|p0, p1| math::midpoint_arc(radius, p0, p1))
-        })
+    pub fn subdivide<F>(&self, count: usize, midpoint_fn: &F) -> Mesh
+        where F: Fn(Position, Position) -> Position
+    {
+        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(&midpoint_fn))
     }
 
     // NOTE: The method of subdivision is illustrated below:
@@ -169,25 +163,10 @@ impl Mesh {
             let p4 = new_positions.get(&in_e1).unwrap().clone();
             let p5 = new_positions.get(&in_e2).unwrap().clone();
 
-            // face 0
-            faces.push(
-                make_face(f0, e0, e1, e2, p0, p3, p5, &mut edges)
-            );
-
-            // face 1
-            faces.push(
-                make_face(f1, e3, e4, e5, p3, p1, p4, &mut edges)
-            );
-
-            // face 2
-            faces.push(
-                make_face(f2, e6, e7, e8, p3, p4, p5, &mut edges)
-            );
-
-            // face 3
-            faces.push(
-                make_face(f3, e9, e10, e11, p5, p4, p2, &mut edges)
-            );
+            faces.push(make_face(f0, e0,  e1,  e2, p0, p3, p5, &mut edges)); // face 0
+            faces.push(make_face(f1, e3,  e4,  e5, p3, p1, p4, &mut edges)); // face 1
+            faces.push(make_face(f2, e6,  e7,  e8, p3, p4, p5, &mut edges)); // face 2
+            faces.push(make_face(f3, e9, e10, e11, p5, p4, p2, &mut edges)); // face 3
         }
 
         // TODO: adjacency determination
@@ -212,17 +191,9 @@ fn make_face(f: FaceIndex, e0: EdgeIndex, e1: EdgeIndex, e2: EdgeIndex,
              p0: PositionIndex, p1: PositionIndex, p2: PositionIndex,
              edges: &mut Vec<HalfEdge>) -> Face
 {
-    edges.push(
-        HalfEdge::new_boundary(p0.clone(), f.clone(), e1.clone())
-    );
-
-    edges.push(
-        HalfEdge::new_boundary(p1.clone(), f.clone(), e2.clone())
-    );
-
-    edges.push(
-        HalfEdge::new_boundary(p2.clone(), f.clone(), e0.clone())
-    );
+    edges.push(HalfEdge::new_boundary(p0.clone(), f.clone(), e1.clone()));
+    edges.push(HalfEdge::new_boundary(p1.clone(), f.clone(), e2.clone()));
+    edges.push(HalfEdge::new_boundary(p2.clone(), f.clone(), e0.clone()));
 
     Face::new(e0)
 }
