@@ -61,7 +61,7 @@ impl HalfEdge {
             position: point,
             face: face,
             next: next,
-            adjacent: Some(adjacent)
+            adjacent: Some(adjacent),
         }
     }
 
@@ -70,7 +70,7 @@ impl HalfEdge {
             position: point,
             face: face,
             next: next,
-            adjacent: None
+            adjacent: None,
         }
     }
 
@@ -89,7 +89,7 @@ pub struct Mesh {
 
     // Connectivity information
     pub faces: Vec<Face>,
-    pub edges: Vec<HalfEdge>
+    pub edges: Vec<HalfEdge>,
 }
 
 impl Mesh {
