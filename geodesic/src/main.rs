@@ -49,7 +49,7 @@ const CAMERA_FAR: f32 = 1000.0;
 const CAMERA_ZOOM_FACTOR: f32 = 10.0;
 const CAMERA_DRAG_FACTOR: f32 = 10.0;
 
-const POLYHEDRON_SUBDIVS: usize = 1;
+const POLYHEDRON_SUBDIVS: usize = 3;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 1.0, z: 0.2 };
 
@@ -155,6 +155,8 @@ struct State {
     camera_rotation: Rad<f32>,
     camera_rotation_delta: Rad<f32>,
     camera_distance: f32,
+
+    subdivisions: usize,
 }
 
 impl State {
@@ -181,6 +183,8 @@ impl State {
             camera_rotation: Rad::new(0.0),
             camera_rotation_delta: Rad::new(0.0),
             camera_distance: CAMERA_XZ_RADIUS,
+
+            subdivisions: POLYHEDRON_SUBDIVS,
         }
     }
 
@@ -220,6 +224,7 @@ impl State {
             ZoomStart => self.is_zooming = true,
             ZoomEnd => self.is_zooming = false,
             MousePosition(position) => self.apply_mouse_update(position),
+            UpdateSubdivisions(subdivisions) => self.subdivisions = subdivisions,
             NoOp => {},
         }
 
@@ -308,14 +313,20 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
 }
 
 fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>, Vec<Event>) {
+    use input::Event::*;
+
     fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool> {
         let mut value = initial_value;
         ui.checkbox(text, &mut value);
 
-        match value != initial_value {
-            true => Some(value),
-            false => None,
-        }
+        if value != initial_value { Some(value) } else { None }
+    }
+
+    fn slider_i32(ui: &Ui, text: imgui::ImStr, initial_value: i32, min: i32, max: i32) -> Option<i32> {
+        let mut value = initial_value;
+        ui.slider_i32(text, &mut value, min, max).build();
+
+        if value != initial_value { Some(value) } else { None }
     }
 
     if !state.is_showing_ui {
@@ -330,11 +341,12 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
         .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
             ui.tree_node(im_str!("Render options")).build(|| {
-                use input::Event::*;
-
-                checkbox(&ui, im_str!("Wireframe"), state.is_wireframe).map(|v| events.push(SetWireframe(v)));
-                checkbox(&ui, im_str!("Show mesh"), state.is_showing_mesh).map(|v| events.push(SetShowingMesh(v)));
-                checkbox(&ui, im_str!("Show starfield"), state.is_showing_star_field).map(|v| events.push(SetShowingStarField(v)));
+                checkbox(&ui, im_str!("Wireframe"), state.is_wireframe)
+                    .map(|v| events.push(SetWireframe(v)));
+                checkbox(&ui, im_str!("Show mesh"), state.is_showing_mesh)
+                    .map(|v| events.push(SetShowingMesh(v)));
+                checkbox(&ui, im_str!("Show starfield"), state.is_showing_star_field)
+                    .map(|v| events.push(SetShowingStarField(v)));
             });
 
             ui.tree_node(im_str!("State")).build(|| {
@@ -367,15 +379,22 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
                 ui.text(im_str!("camera_rotation: {:?}", state.camera_rotation));
                 ui.text(im_str!("camera_rotation_delta: {:?}", state.camera_rotation_delta));
                 ui.text(im_str!("camera_distance: {:?}", state.camera_distance));
+
+                ui.separator();
+
+                ui.text(im_str!("subdivisions: {:?}", state.subdivisions));
             });
 
+            slider_i32(&ui, im_str!("subdivisions"), state.subdivisions as i32, 1, 8)
+                .map(|v| events.push(UpdateSubdivisions(v as usize)));
+
             if ui.small_button(im_str!("Reset state")) {
-                events.push(Event::ResetState);
+                events.push(ResetState);
             }
         });
 
     if ui.want_capture_mouse() != state.is_ui_capturing_mouse {
-        events.push(Event::SetUiCapturingMouse(ui.want_capture_mouse()));
+        events.push(SetUiCapturingMouse(ui.want_capture_mouse()));
     }
 
     (Some(ui), events)

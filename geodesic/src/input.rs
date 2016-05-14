@@ -14,6 +14,7 @@ pub enum Event {
     ZoomStart,
     ZoomEnd,
     MousePosition(Point2<i32>),
+    UpdateSubdivisions(usize),
     NoOp,
 }
 
