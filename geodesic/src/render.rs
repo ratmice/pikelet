@@ -73,8 +73,7 @@ fn draw_params<'a>() -> DrawParameters<'a> {
 pub struct Resources {
     pub context: Rc<Context>,
 
-    pub delaunay_vertex_buffer: VertexBuffer<Vertex>,
-    pub voronoi_vertex_buffer: VertexBuffer<Vertex>,
+    pub planet_vertex_buffer: VertexBuffer<Vertex>,
     pub index_buffer: NoIndices,
 
     pub stars0_vertex_buffer: VertexBuffer<Vertex>,

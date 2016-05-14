@@ -3,7 +3,6 @@ use glium::glutin;
 
 pub enum Event {
     CloseApp,
-    SetShowingMesh(bool),
     SetShowingStarField(bool),
     SetUiCapturingMouse(bool),
     SetWireframe(bool),
@@ -14,7 +13,7 @@ pub enum Event {
     ZoomStart,
     ZoomEnd,
     MousePosition(Point2<i32>),
-    UpdateSubdivisions(usize),
+    UpdatePlanetSubdivisions(usize),
     NoOp,
 }
 

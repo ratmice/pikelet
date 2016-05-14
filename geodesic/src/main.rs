@@ -23,6 +23,8 @@ use std::thread;
 use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
+use geom::half_edge::Mesh;
+use geom::primitives;
 use input::Event;
 use math::GeoPoint;
 use render::{Resources, RenderTarget, Vertex};
@@ -49,7 +51,8 @@ const CAMERA_FAR: f32 = 1000.0;
 const CAMERA_ZOOM_FACTOR: f32 = 10.0;
 const CAMERA_DRAG_FACTOR: f32 = 10.0;
 
-const POLYHEDRON_SUBDIVS: usize = 3;
+const PLANET_RADIUS: f32 = 1.0;
+const PLANET_SUBDIVS: usize = 3;
 
 const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 1.0, z: 0.2 };
 
@@ -63,7 +66,7 @@ const STARS0_COUNT: usize = 100000;
 const STARS1_COUNT: usize = 10000;
 const STARS2_COUNT: usize = 1000;
 
-pub fn create_vertices(mesh: &geom::half_edge::Mesh) -> Vec<Vertex> {
+pub fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
 
     println!("--------------------");
@@ -138,7 +141,6 @@ struct State {
     frames_per_second: f32,
 
     is_wireframe: bool,
-    is_showing_mesh: bool,
     is_showing_star_field: bool,
     is_showing_ui: bool,
     is_dragging: bool,
@@ -156,7 +158,10 @@ struct State {
     camera_rotation_delta: Rad<f32>,
     camera_distance: f32,
 
-    subdivisions: usize,
+    star_field: StarField,
+
+    planet_radius: f32,
+    planet_subdivs: usize,
 }
 
 impl State {
@@ -166,7 +171,6 @@ impl State {
             frames_per_second: 0.0,
 
             is_wireframe: false,
-            is_showing_mesh: true,
             is_showing_star_field: true,
             is_showing_ui: true,
             is_dragging: false,
@@ -184,7 +188,10 @@ impl State {
             camera_rotation_delta: Rad::new(0.0),
             camera_distance: CAMERA_XZ_RADIUS,
 
-            subdivisions: POLYHEDRON_SUBDIVS,
+            star_field: StarField::generate(),
+
+            planet_radius: PLANET_RADIUS,
+            planet_subdivs: PLANET_SUBDIVS,
         }
     }
 
@@ -213,7 +220,6 @@ impl State {
 
         match event {
             CloseApp => return Loop::Break,
-            SetShowingMesh(value) => self.is_showing_mesh = value,
             SetShowingStarField(value) => self.is_showing_star_field = value,
             SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.is_wireframe = value,
@@ -224,7 +230,7 @@ impl State {
             ZoomStart => self.is_zooming = true,
             ZoomEnd => self.is_zooming = false,
             MousePosition(position) => self.apply_mouse_update(position),
-            UpdateSubdivisions(subdivisions) => self.subdivisions = subdivisions,
+            UpdatePlanetSubdivisions(planet_subdivs) => self.planet_subdivs = planet_subdivs,
             NoOp => {},
         }
 
@@ -273,6 +279,13 @@ impl State {
     fn create_hud_camera(&self, (frame_width, frame_height): (u32, u32)) -> Matrix4<f32> {
         cgmath::ortho(0.0, frame_width as f32, frame_height as f32, 0.0, -1.0, 1.0)
     }
+
+    fn create_subdivided_planet_mesh(&self) -> Mesh {
+        primitives::icosahedron(self.planet_radius)
+            .subdivide(self.planet_subdivs, &|a, b| {
+                math::midpoint_arc(self.planet_radius, a, b)
+            })
+    }
 }
 
 fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_factor: f32) {
@@ -296,16 +309,10 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
         target.render_points(&resources.stars2_vertex_buffer, STAR2_SIZE, color::WHITE).unwrap();
     }
 
-    if state.is_showing_mesh {
-        target.render_points(&resources.delaunay_vertex_buffer, 5.0, color::RED).unwrap();
-        target.render_points(&resources.voronoi_vertex_buffer, 5.0, color::YELLOW).unwrap();
-        target.render_lines(&resources.voronoi_vertex_buffer, 0.5, color::WHITE).unwrap();
-    }
-
     if state.is_wireframe {
-        target.render_lines(&resources.delaunay_vertex_buffer, 0.5, color::BLACK).unwrap();
+        target.render_lines(&resources.planet_vertex_buffer, 0.5, color::BLACK).unwrap();
     } else {
-        target.render_solid(&resources.delaunay_vertex_buffer, state.light_dir, color::GREEN).unwrap();
+        target.render_solid(&resources.planet_vertex_buffer, state.light_dir, color::GREEN).unwrap();
     }
 
     // FIXME: https://github.com/Gekkio/imgui-rs/issues/17
@@ -340,14 +347,17 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
         .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
         .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
-            ui.tree_node(im_str!("Render options")).build(|| {
-                checkbox(&ui, im_str!("Wireframe"), state.is_wireframe)
-                    .map(|v| events.push(SetWireframe(v)));
-                checkbox(&ui, im_str!("Show mesh"), state.is_showing_mesh)
-                    .map(|v| events.push(SetShowingMesh(v)));
-                checkbox(&ui, im_str!("Show starfield"), state.is_showing_star_field)
-                    .map(|v| events.push(SetShowingStarField(v)));
-            });
+            checkbox(&ui, im_str!("Wireframe"), state.is_wireframe)
+                .map(|v| events.push(SetWireframe(v)));
+            checkbox(&ui, im_str!("Show star field"), state.is_showing_star_field)
+                .map(|v| events.push(SetShowingStarField(v)));
+
+            slider_i32(&ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
+                .map(|v| events.push(UpdatePlanetSubdivisions(v as usize)));
+
+            if ui.small_button(im_str!("Reset state")) {
+                events.push(ResetState);
+            }
 
             ui.tree_node(im_str!("State")).build(|| {
                 ui.text(im_str!("delta_time: {:?}", state.delta_time));
@@ -356,7 +366,6 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
                 ui.separator();
 
                 ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
-                ui.text(im_str!("is_showing_mesh: {:?}", state.is_showing_mesh));
                 ui.text(im_str!("is_showing_star_field: {:?}", state.is_showing_star_field));
                 ui.text(im_str!("is_showing_ui: {:?}", state.is_showing_ui));
                 ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
@@ -382,15 +391,9 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
 
                 ui.separator();
 
-                ui.text(im_str!("subdivisions: {:?}", state.subdivisions));
+                ui.text(im_str!("planet_radius: {:?}", state.planet_radius));
+                ui.text(im_str!("planet_subdivs: {:?}", state.planet_subdivs));
             });
-
-            slider_i32(&ui, im_str!("subdivisions"), state.subdivisions as i32, 1, 8)
-                .map(|v| events.push(UpdateSubdivisions(v as usize)));
-
-            if ui.small_button(im_str!("Reset state")) {
-                events.push(ResetState);
-            }
         });
 
     if ui.want_capture_mouse() != state.is_ui_capturing_mouse {
@@ -419,11 +422,6 @@ fn main() {
         use std::io;
         use std::io::prelude::*;
         use std::path::Path;
-
-        let radius = 1.0;
-        let geometry = geom::primitives::icosahedron(radius);
-        let subdivided = geometry.subdivide(POLYHEDRON_SUBDIVS, &|a, b| math::midpoint_arc(radius, a, b));
-        let star_field = StarField::generate();
 
         let assets = FolderSearch::ParentsThenKids(3, 3)
                 .for_folder("resources")
@@ -460,16 +458,15 @@ fn main() {
         Resources {
             context: display.get_context().clone(),
 
-            delaunay_vertex_buffer: VertexBuffer::new(&display, &create_vertices(&subdivided)).unwrap(),
-            voronoi_vertex_buffer: VertexBuffer::new(&display, &create_vertices(&geometry)).unwrap(),
+            planet_vertex_buffer: VertexBuffer::new(&display, &create_vertices(&state.create_subdivided_planet_mesh())).unwrap(),
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
             text_vertex_buffer: VertexBuffer::new(&display, &text::TEXTURE_VERTICES).unwrap(),
             text_index_buffer: IndexBuffer::new(&display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
 
-            stars0_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars0)).unwrap(),
-            stars1_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars1)).unwrap(),
-            stars2_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&star_field.stars2)).unwrap(),
+            stars0_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&state.star_field.stars0)).unwrap(),
+            stars1_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&state.star_field.stars1)).unwrap(),
+            stars2_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&state.star_field.stars2)).unwrap(),
 
             flat_shaded_program: flat_shaded_program,
             text_program: text_program,
