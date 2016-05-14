@@ -246,28 +246,6 @@ impl State {
         }
     }
 
-    fn apply_event_update(&mut self, event: Event) -> Loop {
-        use input::Event::*;
-
-        match event {
-            CloseApp => return Loop::Break,
-            SetShowingStarField(value) => self.is_showing_star_field = value,
-            SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
-            SetWireframe(value) => self.is_wireframe = value,
-            ToggleUi => self.is_showing_ui = !self.is_showing_ui,
-            ResetState => *self = init_state(),
-            DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
-            DragEnd => self.is_dragging = false,
-            ZoomStart => self.is_zooming = true,
-            ZoomEnd => self.is_zooming = false,
-            MousePosition(position) => self.apply_mouse_update(position),
-            UpdatePlanetSubdivisions(planet_subdivs) => self.planet_subdivs = planet_subdivs,
-            NoOp => {},
-        }
-
-        Loop::Continue
-    }
-
     fn update<Events>(&mut self, events: Events, window_dimensions: (u32, u32), delta_time: f32) -> Loop where
         Events: IntoIterator<Item = Event>,
     {
@@ -280,8 +258,22 @@ impl State {
         }
 
         for event in events {
-            if self.apply_event_update(event) == Loop::Break {
-                return Loop::Break;
+            use input::Event::*;
+
+            match event {
+                CloseApp => return Loop::Break,
+                SetShowingStarField(value) => self.is_showing_star_field = value,
+                SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
+                SetWireframe(value) => self.is_wireframe = value,
+                ToggleUi => self.is_showing_ui = !self.is_showing_ui,
+                ResetState => *self = init_state(),
+                DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
+                DragEnd => self.is_dragging = false,
+                ZoomStart => self.is_zooming = true,
+                ZoomEnd => self.is_zooming = false,
+                MousePosition(position) => self.apply_mouse_update(position),
+                UpdatePlanetSubdivisions(planet_subdivs) => self.planet_subdivs = planet_subdivs,
+                NoOp => {},
             }
         }
 
