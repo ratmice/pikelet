@@ -147,8 +147,6 @@ struct State {
     is_ui_capturing_mouse: bool,
     is_zooming: bool,
 
-    culling_mode: BackfaceCullingMode,
-
     mouse_position: Point2<i32>,
     window_dimensions: (u32, u32),
 
@@ -176,8 +174,6 @@ impl State {
             is_dragging: false,
             is_ui_capturing_mouse: false,
             is_zooming: false,
-
-            culling_mode: BackfaceCullingMode::CullClockwise,
 
             light_dir: LIGHT_DIR,
 
@@ -297,7 +293,7 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
         resources: resources,
         camera: state.create_scene_camera(frame_dimensions),
         hud_matrix: state.create_hud_camera(frame_dimensions),
-        culling_mode: state.culling_mode,
+        culling_mode: BackfaceCullingMode::CullClockwise,
     };
 
     target.clear(color::BLUE);
@@ -371,8 +367,6 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
                 ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
                 ui.text(im_str!("is_ui_capturing_mouse: {:?}", state.is_ui_capturing_mouse));
                 ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
-
-                ui.text(im_str!("culling_mode: {:?}", state.culling_mode));
 
                 ui.separator();
 
