@@ -1,6 +1,6 @@
 use glium::backend::Facade;
 use glium::glutin;
-use imgui::{ImGui, ImGuiKey, Ui};
+use imgui::{self, ImGui, ImGuiKey, Ui};
 
 use render::RenderResult;
 
@@ -100,4 +100,18 @@ impl Context {
     pub fn frame(&mut self, (width, height): (u32, u32), delta_time: f32) -> Ui {
         self.imgui.frame(width, height, delta_time)
     }
+}
+
+pub fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool> {
+    let mut value = initial_value;
+    ui.checkbox(text, &mut value);
+
+    if value != initial_value { Some(value) } else { None }
+}
+
+pub fn slider_i32(ui: &Ui, text: imgui::ImStr, initial_value: i32, min: i32, max: i32) -> Option<i32> {
+    let mut value = initial_value;
+    ui.slider_i32(text, &mut value, min, max).build();
+
+    if value != initial_value { Some(value) } else { None }
 }

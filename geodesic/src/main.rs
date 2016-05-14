@@ -16,7 +16,6 @@ use find_folder::Search as FolderSearch;
 use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
 use glium::index::{PrimitiveType, NoIndices};
 use imgui::Ui;
-use rand::{Rand, Rng};
 use rayon::prelude::*;
 use std::iter::FromIterator;
 use std::mem;
@@ -26,8 +25,8 @@ use std::time::Duration;
 use camera::{Camera, ComputedCamera};
 use geom::half_edge::Mesh;
 use geom::primitives;
+use geom::star_field::{Star, StarField};
 use input::Event;
-use math::GeoPoint;
 use render::{Resources, RenderTarget, Vertex};
 use ui::Context as UiContext;
 
@@ -41,39 +40,122 @@ pub mod times;
 pub mod render;
 pub mod ui;
 
-const WINDOW_TITLE: &'static str = "Geodesic Test";
-const WINDOW_WIDTH: u32 = 1000;
-const WINDOW_HEIGHT: u32 = 500;
+fn init_state() -> State {
+    State {
+        delta_time: 0.0,
+        frames_per_second: 0.0,
 
-const CAMERA_XZ_RADIUS: f32 = 2.0;
-const CAMERA_Y_HEIGHT: f32 = 1.0;
-const CAMERA_NEAR: f32 = 0.1;
-const CAMERA_FAR: f32 = 1000.0;
-const CAMERA_ZOOM_FACTOR: f32 = 10.0;
-const CAMERA_DRAG_FACTOR: f32 = 10.0;
+        is_wireframe: false,
+        is_showing_star_field: true,
+        is_showing_ui: true,
+        is_dragging: false,
+        is_ui_capturing_mouse: false,
+        is_zooming: false,
 
-const PLANET_RADIUS: f32 = 1.0;
-const PLANET_SUBDIVS: usize = 3;
+        light_dir: Vector3::new(0.0, 1.0, 0.2),
 
-const LIGHT_DIR: Vector3<f32> = Vector3 { x: 0.0, y: 1.0, z: 0.2 };
+        window_title: "Geodesic Test".to_string(),
+        mouse_position: Point2::origin(),
+        window_dimensions: (1000, 500),
 
-const STAR_FIELD_RADIUS: f32 = 20.0;
+        camera_rotation: Rad::new(0.0),
+        camera_rotation_delta: Rad::new(0.0),
+        camera_xz_radius: 2.0,
+        camera_y_height: 1.0,
+        camera_near: 0.1,
+        camera_far: 1000.0,
+        camera_zoom_factor: 10.0,
+        camera_drag_factor: 10.0,
 
-const STAR0_SIZE: f32 = 1.0;
-const STAR1_SIZE: f32 = 2.5;
-const STAR2_SIZE: f32 = 5.0;
+        star_field: StarField::generate(),
+        star0_size: 1.0,
+        star1_size: 2.5,
+        star2_size: 5.0,
 
-const STARS0_COUNT: usize = 100000;
-const STARS1_COUNT: usize = 10000;
-const STARS2_COUNT: usize = 1000;
+        planet_radius: 1.0,
+        planet_subdivs: 3,
+    }
+}
+
+fn init_display(state: &State) -> glium::Display {
+    use glium::glutin::WindowBuilder;
+
+    let (width, height) = state.window_dimensions;
+
+    WindowBuilder::new()
+        .with_title(state.window_title.clone())
+        .with_dimensions(width, height)
+        .with_depth_buffer(24)
+        .build_glium()
+        .unwrap()
+}
+
+fn init_resources(display: &glium::Display, state: &State) -> Resources {
+    use glium::backend::Facade;
+    use rusttype::FontCollection;
+    use std::fs::File;
+    use std::io;
+    use std::io::prelude::*;
+    use std::path::Path;
+
+    let assets = FolderSearch::ParentsThenKids(3, 3)
+            .for_folder("resources")
+            .expect("Could not locate `resources` folder");
+
+    let load_shader = |assets: &Path, path| -> io::Result<String> {
+        let mut file = try!(File::open(assets.join(path)));
+        let mut buffer = String::new();
+        try!(file.read_to_string(&mut buffer));
+
+        Ok(buffer)
+    };
+
+    let flat_shaded_vert    = load_shader(&assets, "shaders/flat_shaded.v.glsl").unwrap();
+    let flat_shaded_frag    = load_shader(&assets, "shaders/flat_shaded.f.glsl").unwrap();
+    let text_vert           = load_shader(&assets, "shaders/text.v.glsl").unwrap();
+    let text_frag           = load_shader(&assets, "shaders/text.f.glsl").unwrap();
+    let unshaded_vert       = load_shader(&assets, "shaders/unshaded.v.glsl").unwrap();
+    let unshaded_frag       = load_shader(&assets, "shaders/unshaded.f.glsl").unwrap();
+
+    let flat_shaded_program = Program::from_source(display, &flat_shaded_vert, &flat_shaded_frag, None).unwrap();
+    let text_program        = Program::from_source(display, &text_vert, &text_frag, None).unwrap();
+    let unshaded_program    = Program::from_source(display, &unshaded_vert, &unshaded_frag, None).unwrap();
+
+    let blogger_sans_font = {
+        let mut file = File::open(assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap();
+        let mut buffer = vec![];
+        file.read_to_end(&mut buffer).unwrap();
+
+        let font_collection = FontCollection::from_bytes(buffer);
+        font_collection.into_font().unwrap()
+    };
+
+    Resources {
+        context: display.get_context().clone(),
+
+        planet_vertex_buffer: VertexBuffer::new(display, &create_vertices(&state.create_subdivided_planet_mesh())).unwrap(),
+        index_buffer: NoIndices(PrimitiveType::TrianglesList),
+
+        text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
+        text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
+
+        stars0_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&state.star_field.stars0)).unwrap(),
+        stars1_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&state.star_field.stars1)).unwrap(),
+        stars2_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&state.star_field.stars2)).unwrap(),
+
+        flat_shaded_program: flat_shaded_program,
+        text_program: text_program,
+        unshaded_program: unshaded_program,
+
+        blogger_sans_font: blogger_sans_font,
+    }
+}
 
 pub fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
 
-    println!("--------------------");
-
     let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
-    for (fi, face) in mesh.faces.iter().enumerate() {
+    for face in mesh.faces.iter() {
         let e0 = face.root.clone();
         let e1 = mesh.edges[e0].next.clone();
         let e2 = mesh.edges[e1].next.clone();
@@ -82,46 +164,17 @@ pub fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
         let p1 = mesh.edges[e1].position.clone();
         let p2 = mesh.edges[e2].position.clone();
 
-        vertices.push( Vertex { position: mesh.positions[p0].into() } );
-        vertices.push( Vertex { position: mesh.positions[p1].into() } );
-        vertices.push( Vertex { position: mesh.positions[p2].into() } );
-
-        println!("Face: {}", fi);
-        println!("\tEdge indexes: {} -> {} -> {}", e0, e1, e2);
-        println!("\tPosition indexes: {} -> {} -> {}", p0, p1, p2);
+        vertices.push(Vertex { position: mesh.positions[p0].into() });
+        vertices.push(Vertex { position: mesh.positions[p1].into() });
+        vertices.push(Vertex { position: mesh.positions[p2].into() });
     }
 
     vertices
 }
 
-struct Star {
-    pub position: GeoPoint<f32>,
-}
-
-impl Rand for Star {
-    fn rand<R: Rng>(rng: &mut R) -> Self {
-        Star { position: rng.gen() }
-    }
-}
-
-struct StarField {
-    stars0: Vec<Star>,
-    stars1: Vec<Star>,
-    stars2: Vec<Star>,
-}
-
-impl StarField {
-    fn generate() -> StarField {
-        let mut rng = rand::weak_rng();
-        StarField {
-            stars0: (0..STARS0_COUNT).map(|_| rng.gen()).collect(),
-            stars1: (0..STARS1_COUNT).map(|_| rng.gen()).collect(),
-            stars2: (0..STARS2_COUNT).map(|_| rng.gen()).collect(),
-        }
-    }
-}
-
 fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
+    const STAR_FIELD_RADIUS: f32 = 20.0;
+
     let mut star_vertices = Vec::with_capacity(stars.len());
     stars.par_iter()
         .map(|star| Vertex { position: array3(star.position.to_point(STAR_FIELD_RADIUS)) })
@@ -148,6 +201,7 @@ struct State {
     is_ui_capturing_mouse: bool,
     is_zooming: bool,
 
+    window_title: String,
     mouse_position: Point2<i32>,
     window_dimensions: (u32, u32),
 
@@ -155,43 +209,23 @@ struct State {
 
     camera_rotation: Rad<f32>,
     camera_rotation_delta: Rad<f32>,
-    camera_distance: f32,
+    camera_xz_radius: f32,
+    camera_y_height: f32,
+    camera_near: f32,
+    camera_far: f32,
+    camera_zoom_factor: f32,
+    camera_drag_factor: f32,
 
     star_field: StarField,
+    star0_size: f32,
+    star1_size: f32,
+    star2_size: f32,
 
     planet_radius: f32,
     planet_subdivs: usize,
 }
 
 impl State {
-    fn init() -> State {
-        State {
-            delta_time: 0.0,
-            frames_per_second: 0.0,
-
-            is_wireframe: false,
-            is_showing_star_field: true,
-            is_showing_ui: true,
-            is_dragging: false,
-            is_ui_capturing_mouse: false,
-            is_zooming: false,
-
-            light_dir: LIGHT_DIR,
-
-            mouse_position: Point2::origin(),
-            window_dimensions: (WINDOW_WIDTH, WINDOW_HEIGHT),
-
-            camera_rotation: Rad::new(0.0),
-            camera_rotation_delta: Rad::new(0.0),
-            camera_distance: CAMERA_XZ_RADIUS,
-
-            star_field: StarField::generate(),
-
-            planet_radius: PLANET_RADIUS,
-            planet_subdivs: PLANET_SUBDIVS,
-        }
-    }
-
     fn apply_mouse_update(&mut self, new_position: Point2<i32>) {
         let mouse_position_delta = {
             let old_position = mem::replace(&mut self.mouse_position, new_position);
@@ -201,13 +235,13 @@ impl State {
         if !self.is_ui_capturing_mouse {
             if self.is_dragging {
                 let (window_width, _) = self.window_dimensions;
-                let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * CAMERA_DRAG_FACTOR;
+                let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * self.camera_drag_factor;
                 self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.delta_time;
             }
 
             if self.is_zooming {
                 let zoom_delta = mouse_position_delta.x as f32 * self.delta_time;
-                self.camera_distance = self.camera_distance - (zoom_delta * CAMERA_ZOOM_FACTOR);
+                self.camera_xz_radius = self.camera_xz_radius - (zoom_delta * self.camera_zoom_factor);
             }
         }
     }
@@ -221,7 +255,7 @@ impl State {
             SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.is_wireframe = value,
             ToggleUi => self.is_showing_ui = !self.is_showing_ui,
-            ResetState => *self = State::init(),
+            ResetState => *self = init_state(),
             DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
             DragEnd => self.is_dragging = false,
             ZoomStart => self.is_zooming = true,
@@ -259,16 +293,16 @@ impl State {
     fn create_scene_camera(&self, (frame_width, frame_height): (u32, u32)) -> ComputedCamera {
         Camera {
             position: Point3 {
-                x: Rad::sin(self.camera_rotation) * self.camera_distance,
-                y: CAMERA_Y_HEIGHT,
-                z: Rad::cos(self.camera_rotation) * self.camera_distance,
+                x: Rad::sin(self.camera_rotation) * self.camera_xz_radius,
+                y: self.camera_y_height,
+                z: Rad::cos(self.camera_rotation) * self.camera_xz_radius,
             },
             target: Point3::origin(),
             projection: PerspectiveFov {
                 aspect: frame_width as f32 / frame_height as f32,
                 fovy: Rad::full_turn() / 6.0,
-                near: CAMERA_NEAR,
-                far: CAMERA_FAR,
+                near: self.camera_near,
+                far: self.camera_far,
             },
         }.compute()
     }
@@ -301,9 +335,9 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
 
     if state.is_showing_star_field {
         // TODO: Render centered at eye position
-        target.render_points(&resources.stars0_vertex_buffer, STAR0_SIZE, color::WHITE).unwrap();
-        target.render_points(&resources.stars1_vertex_buffer, STAR1_SIZE, color::WHITE).unwrap();
-        target.render_points(&resources.stars2_vertex_buffer, STAR2_SIZE, color::WHITE).unwrap();
+        target.render_points(&resources.stars0_vertex_buffer, state.star0_size, color::WHITE).unwrap();
+        target.render_points(&resources.stars1_vertex_buffer, state.star1_size, color::WHITE).unwrap();
+        target.render_points(&resources.stars2_vertex_buffer, state.star2_size, color::WHITE).unwrap();
     }
 
     if state.is_wireframe {
@@ -319,20 +353,6 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
 fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>, Vec<Event>) {
     use input::Event::*;
 
-    fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool> {
-        let mut value = initial_value;
-        ui.checkbox(text, &mut value);
-
-        if value != initial_value { Some(value) } else { None }
-    }
-
-    fn slider_i32(ui: &Ui, text: imgui::ImStr, initial_value: i32, min: i32, max: i32) -> Option<i32> {
-        let mut value = initial_value;
-        ui.slider_i32(text, &mut value, min, max).build();
-
-        if value != initial_value { Some(value) } else { None }
-    }
-
     if !state.is_showing_ui {
         return (None, vec![]);
     }
@@ -344,12 +364,11 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
         .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
         .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
-            checkbox(&ui, im_str!("Wireframe"), state.is_wireframe)
+            ui::checkbox(&ui, im_str!("Wireframe"), state.is_wireframe)
                 .map(|v| events.push(SetWireframe(v)));
-            checkbox(&ui, im_str!("Show star field"), state.is_showing_star_field)
+            ui::checkbox(&ui, im_str!("Show star field"), state.is_showing_star_field)
                 .map(|v| events.push(SetShowingStarField(v)));
-
-            slider_i32(&ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
+            ui::slider_i32(&ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
                 .map(|v| events.push(UpdatePlanetSubdivisions(v as usize)));
 
             if ui.small_button(im_str!("Reset state")) {
@@ -382,7 +401,7 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
 
                 ui.text(im_str!("camera_rotation: {:?}", state.camera_rotation));
                 ui.text(im_str!("camera_rotation_delta: {:?}", state.camera_rotation_delta));
-                ui.text(im_str!("camera_distance: {:?}", state.camera_distance));
+                ui.text(im_str!("camera_xz_radius: {:?}", state.camera_xz_radius));
 
                 ui.separator();
 
@@ -399,77 +418,9 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
 }
 
 fn main() {
-    use glium::backend::Facade;
-    use glium::glutin::WindowBuilder;
-
-    let display = WindowBuilder::new()
-        .with_title(WINDOW_TITLE.to_string())
-        .with_dimensions(WINDOW_WIDTH, WINDOW_HEIGHT)
-        .with_depth_buffer(24)
-        .build_glium()
-        .unwrap();
-
-    let mut state = State::init();
-
-    let resources = {
-        use rusttype::FontCollection;
-        use std::fs::File;
-        use std::io;
-        use std::io::prelude::*;
-        use std::path::Path;
-
-        let assets = FolderSearch::ParentsThenKids(3, 3)
-                .for_folder("resources")
-                .expect("Could not locate `resources` folder");
-
-        let load_shader = |assets: &Path, path| -> io::Result<String> {
-            let mut file = try!(File::open(assets.join(path)));
-            let mut buffer = String::new();
-            try!(file.read_to_string(&mut buffer));
-
-            Ok(buffer)
-        };
-
-        let flat_shaded_vert    = load_shader(&assets, "shaders/flat_shaded.v.glsl").unwrap();
-        let flat_shaded_frag    = load_shader(&assets, "shaders/flat_shaded.f.glsl").unwrap();
-        let text_vert           = load_shader(&assets, "shaders/text.v.glsl").unwrap();
-        let text_frag           = load_shader(&assets, "shaders/text.f.glsl").unwrap();
-        let unshaded_vert       = load_shader(&assets, "shaders/unshaded.v.glsl").unwrap();
-        let unshaded_frag       = load_shader(&assets, "shaders/unshaded.f.glsl").unwrap();
-
-        let flat_shaded_program = Program::from_source(&display, &flat_shaded_vert, &flat_shaded_frag, None).unwrap();
-        let text_program        = Program::from_source(&display, &text_vert, &text_frag, None).unwrap();
-        let unshaded_program    = Program::from_source(&display, &unshaded_vert, &unshaded_frag, None).unwrap();
-
-        let blogger_sans_font = {
-            let mut file = File::open(assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap();
-            let mut buffer = vec![];
-            file.read_to_end(&mut buffer).unwrap();
-
-            let font_collection = FontCollection::from_bytes(buffer);
-            font_collection.into_font().unwrap()
-        };
-
-        Resources {
-            context: display.get_context().clone(),
-
-            planet_vertex_buffer: VertexBuffer::new(&display, &create_vertices(&state.create_subdivided_planet_mesh())).unwrap(),
-            index_buffer: NoIndices(PrimitiveType::TrianglesList),
-
-            text_vertex_buffer: VertexBuffer::new(&display, &text::TEXTURE_VERTICES).unwrap(),
-            text_index_buffer: IndexBuffer::new(&display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
-
-            stars0_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&state.star_field.stars0)).unwrap(),
-            stars1_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&state.star_field.stars1)).unwrap(),
-            stars2_vertex_buffer: VertexBuffer::new(&display, &create_star_vertices(&state.star_field.stars2)).unwrap(),
-
-            flat_shaded_program: flat_shaded_program,
-            text_program: text_program,
-            unshaded_program: unshaded_program,
-
-            blogger_sans_font: blogger_sans_font,
-        }
-    };
+    let mut state = init_state();
+    let display = init_display(&state);
+    let resources = init_resources(&display, &state);
 
     let mut ui_context = UiContext::new();
     let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
@@ -485,7 +436,7 @@ fn main() {
         let delta_time = time.delta() as f32;
 
         ui_context.update(display_events.iter(), hidpi_factor);
-        let (ui, ui_events) = build_ui(&mut ui_context, &mut state);
+        let (ui, ui_events) = build_ui(&mut ui_context, &state);
 
         let events = display_events.into_iter()
             .map(Event::from)
