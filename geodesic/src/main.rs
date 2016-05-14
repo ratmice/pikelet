@@ -18,6 +18,7 @@ use glium::index::{PrimitiveType, NoIndices};
 use imgui::Ui;
 use rand::{Rand, Rng};
 use rayon::prelude::*;
+use std::iter::FromIterator;
 use std::mem;
 use std::thread;
 use std::time::Duration;
@@ -476,7 +477,7 @@ fn main() {
     for time in times::in_seconds() {
         // FIXME: lots of confusing mutations if the event buffer...
 
-        let display_events: Vec<_> = display.poll_events().collect();
+        let display_events = Vec::from_iter(display.poll_events());
 
         let window = display.get_window().unwrap();
         let window_dimensions = window.get_inner_size_points().unwrap();
