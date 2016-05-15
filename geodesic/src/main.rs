@@ -350,12 +350,8 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
     // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK).unwrap();
 }
 
-fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>, Vec<Event>) {
+fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Ui<'a>, Vec<Event>) {
     use input::Event::*;
-
-    if !state.is_showing_ui {
-        return (None, vec![]);
-    }
 
     let ui = ui_context.frame(state.window_dimensions, state.delta_time);
     let mut events = vec![];
@@ -414,7 +410,7 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
         events.push(SetUiCapturingMouse(ui.want_capture_mouse()));
     }
 
-    (Some(ui), events)
+    (ui, events)
 }
 
 fn main() {
@@ -424,23 +420,18 @@ fn main() {
 
     let mut ui_context = UiContext::new();
     let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
+    let mut events = Vec::new();
 
     for time in times::in_seconds() {
-        // FIXME: lots of confusing mutations if the event buffer...
-
-        let display_events = Vec::from_iter(display.poll_events());
-
         let window = display.get_window().unwrap();
         let window_dimensions = window.get_inner_size_points().unwrap();
         let hidpi_factor = window.hidpi_factor();
         let delta_time = time.delta() as f32;
 
+        // FIXME: lots of confusing mutations if the event buffer...
+        let display_events = Vec::from_iter(display.poll_events());
         ui_context.update(display_events.iter(), hidpi_factor);
-        let (ui, ui_events) = build_ui(&mut ui_context, &state);
-
-        let events = display_events.into_iter()
-            .map(Event::from)
-            .chain(ui_events);
+        events.extend(display_events.into_iter().map(Event::from));
 
         match state.update(events, window_dimensions, delta_time) {
             Loop::Break => break,
@@ -449,8 +440,12 @@ fn main() {
 
                 render_scene(&mut frame, &state, &resources, hidpi_factor);
 
-                if let Some(ui) = ui {
+                if state.is_showing_ui {
+                    let (ui, new_ui_events) = build_ui(&mut ui_context, &state);
                     ui_renderer.render(&mut frame, ui, hidpi_factor).unwrap();
+                    events = new_ui_events;
+                } else {
+                    events = Vec::new();
                 }
 
                 frame.finish().unwrap()
