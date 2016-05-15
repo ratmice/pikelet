@@ -40,43 +40,6 @@ pub mod times;
 pub mod render;
 pub mod ui;
 
-fn init_state() -> State {
-    State {
-        delta_time: 0.0,
-        frames_per_second: 0.0,
-
-        is_wireframe: false,
-        is_showing_star_field: true,
-        is_showing_ui: true,
-        is_dragging: false,
-        is_ui_capturing_mouse: false,
-        is_zooming: false,
-
-        light_dir: Vector3::new(0.0, 1.0, 0.2),
-
-        window_title: "Geodesic Test".to_string(),
-        mouse_position: Point2::origin(),
-        window_dimensions: (1000, 500),
-
-        camera_rotation: Rad::new(0.0),
-        camera_rotation_delta: Rad::new(0.0),
-        camera_xz_radius: 2.0,
-        camera_y_height: 1.0,
-        camera_near: 0.1,
-        camera_far: 1000.0,
-        camera_zoom_factor: 10.0,
-        camera_drag_factor: 10.0,
-
-        star_field: StarField::generate(),
-        star0_size: 1.0,
-        star1_size: 2.5,
-        star2_size: 5.0,
-
-        planet_radius: 1.0,
-        planet_subdivs: 3,
-    }
-}
-
 fn init_display(state: &State) -> glium::Display {
     use glium::glutin::WindowBuilder;
 
@@ -226,6 +189,43 @@ struct State {
 }
 
 impl State {
+    fn init() -> State {
+        State {
+            delta_time: 0.0,
+            frames_per_second: 0.0,
+
+            is_wireframe: false,
+            is_showing_star_field: true,
+            is_showing_ui: true,
+            is_dragging: false,
+            is_ui_capturing_mouse: false,
+            is_zooming: false,
+
+            light_dir: Vector3::new(0.0, 1.0, 0.2),
+
+            window_title: "Geodesic Test".to_string(),
+            mouse_position: Point2::origin(),
+            window_dimensions: (1000, 500),
+
+            camera_rotation: Rad::new(0.0),
+            camera_rotation_delta: Rad::new(0.0),
+            camera_xz_radius: 2.0,
+            camera_y_height: 1.0,
+            camera_near: 0.1,
+            camera_far: 1000.0,
+            camera_zoom_factor: 10.0,
+            camera_drag_factor: 10.0,
+
+            star_field: StarField::generate(),
+            star0_size: 1.0,
+            star1_size: 2.5,
+            star2_size: 5.0,
+
+            planet_radius: 1.0,
+            planet_subdivs: 3,
+        }
+    }
+
     fn apply_mouse_update(&mut self, new_position: Point2<i32>) {
         let mouse_position_delta = {
             let old_position = mem::replace(&mut self.mouse_position, new_position);
@@ -266,7 +266,7 @@ impl State {
                 SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
                 SetWireframe(value) => self.is_wireframe = value,
                 ToggleUi => self.is_showing_ui = !self.is_showing_ui,
-                ResetState => *self = init_state(),
+                ResetState => *self = State::init(),
                 DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
                 DragEnd => self.is_dragging = false,
                 ZoomStart => self.is_zooming = true,
@@ -410,7 +410,7 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
 }
 
 fn main() {
-    let mut state = init_state();
+    let mut state = State::init();
     let display = init_display(&state);
     let resources = init_resources(&display, &state);
 
