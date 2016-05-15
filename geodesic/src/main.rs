@@ -282,20 +282,28 @@ impl State {
         Loop::Continue
     }
 
-    fn create_scene_camera(&self, (frame_width, frame_height): (u32, u32)) -> ComputedCamera {
+    fn scene_camera_position(&self) -> Point3<f32> {
+        Point3 {
+            x: Rad::sin(self.camera_rotation) * self.camera_xz_radius,
+            y: self.camera_y_height,
+            z: Rad::cos(self.camera_rotation) * self.camera_xz_radius,
+        }
+    }
+
+    fn scene_camera_projection(&self, (frame_width, frame_height): (u32, u32)) -> PerspectiveFov<f32> {
+        PerspectiveFov {
+            aspect: frame_width as f32 / frame_height as f32,
+            fovy: Rad::full_turn() / 6.0,
+            near: self.camera_near,
+            far: self.camera_far,
+        }
+    }
+
+    fn create_scene_camera(&self, frame_dimensions: (u32, u32)) -> ComputedCamera {
         Camera {
-            position: Point3 {
-                x: Rad::sin(self.camera_rotation) * self.camera_xz_radius,
-                y: self.camera_y_height,
-                z: Rad::cos(self.camera_rotation) * self.camera_xz_radius,
-            },
+            position: self.scene_camera_position(),
             target: Point3::origin(),
-            projection: PerspectiveFov {
-                aspect: frame_width as f32 / frame_height as f32,
-                fovy: Rad::full_turn() / 6.0,
-                near: self.camera_near,
-                far: self.camera_far,
-            },
+            projection: self.scene_camera_projection(frame_dimensions),
         }.compute()
     }
 
