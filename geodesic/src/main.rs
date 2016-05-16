@@ -227,20 +227,18 @@ impl State {
     }
 
     fn apply_mouse_update(&mut self, new_position: Point2<i32>) {
-        let mouse_position_delta = {
-            let old_position = mem::replace(&mut self.mouse_position, new_position);
-            new_position - old_position
-        };
+        let old_position = mem::replace(&mut self.mouse_position, new_position);
+        let mouse_delta = new_position - old_position;
 
         if !self.is_ui_capturing_mouse {
             if self.is_dragging {
                 let (window_width, _) = self.window_dimensions;
-                let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * self.camera_drag_factor;
+                let rotations_per_second = (mouse_delta.x as f32 / window_width as f32) * self.camera_drag_factor;
                 self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.delta_time;
             }
 
             if self.is_zooming {
-                let zoom_delta = mouse_position_delta.x as f32 * self.delta_time;
+                let zoom_delta = mouse_delta.x as f32 * self.delta_time;
                 self.camera_xz_radius = self.camera_xz_radius - (zoom_delta * self.camera_zoom_factor);
             }
         }
