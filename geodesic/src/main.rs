@@ -251,10 +251,6 @@ impl State {
         self.window_dimensions = window_dimensions;
         self.frames_per_second = 1.0 / delta_time;
 
-        if self.is_dragging {
-            self.camera_rotation_delta = Rad::new(0.0);
-        }
-
         for event in events {
             use input::Event::*;
 
@@ -275,7 +271,10 @@ impl State {
             }
         }
 
-        self.camera_rotation = self.camera_rotation - self.camera_rotation_delta;
+        self.camera_rotation -= self.camera_rotation_delta;
+        if self.is_dragging {
+            self.camera_rotation_delta = Rad::new(0.0);
+        }
 
         Loop::Continue
     }
