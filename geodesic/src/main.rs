@@ -15,7 +15,6 @@ use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
 use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
 use glium::index::{PrimitiveType, NoIndices};
-use imgui::Ui;
 use rayon::prelude::*;
 use std::iter::FromIterator;
 use std::mem;
@@ -167,6 +166,7 @@ struct State {
     window_title: String,
     mouse_position: Point2<i32>,
     window_dimensions: (u32, u32),
+    hidpi_factor: f32,
 
     light_dir: Vector3<f32>,
 
@@ -206,6 +206,7 @@ impl State {
             window_title: "Geodesic Test".to_string(),
             mouse_position: Point2::origin(),
             window_dimensions: (1000, 500),
+            hidpi_factor: 1.0,
 
             camera_rotation: Rad::new(0.0),
             camera_rotation_delta: Rad::new(0.0),
@@ -244,11 +245,12 @@ impl State {
         }
     }
 
-    fn update<Events>(&mut self, events: Events, window_dimensions: (u32, u32), delta_time: f32) -> Loop where
+    fn update<Events>(&mut self, events: Events, window_dimensions: (u32, u32), hidpi_factor: f32, delta_time: f32) -> Loop where
         Events: IntoIterator<Item = Event>,
     {
         self.delta_time = delta_time;
         self.window_dimensions = window_dimensions;
+        self.hidpi_factor = hidpi_factor;
         self.frames_per_second = 1.0 / delta_time;
 
         for event in events {
@@ -347,7 +349,10 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
     // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK).unwrap();
 }
 
-fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Ui<'a>, Vec<Event>) {
+fn render_ui(frame: &mut Frame,
+             ui_context: &mut UiContext,
+             ui_renderer: &mut ui::Renderer,
+             state: &State) -> Vec<Event> {
     use input::Event::*;
 
     let ui = ui_context.frame(state.window_dimensions, state.delta_time);
@@ -407,7 +412,9 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Ui<'a>, Vec<Ev
         events.push(SetUiCapturingMouse(ui.want_capture_mouse()));
     }
 
-    (ui, events)
+    ui_renderer.render(frame, ui, state.hidpi_factor).unwrap();
+
+    events
 }
 
 fn main() {
@@ -417,7 +424,7 @@ fn main() {
 
     let mut ui_context = UiContext::new();
     let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
-    let mut events = Vec::new();
+    let mut ui_events = Vec::new();
 
     for time in times::in_seconds() {
         let window = display.get_window().unwrap();
@@ -428,9 +435,9 @@ fn main() {
         // FIXME: lots of confusing mutations if the event buffer...
         let display_events = Vec::from_iter(display.poll_events());
         ui_context.update(display_events.iter(), hidpi_factor);
-        events.extend(display_events.into_iter().map(Event::from));
+        let events = ui_events.into_iter().chain(display_events.into_iter().map(Event::from));
 
-        match state.update(events, window_dimensions, delta_time) {
+        match state.update(events, window_dimensions, hidpi_factor, delta_time) {
             Loop::Break => break,
             Loop::Continue => {
                 let mut frame = display.draw();
@@ -438,11 +445,9 @@ fn main() {
                 render_scene(&mut frame, &state, &resources, hidpi_factor);
 
                 if state.is_showing_ui {
-                    let (ui, new_ui_events) = build_ui(&mut ui_context, &state);
-                    ui_renderer.render(&mut frame, ui, hidpi_factor).unwrap();
-                    events = new_ui_events;
+                    ui_events = render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state);
                 } else {
-                    events = Vec::new();
+                    ui_events = Vec::new();
                 }
 
                 frame.finish().unwrap()
