@@ -144,10 +144,10 @@ fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
     star_vertices
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 #[derive(PartialEq, Eq)]
 enum Loop {
-    Continue,
+    Continue(Vec<RenderEvent>),
     Break,
 }
 
@@ -247,6 +247,7 @@ impl State {
     fn update<Events>(&mut self, events: Events) -> Loop where
         Events: IntoIterator<Item = Event>,
     {
+        let mut render_events = vec![];
         for event in events {
             use input::Event::*;
 
@@ -275,12 +276,15 @@ impl State {
                 ZoomStart => self.is_zooming = true,
                 ZoomEnd => self.is_zooming = false,
                 MousePosition(position) => self.apply_mouse_update(position),
-                UpdatePlanetSubdivisions(planet_subdivs) => self.planet_subdivs = planet_subdivs,
+                UpdatePlanetSubdivisions(planet_subdivs) => {
+                    self.planet_subdivs = planet_subdivs;
+                    render_events.push(RenderEvent::RegeneratePlanet);
+                },
                 NoOp => {},
             }
         }
 
-        Loop::Continue
+        Loop::Continue(render_events)
     }
 
     fn scene_camera_position(&self) -> Point3<f32> {
@@ -317,6 +321,25 @@ impl State {
             .subdivide(self.planet_subdivs, &|a, b| {
                 math::midpoint_arc(self.planet_radius, a, b)
             })
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, Eq)]
+enum RenderEvent {
+    RegeneratePlanet,
+}
+
+fn apply_render_events<Events>(resources: &mut Resources, display: &glium::Display, state: &State, events: Events) where
+    Events: IntoIterator<Item = RenderEvent>,
+{
+    for event in events {
+        match event {
+            RenderEvent::RegeneratePlanet => {
+                resources.planet_vertex_buffer = VertexBuffer::new(display, &create_vertices(&state.create_subdivided_planet_mesh())).unwrap();
+                resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
+            },
+        }
     }
 }
 
@@ -419,7 +442,7 @@ fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui
 fn main() {
     let mut state = State::init();
     let display = init_display(&state);
-    let resources = init_resources(&display, &state);
+    let mut resources = init_resources(&display, &state);
 
     let mut ui_context = UiContext::new();
     let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
@@ -450,9 +473,10 @@ fn main() {
 
         match state.update(events) {
             Loop::Break => break,
-            Loop::Continue => {
+            Loop::Continue(render_events) => {
                 let mut frame = display.draw();
 
+                apply_render_events(&mut resources, &display, &state, render_events);
                 render_scene(&mut frame, &state, &resources);
 
                 if state.is_showing_ui {
