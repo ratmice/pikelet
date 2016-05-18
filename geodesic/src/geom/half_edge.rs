@@ -95,7 +95,10 @@ impl Mesh {
     pub fn subdivide<F>(&self, count: usize, midpoint_fn: &F) -> Mesh
         where F: Fn(Position, Position) -> Position
     {
-        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(&midpoint_fn))
+        (0..count).fold(self.clone(), |acc, level| {
+            println!("Performing subdivision {}/{}", level+1, count);
+            acc.subdivide_once(&midpoint_fn)
+        })
     }
 
     // NOTE: The method of subdivision is illustrated below:
@@ -115,6 +118,7 @@ impl Mesh {
         const RESERVATION_FACTOR: usize = 4;
 
         let mut new_positions: HashMap<EdgeIndex, PositionIndex> = HashMap::new();
+        let mut split_edges: HashMap<EdgeIndex, (EdgeIndex, EdgeIndex)> = HashMap::new();
 
         let mut positions = self.positions.clone();
         let mut edges = Vec::with_capacity(self.edges.len() * RESERVATION_FACTOR);
@@ -122,11 +126,22 @@ impl Mesh {
 
         // Create Points for all mid points
         for (index, edge) in self.edges.iter().enumerate() {
+            if new_positions.contains_key(&index) {
+                continue;
+            }
+            
             let mp = self.edge_midpoint(edge, midpoint_fn);
             let mp_index = positions.len();
-            new_positions.insert(index, mp_index);
             positions.push(mp);
-            // TODO: we are duplicating points!
+
+            new_positions.insert(index, mp_index.clone());
+            // Uncomment to break stuff
+            // match edge.adjacent {
+            //     Some(adjacent_index) => {
+            //         new_positions.insert(adjacent_index.clone(), mp_index.clone());
+            //     }
+            //     None => ()
+            // }
         }
 
         // Create our new faces
@@ -167,9 +182,46 @@ impl Mesh {
             faces.push(make_face(f1, e3,  e4,  e5, p3, p1, p4, &mut edges)); // face 1
             faces.push(make_face(f2, e6,  e7,  e8, p3, p4, p5, &mut edges)); // face 2
             faces.push(make_face(f3, e9, e10, e11, p5, p4, p2, &mut edges)); // face 3
+            
+
+            split_edges.insert(in_e0.clone(), (e0.clone(), e3.clone()));
+            split_edges.insert(in_e1.clone(), (e4.clone(), e10.clone()));
+            split_edges.insert(in_e2.clone(), (e11.clone(), e2.clone()));
+            
+
+            ///////////////////////////////////////////////////////////////
+            // Setup adjacency for internal edges (info we already have)
+
+            // Face 0
+            // edges[e0]
+            edges[e1].adjacent = Some(e6.clone());
+            // edges[e2]
+            
+            // Face 1
+            // edges[e3]
+            // edges[e4]
+            edges[e5].adjacent = Some(e7.clone());
+            
+            // Face 2
+            edges[e6].adjacent = Some(e1.clone());
+            edges[e7].adjacent = Some(e5.clone());
+            edges[e8].adjacent = Some(e9.clone());
+
+            // Face 3
+            edges[e9].adjacent = Some(e8.clone());
+            // edges[e10]
+            // edges[e11]
         }
 
-        // TODO: adjacency determination
+        assert!(split_edges.len() == self.edges.len());
+        
+        // Update adjacency for remaining edges
+        for (index, &(a, b)) in split_edges.iter() {
+            let adjacent_edge = self.edges[*index].adjacent.unwrap().clone();
+            let &(b_adjacent, a_adjacent) = split_edges.get(&adjacent_edge).unwrap();
+            edges[a].adjacent = Some(a_adjacent);
+            edges[b].adjacent = Some(b_adjacent);
+        }
 
         Mesh {
             positions: positions,
@@ -191,9 +243,13 @@ fn make_face(f: FaceIndex, e0: EdgeIndex, e1: EdgeIndex, e2: EdgeIndex,
              p0: PositionIndex, p1: PositionIndex, p2: PositionIndex,
              edges: &mut Vec<HalfEdge>) -> Face
 {
+    //println!("Making face for {} -> {} -> {}", e0, e1, e2);
     edges.push(HalfEdge::new_boundary(p0.clone(), f.clone(), e1.clone()));
+    assert!(edges.len() == e0+1);
     edges.push(HalfEdge::new_boundary(p1.clone(), f.clone(), e2.clone()));
+    assert!(edges.len() == e1+1);
     edges.push(HalfEdge::new_boundary(p2.clone(), f.clone(), e0.clone()));
+    assert!(edges.len() == e2+1);
 
     Face::new(e0)
 }
