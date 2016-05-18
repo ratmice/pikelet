@@ -1,7 +1,6 @@
 use cgmath::prelude::*;
 use cgmath::{One, Zero, BaseFloat};
 use cgmath::{Point3, Rad, Vector3};
-use num_traits::Float;
 use rand::{Rand, Rng};
 use rand::distributions::range::SampleRange;
 

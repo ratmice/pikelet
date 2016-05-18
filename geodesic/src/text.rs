@@ -1,5 +1,4 @@
 use cgmath::{Matrix4, Point2};
-use glium::Surface;
 use glium::texture::{ClientFormat, RawImage2d, Texture2dDataSource};
 use rusttype::{self, Font, Scale};
 use std::borrow::Cow;

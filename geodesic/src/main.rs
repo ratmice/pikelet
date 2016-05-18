@@ -15,9 +15,7 @@ use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
 use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
 use glium::index::{PrimitiveType, NoIndices};
-use imgui::Ui;
 use rayon::prelude::*;
-use std::iter::FromIterator;
 use std::mem;
 use std::thread;
 use std::time::Duration;
@@ -39,43 +37,6 @@ pub mod text;
 pub mod times;
 pub mod render;
 pub mod ui;
-
-fn init_state() -> State {
-    State {
-        delta_time: 0.0,
-        frames_per_second: 0.0,
-
-        is_wireframe: false,
-        is_showing_star_field: true,
-        is_showing_ui: true,
-        is_dragging: false,
-        is_ui_capturing_mouse: false,
-        is_zooming: false,
-
-        light_dir: Vector3::new(0.0, 1.0, 0.2),
-
-        window_title: "Geodesic Test".to_string(),
-        mouse_position: Point2::origin(),
-        window_dimensions: (1000, 500),
-
-        camera_rotation: Rad::new(0.0),
-        camera_rotation_delta: Rad::new(0.0),
-        camera_xz_radius: 2.0,
-        camera_y_height: 1.0,
-        camera_near: 0.1,
-        camera_far: 1000.0,
-        camera_zoom_factor: 10.0,
-        camera_drag_factor: 10.0,
-
-        star_field: StarField::generate(),
-        star0_size: 1.0,
-        star1_size: 2.5,
-        star2_size: 5.0,
-
-        planet_radius: 1.0,
-        planet_subdivs: 3,
-    }
-}
 
 fn init_display(state: &State) -> glium::Display {
     use glium::glutin::WindowBuilder;
@@ -204,6 +165,7 @@ struct State {
     window_title: String,
     mouse_position: Point2<i32>,
     window_dimensions: (u32, u32),
+    hidpi_factor: f32,
 
     light_dir: Vector3<f32>,
 
@@ -226,84 +188,123 @@ struct State {
 }
 
 impl State {
+    fn init() -> State {
+        State {
+            delta_time: 0.0,
+            frames_per_second: 0.0,
+
+            is_wireframe: false,
+            is_showing_star_field: true,
+            is_showing_ui: true,
+            is_dragging: false,
+            is_ui_capturing_mouse: false,
+            is_zooming: false,
+
+            light_dir: Vector3::new(0.0, 1.0, 0.2),
+
+            window_title: "Geodesic Test".to_string(),
+            mouse_position: Point2::origin(),
+            window_dimensions: (1000, 500),
+            hidpi_factor: 1.0,
+
+            camera_rotation: Rad::new(0.0),
+            camera_rotation_delta: Rad::new(0.0),
+            camera_xz_radius: 2.0,
+            camera_y_height: 1.0,
+            camera_near: 0.1,
+            camera_far: 1000.0,
+            camera_zoom_factor: 10.0,
+            camera_drag_factor: 10.0,
+
+            star_field: StarField::generate(),
+            star0_size: 1.0,
+            star1_size: 2.5,
+            star2_size: 5.0,
+
+            planet_radius: 1.0,
+            planet_subdivs: 3,
+        }
+    }
+
     fn apply_mouse_update(&mut self, new_position: Point2<i32>) {
-        let mouse_position_delta = {
-            let old_position = mem::replace(&mut self.mouse_position, new_position);
-            new_position - old_position
-        };
+        let old_position = mem::replace(&mut self.mouse_position, new_position);
+        let mouse_delta = new_position - old_position;
 
         if !self.is_ui_capturing_mouse {
             if self.is_dragging {
                 let (window_width, _) = self.window_dimensions;
-                let rotations_per_second = (mouse_position_delta.x as f32 / window_width as f32) * self.camera_drag_factor;
+                let rotations_per_second = (mouse_delta.x as f32 / window_width as f32) * self.camera_drag_factor;
                 self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.delta_time;
             }
 
             if self.is_zooming {
-                let zoom_delta = mouse_position_delta.x as f32 * self.delta_time;
+                let zoom_delta = mouse_delta.x as f32 * self.delta_time;
                 self.camera_xz_radius = self.camera_xz_radius - (zoom_delta * self.camera_zoom_factor);
             }
         }
     }
 
-    fn apply_event_update(&mut self, event: Event) -> Loop {
-        use input::Event::*;
-
-        match event {
-            CloseApp => return Loop::Break,
-            SetShowingStarField(value) => self.is_showing_star_field = value,
-            SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
-            SetWireframe(value) => self.is_wireframe = value,
-            ToggleUi => self.is_showing_ui = !self.is_showing_ui,
-            ResetState => *self = init_state(),
-            DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
-            DragEnd => self.is_dragging = false,
-            ZoomStart => self.is_zooming = true,
-            ZoomEnd => self.is_zooming = false,
-            MousePosition(position) => self.apply_mouse_update(position),
-            UpdatePlanetSubdivisions(planet_subdivs) => self.planet_subdivs = planet_subdivs,
-            NoOp => {},
-        }
-
-        Loop::Continue
-    }
-
-    fn update<Events>(&mut self, events: Events, window_dimensions: (u32, u32), delta_time: f32) -> Loop where
+    fn update<Events>(&mut self, events: Events) -> Loop where
         Events: IntoIterator<Item = Event>,
     {
-        self.delta_time = delta_time;
-        self.window_dimensions = window_dimensions;
-        self.frames_per_second = 1.0 / delta_time;
-
-        if self.is_dragging {
-            self.camera_rotation_delta = Rad::new(0.0);
-        }
-
         for event in events {
-            if self.apply_event_update(event) == Loop::Break {
-                return Loop::Break;
+            use input::Event::*;
+
+            match event {
+                TickStart { window_dimensions, hidpi_factor, delta_time } => {
+                    self.delta_time = delta_time;
+                    self.window_dimensions = window_dimensions;
+                    self.hidpi_factor = hidpi_factor;
+                    self.frames_per_second = 1.0 / delta_time;
+
+                    if self.is_dragging {
+                        self.camera_rotation_delta = Rad::new(0.0);
+                    }
+                },
+                TickEnd => {
+                    self.camera_rotation -= self.camera_rotation_delta;
+                }
+                CloseApp => return Loop::Break,
+                SetShowingStarField(value) => self.is_showing_star_field = value,
+                SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
+                SetWireframe(value) => self.is_wireframe = value,
+                ToggleUi => self.is_showing_ui = !self.is_showing_ui,
+                ResetState => *self = State::init(),
+                DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
+                DragEnd => self.is_dragging = false,
+                ZoomStart => self.is_zooming = true,
+                ZoomEnd => self.is_zooming = false,
+                MousePosition(position) => self.apply_mouse_update(position),
+                UpdatePlanetSubdivisions(planet_subdivs) => self.planet_subdivs = planet_subdivs,
+                NoOp => {},
             }
         }
 
-        self.camera_rotation = self.camera_rotation - self.camera_rotation_delta;
-
         Loop::Continue
     }
 
-    fn create_scene_camera(&self, (frame_width, frame_height): (u32, u32)) -> ComputedCamera {
+    fn scene_camera_position(&self) -> Point3<f32> {
+        Point3 {
+            x: Rad::sin(self.camera_rotation) * self.camera_xz_radius,
+            y: self.camera_y_height,
+            z: Rad::cos(self.camera_rotation) * self.camera_xz_radius,
+        }
+    }
+
+    fn scene_camera_projection(&self, (frame_width, frame_height): (u32, u32)) -> PerspectiveFov<f32> {
+        PerspectiveFov {
+            aspect: frame_width as f32 / frame_height as f32,
+            fovy: Rad::full_turn() / 6.0,
+            near: self.camera_near,
+            far: self.camera_far,
+        }
+    }
+
+    fn create_scene_camera(&self, frame_dimensions: (u32, u32)) -> ComputedCamera {
         Camera {
-            position: Point3 {
-                x: Rad::sin(self.camera_rotation) * self.camera_xz_radius,
-                y: self.camera_y_height,
-                z: Rad::cos(self.camera_rotation) * self.camera_xz_radius,
-            },
+            position: self.scene_camera_position(),
             target: Point3::origin(),
-            projection: PerspectiveFov {
-                aspect: frame_width as f32 / frame_height as f32,
-                fovy: Rad::full_turn() / 6.0,
-                near: self.camera_near,
-                far: self.camera_far,
-            },
+            projection: self.scene_camera_projection(frame_dimensions),
         }.compute()
     }
 
@@ -319,12 +320,12 @@ impl State {
     }
 }
 
-fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_factor: f32) {
+fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
     let frame_dimensions = frame.get_dimensions();
 
     let mut target = RenderTarget {
         frame: frame,
-        hidpi_factor: hidpi_factor,
+        hidpi_factor: state.hidpi_factor,
         resources: resources,
         camera: state.create_scene_camera(frame_dimensions),
         hud_matrix: state.create_hud_camera(frame_dimensions),
@@ -350,12 +351,8 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources, hidpi_f
     // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK).unwrap();
 }
 
-fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>, Vec<Event>) {
+fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui::Renderer, state: &State) -> Vec<Event> {
     use input::Event::*;
-
-    if !state.is_showing_ui {
-        return (None, vec![]);
-    }
 
     let ui = ui_context.frame(state.window_dimensions, state.delta_time);
     let mut events = vec![];
@@ -414,43 +411,54 @@ fn build_ui<'a>(ui_context: &'a mut UiContext, state: &State) -> (Option<Ui<'a>>
         events.push(SetUiCapturingMouse(ui.want_capture_mouse()));
     }
 
-    (Some(ui), events)
+    ui_renderer.render(frame, ui, state.hidpi_factor).unwrap();
+
+    events
 }
 
 fn main() {
-    let mut state = init_state();
+    let mut state = State::init();
     let display = init_display(&state);
     let resources = init_resources(&display, &state);
 
     let mut ui_context = UiContext::new();
     let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
+    let mut ui_events = Vec::new();
 
     for time in times::in_seconds() {
-        // FIXME: lots of confusing mutations if the event buffer...
-
-        let display_events = Vec::from_iter(display.poll_events());
+        use std::iter::{self, FromIterator};
+        use input::Event::*;
 
         let window = display.get_window().unwrap();
-        let window_dimensions = window.get_inner_size_points().unwrap();
-        let hidpi_factor = window.hidpi_factor();
-        let delta_time = time.delta() as f32;
+        let display_events = Vec::from_iter(display.poll_events());
 
-        ui_context.update(display_events.iter(), hidpi_factor);
-        let (ui, ui_events) = build_ui(&mut ui_context, &state);
+        if state.is_showing_ui {
+            ui_context.update(display_events.iter(), window.hidpi_factor());
+        }
 
-        let events = display_events.into_iter()
-            .map(Event::from)
-            .chain(ui_events);
+        let tick_start = TickStart {
+            window_dimensions: window.get_inner_size_points().unwrap(),
+            hidpi_factor: window.hidpi_factor(),
+            delta_time: time.delta() as f32,
+        };
 
-        match state.update(events, window_dimensions, delta_time) {
+        let events =
+            iter::once(tick_start)
+                .chain(ui_events)
+                .chain(display_events.into_iter().map(Event::from))
+                .chain(iter::once(TickEnd));
+
+        match state.update(events) {
             Loop::Break => break,
             Loop::Continue => {
                 let mut frame = display.draw();
 
-                render_scene(&mut frame, &state, &resources, hidpi_factor);
+                render_scene(&mut frame, &state, &resources);
 
-                if let Some(ui) = ui {
-                    ui_renderer.render(&mut frame, ui, hidpi_factor).unwrap();
+                if state.is_showing_ui {
+                    ui_events = render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state);
+                } else {
+                    ui_events = Vec::new();
                 }
 
                 frame.finish().unwrap()
