@@ -95,8 +95,7 @@ impl Mesh {
     pub fn subdivide<F>(&self, count: usize, midpoint_fn: &F) -> Mesh
         where F: Fn(Position, Position) -> Position
     {
-        (0..count).fold(self.clone(), |acc, level| {
-            println!("Performing subdivision {}/{}", level+1, count);
+        (0..count).fold(self.clone(), |acc, _| {
             acc.subdivide_once(&midpoint_fn)
         })
     }
@@ -135,13 +134,13 @@ impl Mesh {
             positions.push(mp);
 
             new_positions.insert(index, mp_index);
-            // Uncomment to break stuff
-            // match edge.adjacent {
-            //     Some(adjacent_index) => {
-            //         new_positions.insert(adjacent_index, mp_index);
-            //     },
-            //     None => {},
-            // }
+            
+            match edge.adjacent {
+                Some(adjacent_index) => {
+                    new_positions.insert(adjacent_index, mp_index);
+                },
+                None => {},
+            }
         }
 
         // Create our new faces

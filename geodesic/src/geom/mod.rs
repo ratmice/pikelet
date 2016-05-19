@@ -16,10 +16,8 @@ mod tests {
         let e1p0 = e1.position.clone();
         let e1p1 = mesh.edges[e1.next].position.clone();
 
-        assert_eq!(mesh.positions[e0p0],
-                   mesh.positions[e1p1]);
-        assert_eq!(mesh.positions[e0p1],
-                   mesh.positions[e1p0]);
+        assert_eq!(e0p0, e1p1);
+        assert_eq!(e0p1, e1p0);
     }
 
     fn assert_congruent_adjacency(index: &half_edge::EdgeIndex, edge: &half_edge::HalfEdge,
@@ -88,6 +86,18 @@ mod tests {
         let icosahedron = primitives::icosahedron(planet_radius);
         let mesh = icosahedron.subdivide(subdivisions, &|a, b| {
                 math::midpoint_arc(planet_radius, a, b)
+            });
+        assert_congruent_nonboundary_mesh(&mesh);
+    }
+
+    #[test]
+    fn subdivided_tetrahedron() {
+        let subdivisions: usize = 3;
+        let scale: f32 = 1.0;
+
+        let tetrahedron = primitives::tetrahedron(scale);
+        let mesh = tetrahedron.subdivide(subdivisions, &|a, b| {
+                math::midpoint(a, b)
             });
         assert_congruent_nonboundary_mesh(&mesh);
     }
