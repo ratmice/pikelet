@@ -194,21 +194,21 @@ impl Mesh {
 
             // Face 0
             // edges[e0]
-            edges[e1].adjacent = Some(e6);
+            edges[e1].adjacent = Some(e8);
             // edges[e2]
 
             // Face 1
             // edges[e3]
             // edges[e4]
-            edges[e5].adjacent = Some(e7);
+            edges[e5].adjacent = Some(e6);
 
             // Face 2
-            edges[e6].adjacent = Some(e1);
-            edges[e7].adjacent = Some(e5);
-            edges[e8].adjacent = Some(e9);
+            edges[e6].adjacent = Some(e5);
+            edges[e7].adjacent = Some(e9);
+            edges[e8].adjacent = Some(e1);
 
             // Face 3
-            edges[e9].adjacent = Some(e8);
+            edges[e9].adjacent = Some(e7);
             // edges[e10]
             // edges[e11]
         }
@@ -217,7 +217,11 @@ impl Mesh {
 
         // Update adjacency for remaining edges
         for (index, &(a, b)) in split_edges.iter() {
-            let adjacent_edge = self.edges[*index].adjacent.unwrap();
+            let ref edge = self.edges[*index];
+            if edge.is_boundary() {
+                continue;
+            }
+            let adjacent_edge = edge.adjacent.unwrap();
             let &(b_adjacent, a_adjacent) = split_edges.get(&adjacent_edge).unwrap();
             edges[a].adjacent = Some(a_adjacent);
             edges[b].adjacent = Some(b_adjacent);
