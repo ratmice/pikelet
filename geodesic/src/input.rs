@@ -2,8 +2,7 @@ use cgmath::Point2;
 use glium::glutin;
 
 pub enum Event {
-    TickStart { window_dimensions: (u32, u32), hidpi_factor: f32, delta_time: f32 },
-    TickEnd,
+    Tick { window_dimensions: (u32, u32), hidpi_factor: f32, delta_time: f32 },
     CloseApp,
     SetShowingStarField(bool),
     SetUiCapturingMouse(bool),

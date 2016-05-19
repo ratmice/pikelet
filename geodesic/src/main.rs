@@ -252,19 +252,18 @@ impl State {
             use input::Event::*;
 
             match event {
-                TickStart { window_dimensions, hidpi_factor, delta_time } => {
+                Tick { window_dimensions, hidpi_factor, delta_time } => {
                     self.delta_time = delta_time;
                     self.window_dimensions = window_dimensions;
                     self.hidpi_factor = hidpi_factor;
                     self.frames_per_second = 1.0 / delta_time;
 
+                    self.camera_rotation -= self.camera_rotation_delta;
+
                     if self.is_dragging {
                         self.camera_rotation_delta = Rad::new(0.0);
                     }
                 },
-                TickEnd => {
-                    self.camera_rotation -= self.camera_rotation_delta;
-                }
                 CloseApp => return Loop::Break,
                 SetShowingStarField(value) => self.is_showing_star_field = value,
                 SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
@@ -459,17 +458,16 @@ fn main() {
             ui_context.update(display_events.iter(), window.hidpi_factor());
         }
 
-        let tick_start = TickStart {
+        let tick = Tick {
             window_dimensions: window.get_inner_size_points().unwrap(),
             hidpi_factor: window.hidpi_factor(),
             delta_time: time.delta() as f32,
         };
 
         let events =
-            iter::once(tick_start)
+            iter::once(tick)
                 .chain(ui_events)
-                .chain(display_events.into_iter().map(Event::from))
-                .chain(iter::once(TickEnd));
+                .chain(display_events.into_iter().map(Event::from));
 
         match state.update(events) {
             Loop::Break => break,
