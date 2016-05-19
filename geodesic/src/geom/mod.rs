@@ -93,6 +93,18 @@ mod tests {
     }
 
     #[test]
+    fn subdivided_tetrahedron() {
+        let subdivisions: usize = 3;
+        let scale: f32 = 1.0;
+
+        let tetrahedron = primitives::tetrahedron(scale);
+        let mesh = tetrahedron.subdivide(subdivisions, &|a, b| {
+                math::midpoint(a, b)
+            });
+        assert_congruent_nonboundary_mesh(&mesh);
+    }
+
+    #[test]
     fn subdivided_triangle() {
         let subdivisions: usize = 3;
         let scale: f32 = 1.0;

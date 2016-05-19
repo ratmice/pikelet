@@ -76,22 +76,22 @@ pub fn tetrahedron(scale: f32) -> Mesh {
     ];
 
     let edges = vec![
-        // Face 0
-        HalfEdge::new(0, 0,  1,  5),
-        HalfEdge::new(3, 0,  2, 11),
-        HalfEdge::new(1, 0,  0,  6),
+        // Face 0     // point, face, next, adj
+        HalfEdge::new(       0,    0,    1,  8), //  0
+        HalfEdge::new(       3,    0,    2, 10), //  1
+        HalfEdge::new(       1,    0,    0,  3), //  2
         // Face 1
-        HalfEdge::new(0, 1,  4,  8),
-        HalfEdge::new(1, 1,  5,  9),
-        HalfEdge::new(2, 1,  3,  0),
+        HalfEdge::new(       0,    1,    4,  2), //  3
+        HalfEdge::new(       1,    1,    5,  9), //  4
+        HalfEdge::new(       2,    1,    3,  6), //  5
         // Face 2
-        HalfEdge::new(0, 2,  7,  2),
-        HalfEdge::new(2, 2,  8, 10),
-        HalfEdge::new(3, 2,  6,  3),
+        HalfEdge::new(       0,    2,    7,  5), //  6
+        HalfEdge::new(       2,    2,    8, 11), //  7
+        HalfEdge::new(       3,    2,    6,  0), //  8
         // Face 3
-        HalfEdge::new(2, 3, 10,  4),
-        HalfEdge::new(1, 3, 11,  7),
-        HalfEdge::new(3, 3,  9,  1),
+        HalfEdge::new(       2,    3,   10,  4), //  9
+        HalfEdge::new(       1,    3,   11,  1), // 10
+        HalfEdge::new(       3,    3,    9,  7), // 11
     ];
 
     Mesh {
