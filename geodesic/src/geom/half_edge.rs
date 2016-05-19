@@ -134,12 +134,9 @@ impl Mesh {
             positions.push(mp);
 
             new_positions.insert(index, mp_index);
-            
-            match edge.adjacent {
-                Some(adjacent_index) => {
-                    new_positions.insert(adjacent_index, mp_index);
-                },
-                None => {},
+
+            if let Some(adjacent_index) = edge.adjacent {
+                new_positions.insert(adjacent_index, mp_index);
             }
         }
 
