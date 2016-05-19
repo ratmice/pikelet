@@ -244,42 +244,51 @@ impl State {
         }
     }
 
-    fn update<Events>(&mut self, events: Events) -> Loop where
+    fn update(&mut self, event: Event, render_events: &mut Vec<RenderEvent>) -> bool {
+        use input::Event::*;
+
+        match event {
+            Tick { window_dimensions, hidpi_factor, delta_time } => {
+                self.delta_time = delta_time;
+                self.window_dimensions = window_dimensions;
+                self.hidpi_factor = hidpi_factor;
+                self.frames_per_second = 1.0 / delta_time;
+
+                self.camera_rotation -= self.camera_rotation_delta;
+
+                if self.is_dragging {
+                    self.camera_rotation_delta = Rad::new(0.0);
+                }
+            },
+            CloseApp => return false,
+            SetShowingStarField(value) => self.is_showing_star_field = value,
+            SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
+            SetWireframe(value) => self.is_wireframe = value,
+            ToggleUi => self.is_showing_ui = !self.is_showing_ui,
+            ResetState => *self = State::init(),
+            DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
+            DragEnd => self.is_dragging = false,
+            ZoomStart => self.is_zooming = true,
+            ZoomEnd => self.is_zooming = false,
+            MousePosition(position) => self.apply_mouse_update(position),
+            UpdatePlanetSubdivisions(planet_subdivs) => {
+                self.planet_subdivs = planet_subdivs;
+                render_events.push(RenderEvent::RegeneratePlanet);
+            },
+            NoOp => {},
+        }
+
+        true
+    }
+
+    fn update_all<Events>(&mut self, events: Events) -> Loop where
         Events: IntoIterator<Item = Event>,
     {
         let mut render_events = vec![];
+
         for event in events {
-            use input::Event::*;
-
-            match event {
-                Tick { window_dimensions, hidpi_factor, delta_time } => {
-                    self.delta_time = delta_time;
-                    self.window_dimensions = window_dimensions;
-                    self.hidpi_factor = hidpi_factor;
-                    self.frames_per_second = 1.0 / delta_time;
-
-                    self.camera_rotation -= self.camera_rotation_delta;
-
-                    if self.is_dragging {
-                        self.camera_rotation_delta = Rad::new(0.0);
-                    }
-                },
-                CloseApp => return Loop::Break,
-                SetShowingStarField(value) => self.is_showing_star_field = value,
-                SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
-                SetWireframe(value) => self.is_wireframe = value,
-                ToggleUi => self.is_showing_ui = !self.is_showing_ui,
-                ResetState => *self = State::init(),
-                DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
-                DragEnd => self.is_dragging = false,
-                ZoomStart => self.is_zooming = true,
-                ZoomEnd => self.is_zooming = false,
-                MousePosition(position) => self.apply_mouse_update(position),
-                UpdatePlanetSubdivisions(planet_subdivs) => {
-                    self.planet_subdivs = planet_subdivs;
-                    render_events.push(RenderEvent::RegeneratePlanet);
-                },
-                NoOp => {},
+            if !self.update(event, &mut render_events) {
+                return Loop::Break;
             }
         }
 
@@ -469,7 +478,7 @@ fn main() {
                 .chain(ui_events)
                 .chain(display_events.into_iter().map(Event::from));
 
-        match state.update(events) {
+        match state.update_all(events) {
             Loop::Break => break,
             Loop::Continue(render_events) => {
                 let mut frame = display.draw();
