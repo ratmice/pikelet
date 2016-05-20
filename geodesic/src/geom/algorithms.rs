@@ -19,7 +19,7 @@ pub trait Subdivide {
 
 /// Implements Class I subdivision on `geom::Mesh` objects:
 ///
-/// ```sh
+/// ```text
 ///           v0         |  v0 ____v5____ v2 
 ///           /\         |    \    /\    /   
 ///          /  \        |     \  /  \  /    
@@ -171,7 +171,6 @@ fn make_face(f: FaceIndex, e0: EdgeIndex, e1: EdgeIndex, e2: EdgeIndex,
              p0: PositionIndex, p1: PositionIndex, p2: PositionIndex,
              edges: &mut Vec<Edge>) -> Face
 {
-    //println!("Making face for {} -> {} -> {}", e0, e1, e2);
     edges.push(Edge::new_boundary(p0, f, e1));
     assert_eq!(edges.len(), e0 + 1);
     edges.push(Edge::new_boundary(p1, f, e2));
