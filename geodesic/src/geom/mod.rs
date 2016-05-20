@@ -8,7 +8,7 @@ mod tests {
     use super::primitives;
     use super::half_edge;
 
-    fn assert_congruent_adjacenct_positions(e0: &half_edge::HalfEdge, e1: &half_edge::HalfEdge,
+    fn assert_congruent_adjacenct_positions(e0: &half_edge::Edge, e1: &half_edge::Edge,
                                             mesh: &half_edge::Mesh) {
         let e0p0 = e0.position.clone();
         let e0p1 = mesh.edges[e0.next].position.clone();
@@ -20,7 +20,7 @@ mod tests {
         assert_eq!(e0p1, e1p0);
     }
 
-    fn assert_congruent_adjacency(index: &half_edge::EdgeIndex, edge: &half_edge::HalfEdge,
+    fn assert_congruent_adjacency(index: &half_edge::EdgeIndex, edge: &half_edge::Edge,
                                   mesh: &half_edge::Mesh) {
         let adjacent_index = edge.adjacent.unwrap().clone();
         let ref adjacent_edge = mesh.edges[adjacent_index];

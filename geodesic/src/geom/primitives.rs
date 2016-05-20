@@ -16,9 +16,9 @@ pub fn triangle(scale: f32) -> Mesh {
     ];
 
     let edges = vec![
-        HalfEdge::new_boundary(0, 0, 1),
-        HalfEdge::new_boundary(1, 0, 2),
-        HalfEdge::new_boundary(2, 0, 0),
+        Edge::new_boundary(0, 0, 1),
+        Edge::new_boundary(1, 0, 2),
+        Edge::new_boundary(2, 0, 0),
     ];
 
     Mesh {
@@ -43,12 +43,12 @@ pub fn plane(scale: f32) -> Mesh {
     ];
 
     let edges = vec![
-        HalfEdge::new_boundary(0, 0, 1),
-        HalfEdge::new_boundary(1, 0, 2),
-        HalfEdge::new(2, 0, 0, 3),
-        HalfEdge::new(0, 1, 4, 2),
-        HalfEdge::new_boundary(2, 1, 5),
-        HalfEdge::new_boundary(3, 1, 3),
+        Edge::new_boundary(0, 0, 1),
+        Edge::new_boundary(1, 0, 2),
+        Edge::new(2, 0, 0, 3),
+        Edge::new(0, 1, 4, 2),
+        Edge::new_boundary(2, 1, 5),
+        Edge::new_boundary(3, 1, 3),
     ];
 
     Mesh {
@@ -77,21 +77,21 @@ pub fn tetrahedron(scale: f32) -> Mesh {
 
     let edges = vec![
         // Face 0     // point, face, next, adj
-        HalfEdge::new(       0,    0,    1,  8), //  0
-        HalfEdge::new(       3,    0,    2, 10), //  1
-        HalfEdge::new(       1,    0,    0,  3), //  2
+        Edge::new(       0,    0,    1,  8), //  0
+        Edge::new(       3,    0,    2, 10), //  1
+        Edge::new(       1,    0,    0,  3), //  2
         // Face 1
-        HalfEdge::new(       0,    1,    4,  2), //  3
-        HalfEdge::new(       1,    1,    5,  9), //  4
-        HalfEdge::new(       2,    1,    3,  6), //  5
+        Edge::new(       0,    1,    4,  2), //  3
+        Edge::new(       1,    1,    5,  9), //  4
+        Edge::new(       2,    1,    3,  6), //  5
         // Face 2
-        HalfEdge::new(       0,    2,    7,  5), //  6
-        HalfEdge::new(       2,    2,    8, 11), //  7
-        HalfEdge::new(       3,    2,    6,  0), //  8
+        Edge::new(       0,    2,    7,  5), //  6
+        Edge::new(       2,    2,    8, 11), //  7
+        Edge::new(       3,    2,    6,  0), //  8
         // Face 3
-        HalfEdge::new(       2,    3,   10,  4), //  9
-        HalfEdge::new(       1,    3,   11,  1), // 10
-        HalfEdge::new(       3,    3,    9,  7), // 11
+        Edge::new(       2,    3,   10,  4), //  9
+        Edge::new(       1,    3,   11,  1), // 10
+        Edge::new(       3,    3,    9,  7), // 11
     ];
 
     Mesh {
@@ -151,85 +151,85 @@ pub fn icosahedron(radius: f32) -> Mesh {
 
     let edges = vec![
         // Face 0     // point, face, next, adj
-        HalfEdge::new(       0,    0,    1,  14), // 0
-        HalfEdge::new(       1,    0,    2,  17), // 1
-        HalfEdge::new(       2,    0,    0,   3), // 2
+        Edge::new(       0,    0,    1,  14), // 0
+        Edge::new(       1,    0,    2,  17), // 1
+        Edge::new(       2,    0,    0,   3), // 2
         // Face 1
-        HalfEdge::new(       0,    1,    4,   2), // 3
-        HalfEdge::new(       2,    1,    5,  20), // 4
-        HalfEdge::new(       3,    1,    3,   6), // 5
+        Edge::new(       0,    1,    4,   2), // 3
+        Edge::new(       2,    1,    5,  20), // 4
+        Edge::new(       3,    1,    3,   6), // 5
         // Face 2
-        HalfEdge::new(       0,    2,    7,   5), // 6
-        HalfEdge::new(       3,    2,    8,  23), // 7
-        HalfEdge::new(       4,    2,    6,   9), // 8
+        Edge::new(       0,    2,    7,   5), // 6
+        Edge::new(       3,    2,    8,  23), // 7
+        Edge::new(       4,    2,    6,   9), // 8
         // Face 3
-        HalfEdge::new(       0,    3,   10,   8), // 9
-        HalfEdge::new(       4,    3,   11,  26), // 10
-        HalfEdge::new(       5,    3,    9,  12), // 11
+        Edge::new(       0,    3,   10,   8), // 9
+        Edge::new(       4,    3,   11,  26), // 10
+        Edge::new(       5,    3,    9,  12), // 11
         // Face 4
-        HalfEdge::new(       0,    4,   13,  11), // 12
-        HalfEdge::new(       5,    4,   14,  29), // 13
-        HalfEdge::new(       1,    4,   12,   0), // 14
+        Edge::new(       0,    4,   13,  11), // 12
+        Edge::new(       5,    4,   14,  29), // 13
+        Edge::new(       1,    4,   12,   0), // 14
         // Face 5
-        HalfEdge::new(       1,    5,   16,  44), // 15
-        HalfEdge::new(       6,    5,   17,  30), // 16
-        HalfEdge::new(       2,    5,   15,   1), // 17
+        Edge::new(       1,    5,   16,  44), // 15
+        Edge::new(       6,    5,   17,  30), // 16
+        Edge::new(       2,    5,   15,   1), // 17
         // Face 6
-        HalfEdge::new(       2,    6,   19,  32), // 18
-        HalfEdge::new(       7,    6,   20,  33), // 19
-        HalfEdge::new(       3,    6,   18,   4), // 20
+        Edge::new(       2,    6,   19,  32), // 18
+        Edge::new(       7,    6,   20,  33), // 19
+        Edge::new(       3,    6,   18,   4), // 20
         // Face 7
-        HalfEdge::new(       3,    7,   22,  35), // 21
-        HalfEdge::new(       8,    7,   23,  36), // 22
-        HalfEdge::new(       4,    7,   21,   7), // 23
+        Edge::new(       3,    7,   22,  35), // 21
+        Edge::new(       8,    7,   23,  36), // 22
+        Edge::new(       4,    7,   21,   7), // 23
         // Face 8
-        HalfEdge::new(       4,    8,   25,  38), // 24
-        HalfEdge::new(       9,    8,   26,  39), // 25
-        HalfEdge::new(       5,    8,   24,  10), // 26
+        Edge::new(       4,    8,   25,  38), // 24
+        Edge::new(       9,    8,   26,  39), // 25
+        Edge::new(       5,    8,   24,  10), // 26
         // Face 9
-        HalfEdge::new(       5,    9,   28,  41), // 27
-        HalfEdge::new(      10,    9,   29,  42), // 28
-        HalfEdge::new(       1,    9,   27,  13), // 29
+        Edge::new(       5,    9,   28,  41), // 27
+        Edge::new(      10,    9,   29,  42), // 28
+        Edge::new(       1,    9,   27,  13), // 29
         // Face 10
-        HalfEdge::new(       2,   10,   31,  16), // 30
-        HalfEdge::new(       6,   10,   32,  47), // 31
-        HalfEdge::new(       7,   10,   30,  18), // 32
+        Edge::new(       2,   10,   31,  16), // 30
+        Edge::new(       6,   10,   32,  47), // 31
+        Edge::new(       7,   10,   30,  18), // 32
         // Face 11
-        HalfEdge::new(       3,   11,   34,  19), // 33
-        HalfEdge::new(       7,   11,   35,  50), // 34
-        HalfEdge::new(       8,   11,   33,  21), // 35
+        Edge::new(       3,   11,   34,  19), // 33
+        Edge::new(       7,   11,   35,  50), // 34
+        Edge::new(       8,   11,   33,  21), // 35
         // Face 12
-        HalfEdge::new(       4,   12,   37,  22), // 36
-        HalfEdge::new(       8,   12,   38,  53), // 37
-        HalfEdge::new(       9,   12,   36,  24), // 38
+        Edge::new(       4,   12,   37,  22), // 36
+        Edge::new(       8,   12,   38,  53), // 37
+        Edge::new(       9,   12,   36,  24), // 38
         // Face 13
-        HalfEdge::new(       5,   13,   40,  25), // 39
-        HalfEdge::new(       9,   13,   41,  56), // 40
-        HalfEdge::new(      10,   13,   39,  27), // 41
+        Edge::new(       5,   13,   40,  25), // 39
+        Edge::new(       9,   13,   41,  56), // 40
+        Edge::new(      10,   13,   39,  27), // 41
         // Face 14
-        HalfEdge::new(       1,   14,   43,  28), // 42
-        HalfEdge::new(      10,   14,   44,  59), // 43
-        HalfEdge::new(       6,   14,   42,  15), // 44
+        Edge::new(       1,   14,   43,  28), // 42
+        Edge::new(      10,   14,   44,  59), // 43
+        Edge::new(       6,   14,   42,  15), // 44
         // Face 15
-        HalfEdge::new(       6,   15,   46,  58), // 45
-        HalfEdge::new(      11,   15,   47,  48), // 46
-        HalfEdge::new(       7,   15,   45,  31), // 47
+        Edge::new(       6,   15,   46,  58), // 45
+        Edge::new(      11,   15,   47,  48), // 46
+        Edge::new(       7,   15,   45,  31), // 47
         // Face 16
-        HalfEdge::new(       7,   16,   49,  46), // 48
-        HalfEdge::new(      11,   16,   50,  51), // 49
-        HalfEdge::new(       8,   16,   48,  34), // 50
+        Edge::new(       7,   16,   49,  46), // 48
+        Edge::new(      11,   16,   50,  51), // 49
+        Edge::new(       8,   16,   48,  34), // 50
         // Face 17
-        HalfEdge::new(       8,   17,   52,  49), // 51
-        HalfEdge::new(      11,   17,   53,  54), // 52
-        HalfEdge::new(       9,   17,   51,  37), // 53
+        Edge::new(       8,   17,   52,  49), // 51
+        Edge::new(      11,   17,   53,  54), // 52
+        Edge::new(       9,   17,   51,  37), // 53
         // Face 18
-        HalfEdge::new(       9,   18,   55,  52), // 54
-        HalfEdge::new(      11,   18,   56,  57), // 55
-        HalfEdge::new(      10,   18,   54,  40), // 56
+        Edge::new(       9,   18,   55,  52), // 54
+        Edge::new(      11,   18,   56,  57), // 55
+        Edge::new(      10,   18,   54,  40), // 56
         // Face 19
-        HalfEdge::new(      10,   19,   58,  55), // 57
-        HalfEdge::new(      11,   19,   59,  45), // 58
-        HalfEdge::new(       6,   19,   57,  43), // 59
+        Edge::new(      10,   19,   58,  55), // 57
+        Edge::new(      11,   19,   59,  45), // 58
+        Edge::new(       6,   19,   57,  43), // 59
     ];
 
     Mesh {

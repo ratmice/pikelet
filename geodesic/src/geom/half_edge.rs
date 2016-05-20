@@ -1,3 +1,8 @@
+//! Module defining principle structs for working with mesh data using the
+//! "half edge" data structure.
+//! Some liberties have been taken in attempt to adapt this structure to
+//! our needs.
+
 use std::collections::HashMap;
 use cgmath::Point3;
 
@@ -7,18 +12,19 @@ use cgmath::Point3;
 pub type EdgeIndex = usize;
 pub type PositionIndex = usize;
 pub type FaceIndex = usize;
+pub type VertexIndex = usize;
 pub type Position = Point3<f32>;
 
 ///////////////////////////////////////////////////////////////////////////////
-// The Face
-//
-// TODO: Is the face really so sparse?
-//       Probably not! Because there is a bunch of attributes, seeds, values,
-//       parameters, references to things, and so on, and so on; that could
-//       be associated and organized with a single Face. So let's assume
-//       that connectivity aside, we'll be stuffing stuff into the Face struct
-//       eventually.
-//
+///  The Face
+/// 
+///  TODO: Is the face really so sparse?
+///        Probably not! Because there is a bunch of attributes, seeds, values,
+///        parameters, references to things, and so on, and so on; that could
+///        be associated and organized with a single Face. So let's assume
+///        that connectivity aside, we'll be stuffing stuff into the Face struct
+///        eventually.
+/// 
 #[derive(Clone, Debug)]
 pub struct Face {
     // The index of the first edge to define this face.
@@ -26,37 +32,56 @@ pub struct Face {
 }
 
 impl Face {
+
+    /// Contructs a new `Face` give a root `EdgeIndex`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// Face::new(0)
+    /// ```
     pub fn new(root: EdgeIndex) -> Face {
         Face { root: root }
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Our primary entity for navigating the topology of a Mesh
-//
-// Vertices and edges are essentially the same in this data structure
-// So I've deviated a bit from the vernacular and "collapsed" the
-// Vertex and HalfEdge structures into a single struct.
-//
+
+/// Ignored for the moment
 #[derive(Clone, Debug)]
-pub struct HalfEdge {
-    // Attribute index for this vertex.
+pub struct Vertex {
+    pub position: PositionIndex,
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+/// Our primary entity for navigating the topology of a Mesh
+///
+/// Vertices and edges are essentially the same in this data structure
+/// So I've deviated a bit from the vernacular and "collapsed" the
+/// Vertex and Edge structures into a single struct.
+/// It may be that we bring back the Vertex and use that as an index
+/// to every conneted edge though.
+///
+#[derive(Clone, Debug)]
+pub struct Edge {
+    /// Attribute index for this vertex.
     pub position: PositionIndex,
 
-    // The face that this edge is associated with.
+    /// The face that this edge is associated with.
     pub face: FaceIndex,
 
-    // The index of the next edge/vert around the face.
+    /// The index of the next edge/vert around the face.
     pub next: EdgeIndex,
 
-    // Oppositely oriented adjacent HalfEdge.
-    // If this is None then we have a boundary edge.
+    /// Oppositely oriented adjacent Edge.
+    /// If this is None then we have a boundary edge.
     pub adjacent: Option<EdgeIndex>,
 }
 
-impl HalfEdge {
-    pub fn new(point: PositionIndex, face: FaceIndex, next: EdgeIndex, adjacent: EdgeIndex) -> HalfEdge {
-        HalfEdge {
+impl Edge {
+    /// Constructs a new `Edge` including a reference to an adjacent `Edge`.
+    pub fn new(point: PositionIndex, face: FaceIndex, next: EdgeIndex, adjacent: EdgeIndex) -> Edge {
+        Edge {
             position: point,
             face: face,
             next: next,
@@ -64,8 +89,9 @@ impl HalfEdge {
         }
     }
 
-    pub fn new_boundary(point: PositionIndex, face: FaceIndex, next: EdgeIndex) -> HalfEdge {
-        HalfEdge {
+    /// Constructs a new `Edge` which has no adjacent edge.
+    pub fn new_boundary(point: PositionIndex, face: FaceIndex, next: EdgeIndex) -> Edge {
+        Edge {
             position: point,
             face: face,
             next: next,
@@ -73,25 +99,31 @@ impl HalfEdge {
         }
     }
 
+    /// Simplify check of potential adjacency.
     pub fn is_boundary(&self) -> bool {
         self.adjacent.is_none()
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// The central bucket of attributes and connectivity information
-//
+/// Mesh
+///
+/// The central bucket of attributes and connectivity information
+///
 #[derive(Clone, Debug)]
 pub struct Mesh {
-    // Attributes
+    /// Points in Spppaaaaaaacccceeee!
     pub positions: Vec<Position>,
 
-    // Connectivity information
+    /// Faces
     pub faces: Vec<Face>,
-    pub edges: Vec<HalfEdge>,
+
+    /// Edges
+    pub edges: Vec<Edge>,
 }
 
 impl Mesh {
+    /// Applies a Class I subdivision the specified number of times.
     pub fn subdivide<F>(&self, count: usize, midpoint_fn: &F) -> Mesh
         where F: Fn(Position, Position) -> Position
     {
@@ -100,17 +132,23 @@ impl Mesh {
         })
     }
 
-    // NOTE: The method of subdivision is illustrated below:
-    //
-    //          v0         |  v0 ____v5____ v2
-    //          /\         |    \    /\    /
-    //         /  \        |     \  /  \  /
-    //    v3  /____\  v5   |   v3 \/____\/ v4
-    //       /\    /\      |       \    /
-    //      /  \  /  \     |        \  /
-    //     /____\/____\    |         \/
-    //   v1     v4     v2  |         v1
-    //
+    /// Implements Class I subdivision.
+    ///
+    /// Midpoints are calculated using the provided function.
+    ///
+    /// NOTE: The method of subdivision is illustrated below:
+    ///
+    /// ```sh
+    ///           v0         |  v0 ____v5____ v2 
+    ///           /\         |    \    /\    /   
+    ///          /  \        |     \  /  \  /    
+    ///     v3  /____\  v5   |   v3 \/____\/ v4  
+    ///        /\    /\      |       \    /      
+    ///       /  \  /  \     |        \  /       
+    ///      /____\/____\    |         \/        
+    ///    v1     v4     v2  |         v1        
+    /// ```
+    ///
     pub fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh
         where F: Fn(Position, Position) -> Position
     {
@@ -230,7 +268,8 @@ impl Mesh {
         }
     }
 
-    fn edge_midpoint<F>(&self, edge: &HalfEdge, midpoint_fn: &F) -> Position
+    /// Returns a new `Position` using the provided function to calculate it.
+    fn edge_midpoint<F>(&self, edge: &Edge, midpoint_fn: &F) -> Position
         where F: Fn(Position, Position) -> Position
     {
         let p0 = self.positions[edge.position];
@@ -239,16 +278,20 @@ impl Mesh {
     }
 }
 
+/// This is a bit of a mess, but given three `EdgeIndex`es this will
+/// modify the provided `Vec<Edge>` and return a new `Face` from the
+/// root edge, effectively "adding a face" but yesh this should be
+/// handled differently.
 fn make_face(f: FaceIndex, e0: EdgeIndex, e1: EdgeIndex, e2: EdgeIndex,
              p0: PositionIndex, p1: PositionIndex, p2: PositionIndex,
-             edges: &mut Vec<HalfEdge>) -> Face
+             edges: &mut Vec<Edge>) -> Face
 {
     //println!("Making face for {} -> {} -> {}", e0, e1, e2);
-    edges.push(HalfEdge::new_boundary(p0, f, e1));
+    edges.push(Edge::new_boundary(p0, f, e1));
     assert_eq!(edges.len(), e0 + 1);
-    edges.push(HalfEdge::new_boundary(p1, f, e2));
+    edges.push(Edge::new_boundary(p1, f, e2));
     assert_eq!(edges.len(), e1 + 1);
-    edges.push(HalfEdge::new_boundary(p2, f, e0));
+    edges.push(Edge::new_boundary(p2, f, e0));
     assert_eq!(edges.len(), e2 + 1);
 
     Face::new(e0)
