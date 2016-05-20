@@ -5,6 +5,9 @@
 
 use cgmath::Point3;
 
+pub use self::mesh::Mesh;
+
+pub mod mesh;
 pub mod algorithms;
 pub mod primitives;
 pub mod star_field;
@@ -94,34 +97,6 @@ impl Edge {
     /// Simplify check of potential adjacency.
     pub fn is_boundary(&self) -> bool {
         self.adjacent.is_none()
-    }
-}
-
-
-/// Mesh
-///
-/// The central bucket of attributes and connectivity information
-///
-#[derive(Clone, Debug)]
-pub struct Mesh {
-    /// Points in Spaaaaaaacccceeee!
-    pub positions: Vec<Position>,
-
-    /// Faces
-    pub faces: Vec<Face>,
-
-    /// Edges
-    pub edges: Vec<Edge>,
-}
-
-impl Mesh {
-    /// Returns a new `geom::Position` using the provided function to calculate it.
-    fn edge_midpoint<F>(&self, edge: &Edge, midpoint_fn: &F) -> Position
-        where F: Fn(Position, Position) -> Position
-    {
-        let p0 = self.positions[edge.position];
-        let p1 = self.positions[self.edges[edge.next].position];
-        midpoint_fn(p0, p1)
     }
 }
 
