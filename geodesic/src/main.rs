@@ -22,8 +22,9 @@ use std::thread;
 use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
-use geom::half_edge::Mesh;
+use geom::Mesh;
 use geom::primitives;
+use geom::algorithms::Subdivide;
 use geom::star_field::{Star, StarField};
 use render::{Resources, RenderTarget, Vertex};
 use ui::Context as UiContext;

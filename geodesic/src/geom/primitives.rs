@@ -1,7 +1,7 @@
 use cgmath::Point3;
 use math;
 
-use super::half_edge::*;
+use super::*;
 
 pub fn triangle(scale: f32) -> Mesh {
     let extent = scale / 2.0;

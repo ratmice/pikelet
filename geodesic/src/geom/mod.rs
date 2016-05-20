@@ -1,15 +1,143 @@
-pub mod half_edge;
+//! Module defining principle structs for working with mesh data using the
+//! "half edge" data structure.
+//! Some liberties have been taken in attempt to adapt this structure to
+//! our needs.
+
+use cgmath::Point3;
+
+pub mod algorithms;
 pub mod primitives;
 pub mod star_field;
+
+pub type EdgeIndex = usize;
+pub type PositionIndex = usize;
+pub type FaceIndex = usize;
+pub type VertexIndex = usize;
+pub type Position = Point3<f32>;
+
+
+///  Face
+/// 
+///  TODO: Is the face really so sparse?
+///        Probably not! Because there is a bunch of attributes, seeds, values,
+///        parameters, references to things, and so on, and so on; that could
+///        be associated and organized with a single Face. So let's assume
+///        that connectivity aside, we'll be stuffing stuff into the Face struct
+///        eventually.
+/// 
+#[derive(Clone, Debug)]
+pub struct Face {
+    /// The index of the first edge to define this face.
+    pub root: EdgeIndex,
+}
+
+impl Face {
+    /// Contructs a new `Face` give a root `EdgeIndex`
+    pub fn new(root: EdgeIndex) -> Face {
+        Face { root: root }
+    }
+}
+
+
+/// Ignored for the moment
+#[derive(Clone, Debug)]
+pub struct Vertex {
+    pub position: PositionIndex,
+}
+
+
+/// Our primary entity for navigating the topology of a Mesh
+///
+/// Vertices and edges are essentially the same in this data structure
+/// So I've deviated a bit from the vernacular and "collapsed" the
+/// Vertex and Edge structures into a single struct.
+/// It may be that we bring back the Vertex and use that as an index
+/// to every conneted edge though.
+///
+#[derive(Clone, Debug)]
+pub struct Edge {
+    /// Attribute index for this vertex.
+    pub position: PositionIndex,
+
+    /// The face that this edge is associated with.
+    pub face: FaceIndex,
+
+    /// The index of the next edge/vert around the face.
+    pub next: EdgeIndex,
+
+    /// Oppositely oriented adjacent Edge.
+    /// If this is None then we have a boundary edge.
+    pub adjacent: Option<EdgeIndex>,
+}
+
+impl Edge {
+    /// Constructs a new `Edge` including a reference to an adjacent `Edge`.
+    pub fn new(point: PositionIndex, face: FaceIndex, next: EdgeIndex, adjacent: EdgeIndex) -> Edge {
+        Edge {
+            position: point,
+            face: face,
+            next: next,
+            adjacent: Some(adjacent),
+        }
+    }
+
+    /// Constructs a new `Edge` which has no adjacent edge.
+    pub fn new_boundary(point: PositionIndex, face: FaceIndex, next: EdgeIndex) -> Edge {
+        Edge {
+            position: point,
+            face: face,
+            next: next,
+            adjacent: None,
+        }
+    }
+
+    /// Simplify check of potential adjacency.
+    pub fn is_boundary(&self) -> bool {
+        self.adjacent.is_none()
+    }
+}
+
+
+/// Mesh
+///
+/// The central bucket of attributes and connectivity information
+///
+#[derive(Clone, Debug)]
+pub struct Mesh {
+    /// Points in Spaaaaaaacccceeee!
+    pub positions: Vec<Position>,
+
+    /// Faces
+    pub faces: Vec<Face>,
+
+    /// Edges
+    pub edges: Vec<Edge>,
+}
+
+impl Mesh {
+    /// Returns a new `geom::Position` using the provided function to calculate it.
+    fn edge_midpoint<F>(&self, edge: &Edge, midpoint_fn: &F) -> Position
+        where F: Fn(Position, Position) -> Position
+    {
+        let p0 = self.positions[edge.position];
+        let p1 = self.positions[self.edges[edge.next].position];
+        midpoint_fn(p0, p1)
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
     use ::math;
+    use super::{Mesh, Edge, EdgeIndex};
     use super::primitives;
-    use super::half_edge;
+    use super::algorithms::*;
 
-    fn assert_congruent_adjacenct_positions(e0: &half_edge::Edge, e1: &half_edge::Edge,
-                                            mesh: &half_edge::Mesh) {
+    fn assert_congruent_adjacenct_positions(e0: &Edge, e1: &Edge, mesh: &Mesh) {
         let e0p0 = e0.position.clone();
         let e0p1 = mesh.edges[e0.next].position.clone();
 
@@ -20,8 +148,7 @@ mod tests {
         assert_eq!(e0p1, e1p0);
     }
 
-    fn assert_congruent_adjacency(index: &half_edge::EdgeIndex, edge: &half_edge::Edge,
-                                  mesh: &half_edge::Mesh) {
+    fn assert_congruent_adjacency(index: &EdgeIndex, edge: &Edge, mesh: &Mesh) {
         let adjacent_index = edge.adjacent.unwrap().clone();
         let ref adjacent_edge = mesh.edges[adjacent_index];
         assert!(adjacent_edge.adjacent.is_some());
@@ -33,7 +160,7 @@ mod tests {
     }
 
     // used to test meshes that should have no boundary edges
-    fn assert_congruent_nonboundary_mesh(mesh: &half_edge::Mesh) {
+    fn assert_congruent_nonboundary_mesh(mesh: &Mesh) {
         for (index, edge) in mesh.edges.iter().enumerate() {
             assert!(edge.adjacent.is_some());
             assert_congruent_adjacency(&index, &edge, &mesh);
@@ -41,7 +168,7 @@ mod tests {
     }
 
     // used to test meshes which are allowed to have boundary edges
-    fn assert_congruent_mesh(mesh: &half_edge::Mesh) {
+    fn assert_congruent_mesh(mesh: &Mesh) {
         for (index, edge) in mesh.edges.iter().enumerate() {
             if edge.adjacent.is_none() {
                 continue
