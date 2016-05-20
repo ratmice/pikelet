@@ -4,6 +4,7 @@
 
 
 use std::collections::HashMap;
+use ::math;
 use super::*;
 
 /// Trait for types that support being subdivided.
@@ -77,32 +78,29 @@ impl Subdivide for Mesh {
 
             // Midpoint position indices
             
-            let p3 = {
-                midpoint_cache.remove(&in_e0)
-                    .unwrap_or_else(|| {
-                        calc_and_cache_midpoint(
-                            in_e0, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
-                        )
-                    })
-            };
+            let p3 = midpoint_cache
+                .remove(&in_e0)
+                .unwrap_or_else(|| {
+                    calc_and_cache_midpoint(
+                        in_e0, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
+                    )
+                });
             
-            let p4 = {
-                midpoint_cache.remove(&in_e1)
-                    .unwrap_or_else(|| {
-                        calc_and_cache_midpoint(
-                            in_e1, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
-                        )
-                    })
-            };
+            let p4 = midpoint_cache
+                .remove(&in_e1)
+                .unwrap_or_else(|| {
+                    calc_and_cache_midpoint(
+                        in_e1, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
+                    )
+                });
             
-            let p5 = {
-                midpoint_cache.remove(&in_e2)
-                    .unwrap_or_else(|| {
-                        calc_and_cache_midpoint(
-                            in_e2, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
-                        )
-                    })
-            };
+            let p5 = midpoint_cache
+                .remove(&in_e2)
+                .unwrap_or_else(|| {
+                    calc_and_cache_midpoint(
+                        in_e2, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
+                    )
+                });
 
             mesh.add_triangle(p0, p3, p5);
             mesh.add_triangle(p3, p1, p4);
@@ -150,4 +148,42 @@ fn calc_and_cache_midpoint<F>(index: EdgeIndex, in_mesh: &Mesh, out_mesh: &mut M
         cache.insert(adjacent_index, mp_index);
     }
     mp_index
+}
+
+
+trait Dual {
+    fn generate_dual(&self) -> Mesh;
+}
+
+impl Dual for Mesh {
+    
+    fn generate_dual(&self) -> Mesh {
+        let mut centroid_index: HashMap<FaceIndex, PositionIndex> = HashMap::new();
+        let mut mesh = Mesh::empty();
+
+        // TODO: make some iterators!
+        for (index, face) in self.faces.iter().enumerate() {
+            
+            let points = {
+                let ref e0 = self.edges[face.root];
+                let ref e1 = self.edges[e0.next];
+                let ref e2 = self.edges[e1.next];
+                
+                let p0 = e0.position.clone();
+                let p1 = e1.position.clone();
+                let p2 = e2.position.clone();
+                
+                vec![
+                    self.positions[p0],
+                    self.positions[p1],
+                    self.positions[p2],
+                ]
+            };
+
+            let cp = mesh.add_position(math::centroid(&points));
+            centroid_index.insert(index, cp);
+        }
+        
+        mesh
+    }
 }
