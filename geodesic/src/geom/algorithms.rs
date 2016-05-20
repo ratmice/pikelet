@@ -46,26 +46,11 @@ impl Subdivide for Mesh {
     fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh
         where F: Fn(Position, Position) -> Position
     {
-        let mut new_positions: HashMap<EdgeIndex, PositionIndex> = HashMap::new();
+        let mut midpoint_cache: HashMap<EdgeIndex, PositionIndex> = HashMap::new();
         let mut split_edges: HashMap<EdgeIndex, (EdgeIndex, EdgeIndex)> = HashMap::new();
 
         let mut mesh = Mesh::empty();
         mesh.positions.extend_from_slice(&self.positions);
-
-        // Create Points for all mid points
-        for (index, edge) in self.edges.iter().enumerate() {
-            if new_positions.contains_key(&index) {
-                continue;
-            }
-
-            let mp_index = mesh.add_position(self.edge_midpoint(edge, midpoint_fn));
-
-            new_positions.insert(index, mp_index);
-
-            if let Some(adjacent_index) = edge.adjacent {
-                new_positions.insert(adjacent_index, mp_index);
-            }
-        }
 
         // Create our new faces
         for face in self.faces.iter() {
@@ -91,14 +76,38 @@ impl Subdivide for Mesh {
             let p2 = self.edges[in_e2].position;
 
             // Midpoint position indices
-            let p3 = *new_positions.get(&in_e0).unwrap();
-            let p4 = *new_positions.get(&in_e1).unwrap();
-            let p5 = *new_positions.get(&in_e2).unwrap();
+            
+            let p3 = {
+                midpoint_cache.remove(&in_e0)
+                    .unwrap_or_else(|| {
+                        calc_and_cache_midpoint(
+                            in_e0, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
+                        )
+                    })
+            };
+            
+            let p4 = {
+                midpoint_cache.remove(&in_e1)
+                    .unwrap_or_else(|| {
+                        calc_and_cache_midpoint(
+                            in_e1, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
+                        )
+                    })
+            };
+            
+            let p5 = {
+                midpoint_cache.remove(&in_e2)
+                    .unwrap_or_else(|| {
+                        calc_and_cache_midpoint(
+                            in_e2, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
+                        )
+                    })
+            };
 
-            let _f0 = mesh.add_triangle(p0, p3, p5);
-            let _f1 = mesh.add_triangle(p3, p1, p4);
-            let _f2 = mesh.add_triangle(p3, p4, p5);
-            let _f3 = mesh.add_triangle(p5, p4, p2);
+            mesh.add_triangle(p0, p3, p5);
+            mesh.add_triangle(p3, p1, p4);
+            mesh.add_triangle(p3, p4, p5);
+            mesh.add_triangle(p5, p4, p2);
 
             split_edges.insert(in_e0, ( e0,  e3));
             split_edges.insert(in_e1, ( e4, e10));
@@ -125,4 +134,20 @@ impl Subdivide for Mesh {
 
         mesh
     }
+}
+
+// TODO: I couldn't figure out how to make this a lambda/closure in subdivide_once
+fn calc_and_cache_midpoint<F>(index: EdgeIndex, in_mesh: &Mesh, out_mesh: &mut Mesh,
+                              cache: &mut HashMap<EdgeIndex, PositionIndex>,
+                              midpoint_fn: &F) -> PositionIndex
+    where F: Fn(Position, Position) -> Position
+{
+    let ref edge = in_mesh.edges[index];
+    let mp_index = out_mesh.add_position(
+        in_mesh.edge_midpoint(edge, midpoint_fn)
+    );
+    if let Some(adjacent_index) = edge.adjacent {
+        cache.insert(adjacent_index, mp_index);
+    }
+    mp_index
 }
