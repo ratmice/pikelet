@@ -20,14 +20,14 @@ pub type Position = Point3<f32>;
 
 
 ///  Face
-/// 
+///
 ///  TODO: Is the face really so sparse?
 ///        Probably not! Because there is a bunch of attributes, seeds, values,
 ///        parameters, references to things, and so on, and so on; that could
 ///        be associated and organized with a single Face. So let's assume
 ///        that connectivity aside, we'll be stuffing stuff into the Face struct
 ///        eventually.
-/// 
+///
 #[derive(Clone, Debug)]
 pub struct Face {
     /// The index of the first edge to define this face.
@@ -42,10 +42,10 @@ impl Face {
 }
 
 
-/// Ignored for the moment
+/// Used to build an index of Point/Edge/Face relationships
 #[derive(Clone, Debug)]
 pub struct Vertex {
-    pub position: PositionIndex,
+    pub edges: Vec<EdgeIndex>,
 }
 
 
@@ -127,10 +127,10 @@ mod tests {
         let adjacent_index = edge.adjacent.unwrap().clone();
         let ref adjacent_edge = mesh.edges[adjacent_index];
         assert!(adjacent_edge.adjacent.is_some());
-        
+
         let expected_index = adjacent_edge.adjacent.unwrap().clone();
         assert_eq!(*index, expected_index);
-        
+
         assert_congruent_adjacenct_positions(&edge, &adjacent_edge, &mesh);
     }
 
@@ -152,11 +152,28 @@ mod tests {
         }
     }
 
+    fn assert_face_associations(mesh: &Mesh) {
+        for (fi, face) in mesh.faces.iter().enumerate() {
+            let ei0 = face.root;
+            let mut eiN = ei0.clone();
+            loop {
+                let ref edge = mesh.edges[eiN];
+                assert_eq!(edge.face, fi);
+
+                eiN = edge.next.clone();
+                if eiN == ei0 {
+                    break;
+                }
+            }
+        }
+    }
+
     #[test]
     fn icosahedron() {
         let planet_radius: f32 = 1.0;
         let icosahedron = primitives::icosahedron(planet_radius);
         assert_congruent_nonboundary_mesh(&icosahedron);
+        assert_face_associations(&icosahedron);
     }
 
     #[test]
@@ -164,6 +181,7 @@ mod tests {
         let scale: f32 = 1.0;
         let mesh = primitives::tetrahedron(scale);
         assert_congruent_nonboundary_mesh(&mesh);
+        assert_face_associations(&mesh);
     }
 
     #[test]
@@ -171,6 +189,7 @@ mod tests {
         let scale: f32 = 1.0;
         let plane = primitives::plane(scale);
         assert_congruent_mesh(&plane);
+        assert_face_associations(&plane);
     }
 
     #[test]
@@ -178,6 +197,7 @@ mod tests {
         let scale: f32 = 1.0;
         let mesh = primitives::triangle(scale);
         assert_congruent_mesh(&mesh);
+        assert_face_associations(&mesh);
     }
 
     #[test]
@@ -190,6 +210,7 @@ mod tests {
                 math::midpoint_arc(planet_radius, a, b)
             });
         assert_congruent_nonboundary_mesh(&mesh);
+        assert_face_associations(&mesh);
     }
 
     #[test]
@@ -202,6 +223,7 @@ mod tests {
                 math::midpoint(a, b)
             });
         assert_congruent_nonboundary_mesh(&mesh);
+        assert_face_associations(&mesh);
     }
 
     #[test]
@@ -214,8 +236,9 @@ mod tests {
                 math::midpoint(a, b)
             });
         assert_congruent_mesh(&mesh);
+        assert_face_associations(&mesh);
     }
-    
+
     #[test]
     fn subdivided_plane() {
         let subdivisions: usize = 3;
@@ -226,5 +249,6 @@ mod tests {
                 math::midpoint(a, b)
             });
         assert_congruent_mesh(&mesh);
+        assert_face_associations(&mesh);
     }
 }
