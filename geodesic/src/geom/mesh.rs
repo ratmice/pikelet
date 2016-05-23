@@ -35,7 +35,7 @@ impl Mesh {
             edges: Vec::with_capacity(capacity),
         }
     }
-    
+
     /// Returns a new `geom::Position` using the provided function to calculate it.
     pub fn edge_midpoint<F>(&self, edge: &Edge, midpoint_fn: &F) -> Position
         where F: Fn(Position, Position) -> Position
@@ -87,7 +87,7 @@ impl Mesh {
             let ref e1 = self.edges[b];
             let e1p0 = e1.position.clone();
             let e1p1 = self.edges[e1.next].position.clone();
-            
+
             e0p0 == e1p1 && e0p1 == e1p0
         });
     }
@@ -103,18 +103,37 @@ impl Mesh {
         let e0 = self.next_edge_id();
         let e1 = e0 + 1;
         let e2 = e1 + 1;
-        
-        self.edges.push(Edge::new_boundary(p0, id, e1));
-        debug_assert_eq!(self.edges.len(), e1);
 
-        self.edges.push(Edge::new_boundary(p1, id, e2));
-        debug_assert_eq!(self.edges.len(), e2);
-        
-        self.edges.push(Edge::new_boundary(p2, id, e0));
-        debug_assert_eq!(self.edges.len(), e2 + 1);
+        self.add_boundary_edge(p0, id, e1);
+        self.add_boundary_edge(p1, id, e2);
+        self.add_boundary_edge(p2, id, e0);
 
         self.faces.push(Face::new(e0));
-        debug_assert_eq!(self.faces.len(), id+1);
+
+        id
+    }
+
+    /// Add a new face using the position indexes provided.
+    ///
+    /// # Note
+    ///
+    /// The position indexes are assumed to be in the correct winding
+    /// order and no attempt is made here to include adjacency information.
+    pub fn add_face(&mut self, position_indexes: &Vec<PositionIndex>) -> FaceIndex {
+        let id = self.next_face_id();
+        let e0 = self.next_edge_id();
+
+        let last_entry = position_indexes.len()-1;
+        for (entry, p) in position_indexes.iter().enumerate() {
+            let next = if entry == last_entry {
+                e0
+            } else {
+                position_indexes[entry+1].clone()
+            };
+            self.add_boundary_edge(*p, id, next);
+        }
+
+        self.faces.push(Face::new(e0));
 
         id
     }
