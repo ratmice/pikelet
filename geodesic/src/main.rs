@@ -8,6 +8,7 @@ extern crate rand;
 extern crate rayon;
 extern crate rusttype;
 extern crate time;
+#[macro_use] extern crate itertools;
 
 use cgmath::conv::*;
 use cgmath::prelude::*;
@@ -24,7 +25,7 @@ use std::time::Duration;
 use camera::{Camera, ComputedCamera};
 use geom::Mesh;
 use geom::primitives;
-use geom::algorithms::Subdivide;
+use geom::algorithms::{Subdivide, Dual};
 use geom::star_field::{Star, StarField};
 use render::{Resources, RenderTarget, Vertex};
 use ui::Context as UiContext;
@@ -372,6 +373,7 @@ impl State {
             .subdivide(self.planet_subdivs, &|a, b| {
                 math::midpoint_arc(self.planet_radius, a, b)
             })
+            .generate_dual()
     }
 }
 

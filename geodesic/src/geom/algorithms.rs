@@ -4,6 +4,7 @@
 
 
 use std::collections::HashMap;
+use itertools::Itertools;
 use ::math;
 use super::*;
 
@@ -229,8 +230,29 @@ impl Dual for Mesh {
                     }
                 }
 
-                // Add the face
-                mesh.add_face(&centroids);
+                let centroid_count = centroids.len();
+                let cp = {
+                    let mut points = Vec::with_capacity(centroid_count);
+                    for i in 0..centroid_count {
+                        let pi = &centroids[i];
+                        points.push(mesh.positions[*pi]);
+                    }
+                    mesh.add_position(math::centroid(&points))
+                };
+
+                let pit = (0..centroid_count).batching(|mut it| {
+                    match it.next() {
+                        None => None,
+                        Some(x) => match it.next() {
+                            None => Some((x, 0)),
+                            Some(y) => Some((x, y)),
+                        }
+                    }
+                });
+
+                for (p1, p2) in pit {
+                    mesh.add_triangle(cp, p1, p2);
+                }
             } else {
                 panic!("Position in Mesh without any connected faces!?");
             }
