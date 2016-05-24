@@ -120,7 +120,7 @@ impl Subdivide for Mesh {
 
         // Update adjacency for remaining edges
         for (index, &(a, b)) in split_edges.iter() {
-            let ref edge = self.edges[*index];
+            let edge = &self.edges[*index];
             if edge.is_boundary() {
                 continue;
             }
@@ -140,7 +140,7 @@ fn calc_and_cache_midpoint<F>(index: EdgeIndex, in_mesh: &Mesh, out_mesh: &mut M
                               midpoint_fn: &F) -> PositionIndex
     where F: Fn(Position, Position) -> Position
 {
-    let ref edge = in_mesh.edges[index];
+    let edge = &in_mesh.edges[index];
     let mp_index = out_mesh.add_position(
         in_mesh.edge_midpoint(edge, midpoint_fn)
     );
@@ -166,22 +166,16 @@ impl Dual for Mesh {
         // TODO: make some iterators!
         for (fi, face) in self.faces.iter().enumerate() {
             let points = {
-                let ref e0 = self.edges[face.root];
-                let ref e1 = self.edges[e0.next];
-                let ref e2 = self.edges[e1.next];
+                let e0 = &self.edges[face.root];
+                let e1 = &self.edges[e0.next];
+                let e2 = &self.edges[e1.next];
 
-                let p0 = e0.position.clone();
-                if !face_index.contains_key(&p0) {
-                    face_index.insert(p0.clone(), fi.clone());
-                }
-                let p1 = e1.position.clone();
-                if !face_index.contains_key(&p1) {
-                    face_index.insert(p1.clone(), fi.clone());
-                }
-                let p2 = e2.position.clone();
-                if !face_index.contains_key(&p2) {
-                    face_index.insert(p2.clone(), fi.clone());
-                }
+                let p0 = e0.position;
+                face_index.entry(p0).or_insert(fi);
+                let p1 = e1.position;
+                face_index.entry(p1).or_insert(fi);
+                let p2 = e2.position;
+                face_index.entry(p2).or_insert(fi);
 
                 vec![
                     self.positions[p0],
@@ -191,30 +185,30 @@ impl Dual for Mesh {
             };
 
             let cp = mesh.add_position(math::centroid(&points));
-            centroid_index.insert(fi.clone(), cp);
+            centroid_index.insert(fi, cp);
         }
 
         for pi in 0..self.positions.len() {
             if let Some(fi0) = face_index.get_mut(&pi) {
                 let mut centroids: Vec<PositionIndex> = Vec::new();
 
-                let mut current_face_index = fi0.clone();
+                let mut current_face_index = *fi0;
 
                 let mut cycle_check = 0;
                 loop {
-                    let ref current_face = self.faces[current_face_index];
+                    let current_face = &self.faces[current_face_index];
                     let ci = centroid_index[&current_face_index];
-                    centroids.push(ci.clone());
+                    centroids.push(ci);
                     let ei = {
-                        let ref e0 = self.edges[current_face.root];
+                        let e0 = &self.edges[current_face.root];
                         if e0.position == pi {
                             current_face.root
                         } else {
-                            let ref e1 = self.edges[e0.next];
+                            let e1 = &self.edges[e0.next];
                             if e1.position == pi {
                                 e0.next
                             } else {
-                                let ref e2 = self.edges[e1.next];
+                                let e2 = &self.edges[e1.next];
                                 if e2.position == pi {
                                     e1.next
                                 } else {
@@ -247,15 +241,15 @@ impl Dual for Mesh {
 }
 
 fn next_face_around_position(mesh: &Mesh, pi: PositionIndex, ei0: EdgeIndex) -> FaceIndex {
-    let ref e0 = mesh.edges[ei0];
-    let ref e1 = mesh.edges[e0.next];
-    let ref e2 = mesh.edges[e1.next];
+    let e0 = &mesh.edges[ei0];
+    let e1 = &mesh.edges[e0.next];
+    let e2 = &mesh.edges[e1.next];
 
     debug_assert_eq!(e0.position, pi);
     debug_assert_eq!(e2.next, ei0);
 
     debug_assert!(!e2.is_boundary());
 
-    let ref adjacent_edge = mesh.edges[e2.adjacent.unwrap()];
+    let adjacent_edge = &mesh.edges[e2.adjacent.unwrap()];
     adjacent_edge.face
 }
