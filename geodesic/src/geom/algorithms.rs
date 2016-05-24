@@ -21,14 +21,14 @@ pub trait Subdivide {
 /// Implements Class I subdivision on `geom::Mesh` objects:
 ///
 /// ```text
-///           v0         |  v0 ____v5____ v2 
-///           /\         |    \    /\    /   
-///          /  \        |     \  /  \  /    
-///     v3  /____\  v5   |   v3 \/____\/ v4  
-///        /\    /\      |       \    /      
-///       /  \  /  \     |        \  /       
-///      /____\/____\    |         \/        
-///    v1     v4     v2  |         v1        
+///           v0         |  v0 ____v5____ v2
+///           /\         |    \    /\    /
+///          /  \        |     \  /  \  /
+///     v3  /____\  v5   |   v3 \/____\/ v4
+///        /\    /\      |       \    /
+///       /  \  /  \     |        \  /
+///      /____\/____\    |         \/
+///    v1     v4     v2  |         v1
 /// ```
 ///
 /// # Note
@@ -77,7 +77,7 @@ impl Subdivide for Mesh {
             let p2 = self.edges[in_e2].position;
 
             // Midpoint position indices
-            
+
             let p3 = midpoint_cache
                 .remove(&in_e0)
                 .unwrap_or_else(|| {
@@ -85,7 +85,7 @@ impl Subdivide for Mesh {
                         in_e0, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
                     )
                 });
-            
+
             let p4 = midpoint_cache
                 .remove(&in_e1)
                 .unwrap_or_else(|| {
@@ -93,7 +93,7 @@ impl Subdivide for Mesh {
                         in_e1, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
                     )
                 });
-            
+
             let p5 = midpoint_cache
                 .remove(&in_e2)
                 .unwrap_or_else(|| {
@@ -151,28 +151,38 @@ fn calc_and_cache_midpoint<F>(index: EdgeIndex, in_mesh: &Mesh, out_mesh: &mut M
 }
 
 
-trait Dual {
+pub trait Dual {
     fn generate_dual(&self) -> Mesh;
 }
 
 impl Dual for Mesh {
-    
+
     fn generate_dual(&self) -> Mesh {
         let mut centroid_index: HashMap<FaceIndex, PositionIndex> = HashMap::new();
+        let mut face_index: HashMap<PositionIndex, FaceIndex> = HashMap::new();
+
         let mut mesh = Mesh::empty();
 
         // TODO: make some iterators!
-        for (index, face) in self.faces.iter().enumerate() {
-            
+        for (fi, face) in self.faces.iter().enumerate() {
             let points = {
                 let ref e0 = self.edges[face.root];
                 let ref e1 = self.edges[e0.next];
                 let ref e2 = self.edges[e1.next];
-                
+
                 let p0 = e0.position.clone();
+                if !face_index.contains_key(&p0) {
+                    face_index.insert(p0.clone(), fi.clone());
+                }
                 let p1 = e1.position.clone();
+                if !face_index.contains_key(&p1) {
+                    face_index.insert(p1.clone(), fi.clone());
+                }
                 let p2 = e2.position.clone();
-                
+                if !face_index.contains_key(&p2) {
+                    face_index.insert(p2.clone(), fi.clone());
+                }
+
                 vec![
                     self.positions[p0],
                     self.positions[p1],
@@ -181,9 +191,71 @@ impl Dual for Mesh {
             };
 
             let cp = mesh.add_position(math::centroid(&points));
-            centroid_index.insert(index, cp);
+            centroid_index.insert(fi.clone(), cp);
         }
-        
+
+        for pi in 0..self.positions.len() {
+            if let Some(fi0) = face_index.get_mut(&pi) {
+                let mut centroids: Vec<PositionIndex> = Vec::new();
+
+                let mut current_face_index = fi0.clone();
+
+                let mut cycle_check = 0;
+                loop {
+                    let ref current_face = self.faces[current_face_index];
+                    let ci = centroid_index[&current_face_index];
+                    centroids.push(ci.clone());
+                    let ei = {
+                        let ref e0 = self.edges[current_face.root];
+                        if e0.position == pi {
+                            current_face.root
+                        } else {
+                            let ref e1 = self.edges[e0.next];
+                            if e1.position == pi {
+                                e0.next
+                            } else {
+                                let ref e2 = self.edges[e1.next];
+                                if e2.position == pi {
+                                    e1.next
+                                } else {
+                                    panic!("Unable to find outgoing edge for position {}", pi);
+                                }
+                            }
+                        }
+                    };
+                    current_face_index = next_face_around_position(&self, pi, ei);
+                    if current_face_index == *fi0 {
+                        break;
+                    }
+
+                    // Make sure we don't spin out of control
+                    cycle_check += 1;
+                    if cycle_check > 6 {
+                        panic!("Infinite loop detected!");
+                    }
+                }
+
+                // Add the face
+                mesh.add_face(&centroids);
+            } else {
+                panic!("Position in Mesh without any connected faces!?");
+            }
+        }
+
         mesh
     }
+}
+
+fn next_face_around_position(mesh: &Mesh, pi: PositionIndex, ei0: EdgeIndex) -> FaceIndex {
+    let ref e0 = mesh.edges[ei0];
+    let ref e1 = mesh.edges[e0.next];
+    let ref e2 = mesh.edges[e1.next];
+
+    debug_assert_eq!(e0.position, pi);
+    debug_assert_eq!(e2.next, ei0);
+
+    debug_assert!(!e2.is_boundary());
+
+    let ref adjacent_edge = mesh.edges[e2.adjacent.unwrap()];
+    adjacent_edge.face
 }
