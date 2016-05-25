@@ -118,13 +118,13 @@ pub fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
 
     let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
     for face in mesh.faces.iter() {
-        let e0 = face.root.clone();
-        let e1 = mesh.edges[e0].next.clone();
-        let e2 = mesh.edges[e1].next.clone();
+        let e0 = face.root;
+        let e1 = mesh.edges[e0].next;
+        let e2 = mesh.edges[e1].next;
 
-        let p0 = mesh.edges[e0].position.clone();
-        let p1 = mesh.edges[e1].position.clone();
-        let p2 = mesh.edges[e2].position.clone();
+        let p0 = mesh.edges[e0].position;
+        let p1 = mesh.edges[e1].position;
+        let p2 = mesh.edges[e2].position;
 
         vertices.push(Vertex { position: mesh.positions[p0].into() });
         vertices.push(Vertex { position: mesh.positions[p1].into() });

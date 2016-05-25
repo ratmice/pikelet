@@ -153,16 +153,21 @@ mod tests {
     }
 
     fn assert_face_associations(mesh: &Mesh) {
+        let mut cycle_check = 0;
         for (fi, face) in mesh.faces.iter().enumerate() {
             let ei0 = face.root;
-            let mut eiN = ei0.clone();
+            let mut eiN = ei0;
             loop {
                 let ref edge = mesh.edges[eiN];
                 assert_eq!(edge.face, fi);
 
-                eiN = edge.next.clone();
+                eiN = edge.next;
                 if eiN == ei0 {
                     break;
+                }
+                cycle_check += 1;
+                if cycle_check > mesh.edges.len() {
+                    panic!("Edges around face do not terminate!");
                 }
             }
         }
@@ -249,6 +254,13 @@ mod tests {
                 math::midpoint(a, b)
             });
         assert_congruent_mesh(&mesh);
+        assert_face_associations(&mesh);
+    }
+
+    #[test]
+    fn dual_of_icosahedron() {
+        let scale: f32 = 1.0;
+        let mesh = primitives::icosahedron(scale).generate_dual();
         assert_face_associations(&mesh);
     }
 }

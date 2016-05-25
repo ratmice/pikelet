@@ -112,29 +112,4 @@ impl Mesh {
 
         id
     }
-
-    /// Add a new face using the position indexes provided.
-    ///
-    /// # Note
-    ///
-    /// The position indexes are assumed to be in the correct winding
-    /// order and no attempt is made here to include adjacency information.
-    pub fn add_face(&mut self, position_indexes: &Vec<PositionIndex>) -> FaceIndex {
-        let id = self.next_face_id();
-        let e0 = self.next_edge_id();
-
-        let last_entry = position_indexes.len()-1;
-        for (entry, p) in position_indexes.iter().enumerate() {
-            let next = if entry == last_entry {
-                e0
-            } else {
-                position_indexes[entry+1].clone()
-            };
-            self.add_boundary_edge(*p, id, next);
-        }
-
-        self.faces.push(Face::new(e0));
-
-        id
-    }
 }
