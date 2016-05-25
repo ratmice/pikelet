@@ -232,9 +232,9 @@ impl Dual for Mesh {
                 let centroid_count = centroids.len();
                 if centroid_count == 6 {
                     mesh.add_triangle(centroids[0], centroids[1], centroids[2]);
-                    mesh.add_triangle(centroids[2], centroids[3], centroids[0]);
-                    mesh.add_triangle(centroids[0], centroids[3], centroids[4]);
+                    mesh.add_triangle(centroids[2], centroids[3], centroids[4]);
                     mesh.add_triangle(centroids[4], centroids[5], centroids[0]);
+                    mesh.add_triangle(centroids[0], centroids[2], centroids[4]);
                 } else if centroid_count == 5 {
                     mesh.add_triangle(centroids[0], centroids[1], centroids[4]);
                     mesh.add_triangle(centroids[4], centroids[1], centroids[2]);
