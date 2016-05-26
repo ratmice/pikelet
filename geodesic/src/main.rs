@@ -15,7 +15,7 @@ use cgmath::conv::*;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
-use glium::{DisplayBuild, Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
+use glium::{Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
 use glium::glutin;
 use glium::index::{PrimitiveType, NoIndices};
 use rayon::prelude::*;
@@ -42,6 +42,7 @@ pub mod render;
 pub mod ui;
 
 fn init_display(state: &State) -> glium::Display {
+    use glium::DisplayBuild;
     use glium::glutin::WindowBuilder;
 
     let (width, height) = state.window_dimensions;
@@ -148,8 +149,16 @@ fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+pub struct FrameData {
+    window_dimensions: (u32, u32),
+    hidpi_factor: f32,
+    delta_time: f32,
+    frames_per_second: f32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum InputEvent {
-    Tick { window_dimensions: (u32, u32), hidpi_factor: f32, delta_time: f32 },
+    FrameRequested(FrameData),
     Close,
     SetShowingStarField(bool),
     SetUiCapturingMouse(bool),
@@ -294,11 +303,11 @@ impl State {
         use InputEvent::*;
 
         match event {
-            Tick { window_dimensions, hidpi_factor, delta_time } => {
-                self.delta_time = delta_time;
-                self.window_dimensions = window_dimensions;
-                self.hidpi_factor = hidpi_factor;
-                self.frames_per_second = 1.0 / delta_time;
+            FrameRequested(frame_data) => {
+                self.delta_time = frame_data.delta_time;
+                self.window_dimensions = frame_data.window_dimensions;
+                self.hidpi_factor = frame_data.hidpi_factor;
+                self.frames_per_second = frame_data.frames_per_second;
 
                 self.camera_rotation -= self.camera_rotation_delta;
 
@@ -499,7 +508,6 @@ fn main() {
 
     for time in times::in_seconds() {
         use std::iter::{self, FromIterator};
-        use InputEvent::*;
 
         let window = display.get_window().unwrap();
         let display_events = Vec::from_iter(display.poll_events());
@@ -508,14 +516,15 @@ fn main() {
             ui_context.update(display_events.iter(), window.hidpi_factor());
         }
 
-        let tick = Tick {
+        let frame_data = FrameData {
             window_dimensions: window.get_inner_size_points().unwrap(),
             hidpi_factor: window.hidpi_factor(),
             delta_time: time.delta() as f32,
+            frames_per_second: 1.0 / time.delta() as f32,
         };
 
         let events =
-            iter::once(tick)
+            iter::once(InputEvent::FrameRequested(frame_data))
                 .chain(ui_events)
                 .chain(display_events.into_iter().map(InputEvent::from));
 
