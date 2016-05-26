@@ -157,8 +157,13 @@ pub struct FrameData {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum InputEvent {
+pub enum UpdateEvent {
     FrameRequested(FrameData),
+    Input(InputEvent),
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum InputEvent {
     Close,
     SetShowingStarField(bool),
     SetUiCapturingMouse(bool),
@@ -201,7 +206,7 @@ enum ResourceEvent {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-enum UpdateEvent {
+enum Loop {
     Continue(Vec<ResourceEvent>),
     Close,
 }
@@ -281,7 +286,7 @@ impl State {
         }
     }
 
-    fn apply_mouse_update(&mut self, new_position: Point2<i32>) {
+    fn handle_mouse_update(&mut self, new_position: Point2<i32>) {
         let old_position = mem::replace(&mut self.mouse_position, new_position);
         let mouse_delta = new_position - old_position;
 
@@ -299,22 +304,23 @@ impl State {
         }
     }
 
-    fn update(&mut self, event: InputEvent, render_events: &mut Vec<ResourceEvent>) -> bool {
+    fn handle_frame_request(&mut self, frame_data: FrameData) {
+        self.delta_time = frame_data.delta_time;
+        self.window_dimensions = frame_data.window_dimensions;
+        self.hidpi_factor = frame_data.hidpi_factor;
+        self.frames_per_second = frame_data.frames_per_second;
+
+        self.camera_rotation -= self.camera_rotation_delta;
+
+        if self.is_dragging {
+            self.camera_rotation_delta = Rad::new(0.0);
+        }
+    }
+
+    fn handle_input(&mut self, event: InputEvent, resource_events: &mut Vec<ResourceEvent>) -> bool {
         use InputEvent::*;
 
         match event {
-            FrameRequested(frame_data) => {
-                self.delta_time = frame_data.delta_time;
-                self.window_dimensions = frame_data.window_dimensions;
-                self.hidpi_factor = frame_data.hidpi_factor;
-                self.frames_per_second = frame_data.frames_per_second;
-
-                self.camera_rotation -= self.camera_rotation_delta;
-
-                if self.is_dragging {
-                    self.camera_rotation_delta = Rad::new(0.0);
-                }
-            },
             Close => return false,
             SetShowingStarField(value) => self.is_showing_star_field = value,
             SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
@@ -325,10 +331,10 @@ impl State {
             DragEnd => self.is_dragging = false,
             ZoomStart => self.is_zooming = true,
             ZoomEnd => self.is_zooming = false,
-            MousePosition(position) => self.apply_mouse_update(position),
+            MousePosition(position) => self.handle_mouse_update(position),
             UpdatePlanetSubdivisions(planet_subdivs) => {
                 self.planet_subdivs = planet_subdivs;
-                render_events.push(ResourceEvent::RegeneratePlanet);
+                resource_events.push(ResourceEvent::RegeneratePlanet);
             },
             NoOp => {},
         }
@@ -336,18 +342,23 @@ impl State {
         true
     }
 
-    fn update_all<Events>(&mut self, events: Events) -> UpdateEvent where
-        Events: IntoIterator<Item = InputEvent>,
+    fn update<Events>(&mut self, events: Events) -> Loop where
+        Events: IntoIterator<Item = UpdateEvent>,
     {
-        let mut render_events = vec![];
+        let mut resource_events = vec![];
 
         for event in events {
-            if !self.update(event, &mut render_events) {
-                return UpdateEvent::Close;
+            match event {
+                UpdateEvent::FrameRequested(frame_data) => self.handle_frame_request(frame_data),
+                UpdateEvent::Input(event) => {
+                    if !self.handle_input(event, &mut resource_events) {
+                        return Loop::Close;
+                    }
+                },
             }
         }
 
-        UpdateEvent::Continue(render_events)
+        Loop::Continue(resource_events)
     }
 
     fn scene_camera_position(&self) -> Point3<f32> {
@@ -523,14 +534,18 @@ fn main() {
             frames_per_second: 1.0 / time.delta() as f32,
         };
 
-        let events =
-            iter::once(InputEvent::FrameRequested(frame_data))
-                .chain(ui_events)
-                .chain(display_events.into_iter().map(InputEvent::from));
+        let input_events =
+            ui_events.into_iter()
+                .chain(display_events.into_iter().map(InputEvent::from))
+                .map(UpdateEvent::Input);
 
-        match state.update_all(events) {
-            UpdateEvent::Close => break,
-            UpdateEvent::Continue(render_events) => {
+        let events =
+            iter::once(UpdateEvent::FrameRequested(frame_data))
+                .chain(input_events);
+
+        match state.update(events) {
+            Loop::Close => break,
+            Loop::Continue(render_events) => {
                 let mut frame = display.draw();
 
                 apply_render_events(&mut resources, &display, &state, render_events);
