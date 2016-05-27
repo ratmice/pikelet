@@ -2,6 +2,7 @@ use rand::{self, Rand, Rng};
 
 use math::GeoPoint;
 
+#[derive(Copy, Clone, Debug)]
 pub struct Star {
     pub position: GeoPoint<f32>,
 }
@@ -12,6 +13,7 @@ impl Rand for Star {
     }
 }
 
+#[derive(Clone)]
 pub struct StarField {
     pub stars0: Vec<Star>,
     pub stars1: Vec<Star>,

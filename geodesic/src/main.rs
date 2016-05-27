@@ -21,7 +21,6 @@ use glium::index::{PrimitiveType, NoIndices};
 use rayon::prelude::*;
 use std::mem;
 use std::sync::mpsc::{Sender, Receiver};
-use std::thread;
 use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
@@ -111,6 +110,23 @@ pub enum InputEvent {
     NoOp,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+enum ResourceEvent {
+    RegeneratePlanet { radius: f32, subdivs: usize },
+}
+
+#[derive(Clone)]
+enum RenderEvent {
+    Data(State),
+    Quit,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+enum Loop {
+    Continue,
+    Break,
+}
+
 impl From<glutin::Event> for InputEvent {
     fn from(src: glutin::Event) -> InputEvent {
         use glium::glutin::ElementState::*;
@@ -132,17 +148,7 @@ impl From<glutin::Event> for InputEvent {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-enum ResourceEvent {
-    RegeneratePlanet { radius: f32, subdivs: usize },
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum Loop {
-    Continue,
-    Break,
-}
-
+#[derive(Clone)]
 struct State {
     delta_time: f32,
     frames_per_second: f32,
@@ -327,16 +333,16 @@ impl State {
 }
 
 struct Game {
-    update_rx: Receiver<UpdateEvent>,
     resource_tx: Sender<ResourceEvent>,
+    render_tx: Sender<RenderEvent>,
     state: State,
 }
 
 impl Game {
-    fn new(update_rx: Receiver<UpdateEvent>, resource_tx: Sender<ResourceEvent>, state: State) -> Game {
+    fn new(resource_tx: Sender<ResourceEvent>, render_tx: Sender<RenderEvent>, state: State) -> Game {
         Game {
-            update_rx: update_rx,
             resource_tx: resource_tx,
+            render_tx: render_tx,
             state: state,
         }
     }
@@ -378,7 +384,10 @@ impl Game {
         use InputEvent::*;
 
         match event {
-            Close => return Loop::Break,
+            Close => {
+                self.send_quit();
+                return Loop::Break;
+            },
             SetShowingStarField(value) => self.state.is_showing_star_field = value,
             SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.state.is_wireframe = value,
@@ -402,21 +411,24 @@ impl Game {
         Loop::Continue
     }
 
-    fn handle_update(&mut self, event: UpdateEvent) -> Loop {
-        match event {
-            UpdateEvent::FrameRequested(frame_data) => self.handle_frame_request(frame_data),
-            UpdateEvent::Input(event) => self.handle_input(event),
-        }
+    fn send_render_data(&self) {
+        self.render_tx.send(RenderEvent::Data(self.state.clone())).unwrap();
     }
 
-    fn update(&mut self) -> Loop {
-        while let Ok(event) = self.update_rx.try_recv() {
-            if self.handle_update(event) == Loop::Break {
-                return Loop::Break;
-            }
-        }
+    fn send_quit(&self) {
+        self.render_tx.send(RenderEvent::Quit).unwrap();
+    }
 
-        Loop::Continue
+    fn update(&mut self, event: UpdateEvent) -> Loop {
+        match event {
+            UpdateEvent::FrameRequested(frame_data) => {
+                // We send the data for the last frame so that renderer can
+                // get started doing it's job asynchronously!
+                self.send_render_data();
+                self.handle_frame_request(frame_data)
+            },
+            UpdateEvent::Input(event) => self.handle_input(event),
+        }
     }
 }
 
@@ -531,34 +543,32 @@ fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui
 
 fn main() {
     use std::sync::mpsc;
+    use std::thread;
 
     let (resource_tx, resource_rx) = mpsc::channel();
     let (ui_tx, ui_rx) = mpsc::channel();
     let (update_tx, update_rx) = mpsc::channel();
+    let (render_tx, render_rx) = mpsc::channel();
 
     let state = State::new();
     let display = state.init_display();
     let mut resources = state.init_resources(&display);
 
-    let mut game = Game::new(update_rx, resource_tx, state);
+    // Spawn update thread
+    thread::spawn(move || {
+        let mut game = Game::new(resource_tx, render_tx, state);
+
+        loop {
+            let event = update_rx.recv().unwrap();
+            if game.update(event) == Loop::Break { break };
+        }
+    });
 
     let mut ui_context = UiContext::new(ui_rx);
     let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
 
-    for time in times::in_seconds() {
-        for event in display.poll_events() {
-            if game.state.is_showing_ui {
-                ui_tx.send(event.clone()).unwrap()
-            };
-
-            update_tx.send(UpdateEvent::Input(InputEvent::from(event))).unwrap();
-        }
-
+    'main: for time in times::in_seconds() {
         let window = display.get_window().unwrap();
-
-        if game.state.is_showing_ui {
-            ui_context.update(window.hidpi_factor());
-        }
 
         let frame_data = FrameData {
             window_dimensions: window.get_inner_size_points().unwrap(),
@@ -567,21 +577,45 @@ fn main() {
             frames_per_second: 1.0 / time.delta() as f32,
         };
 
-        update_tx.send(UpdateEvent::FrameRequested(frame_data)).unwrap();
+        if let Err(_) = update_tx.send(UpdateEvent::FrameRequested(frame_data)) {
+            // The update thread must have closed - should be ok to quit now!
+            println!("Closing from `UpdateEvent::FrameRequested`");
+            break 'main;
+        }
 
-        match game.update() {
-            Loop::Break => break,
-            Loop::Continue => {
-                let mut frame = display.draw();
+        match render_rx.recv() {
+            Ok(RenderEvent::Quit) | Err(_) => break,
+            Ok(RenderEvent::Data(state)) => {
+                // Get user input
+                for event in display.poll_events() {
+                    if state.is_showing_ui {
+                        // TODO: Get rid of the ui channel?
+                        ui_tx.send(event.clone()).unwrap();
+                        ui_context.update(window.hidpi_factor());
+                    }
 
-                handle_resource_events(&mut resources, &display, &resource_rx); // TODO: move resource_rx to Resources struct
-                render_scene(&mut frame, &game.state, &resources);
-
-                if game.state.is_showing_ui {
-                    render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &game.state, &update_tx);
+                    if let Err(_) = update_tx.send(UpdateEvent::Input(InputEvent::from(event))) {
+                        // The update thread must have closed - should be ok to quit now!
+                        println!("Closing from `UpdateEvent::Input`");
+                        break 'main;
+                    }
                 }
 
-                frame.finish().unwrap()
+                // TODO: move resource_rx to Resources struct
+                handle_resource_events(&mut resources, &display, &resource_rx);
+
+                // Time to render!
+                {
+                    let mut frame = display.draw();
+
+                    render_scene(&mut frame, &state, &resources);
+
+                    if state.is_showing_ui {
+                        render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
+                    }
+
+                    frame.finish().unwrap();
+                }
             }
         }
 

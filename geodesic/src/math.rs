@@ -89,7 +89,7 @@ pub fn arc_length<T: BaseFloat>(angle: Rad<T>, radius: T) -> T {
 ///
 /// - http://www.movable-type.co.uk/scripts/latlong-vectors.html
 /// - http://www.navlab.net/Publications/A_Nonsingular_Horizontal_Position_Representation.pdf
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GeoPoint<T>(Vector3<T>);
 
 impl<T: BaseFloat> GeoPoint<T> {
