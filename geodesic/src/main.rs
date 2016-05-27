@@ -20,6 +20,7 @@ use glium::glutin;
 use glium::index::{PrimitiveType, NoIndices};
 use rayon::prelude::*;
 use std::mem;
+use std::sync::mpsc::{Sender, Receiver};
 use std::thread;
 use std::time::Duration;
 
@@ -96,10 +97,12 @@ fn init_resources(display: &glium::Display, state: &State) -> Resources {
         font_collection.into_font().unwrap()
     };
 
+    let planet_mesh = create_planet_mesh(state.planet_radius, state.planet_subdivs);
+
     Resources {
         context: display.get_context().clone(),
 
-        planet_vertex_buffer: VertexBuffer::new(display, &create_vertices(&state.create_subdivided_planet_mesh())).unwrap(),
+        planet_vertex_buffer: VertexBuffer::new(display, &create_vertices(&planet_mesh)).unwrap(),
         index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
         text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
@@ -115,6 +118,12 @@ fn init_resources(display: &glium::Display, state: &State) -> Resources {
 
         blogger_sans_font: blogger_sans_font,
     }
+}
+
+pub fn create_planet_mesh(radius: f32, subdivs: usize) -> Mesh {
+    primitives::icosahedron(radius)
+        .subdivide(subdivs, &|a, b| math::midpoint_arc(radius, a, b))
+        .generate_dual()
 }
 
 pub fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
@@ -203,7 +212,7 @@ impl From<glutin::Event> for InputEvent {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 enum ResourceEvent {
-    RegeneratePlanet,
+    RegeneratePlanet { radius: f32, subdivs: usize },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -213,6 +222,8 @@ enum Loop {
 }
 
 struct State {
+    resource_tx: Sender<ResourceEvent>,
+
     delta_time: f32,
     frames_per_second: f32,
 
@@ -249,8 +260,10 @@ struct State {
 }
 
 impl State {
-    fn init() -> State {
+    fn init(resource_tx: Sender<ResourceEvent>) -> State {
         State {
+            resource_tx: resource_tx,
+
             delta_time: 0.0,
             frames_per_second: 0.0,
 
@@ -320,7 +333,7 @@ impl State {
         Loop::Continue
     }
 
-    fn handle_input(&mut self, event: InputEvent, resource_events: &mut Vec<ResourceEvent>) -> Loop {
+    fn handle_input(&mut self, event: InputEvent) -> Loop {
         use InputEvent::*;
 
         match event {
@@ -329,7 +342,9 @@ impl State {
             SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.is_wireframe = value,
             ToggleUi => self.is_showing_ui = !self.is_showing_ui,
-            ResetState => *self = State::init(),
+            ResetState => {
+                *self = State::init(self.resource_tx.clone())
+            },
             DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
             DragEnd => self.is_dragging = false,
             ZoomStart => self.is_zooming = true,
@@ -337,7 +352,10 @@ impl State {
             MousePosition(position) => self.handle_mouse_update(position),
             UpdatePlanetSubdivisions(planet_subdivs) => {
                 self.planet_subdivs = planet_subdivs;
-                resource_events.push(ResourceEvent::RegeneratePlanet);
+                self.resource_tx.send(ResourceEvent::RegeneratePlanet {
+                    radius: self.planet_radius,
+                    subdivs: self.planet_subdivs,
+                }).unwrap();
             },
             NoOp => {},
         }
@@ -345,18 +363,18 @@ impl State {
         Loop::Continue
     }
 
-    fn handle_update(&mut self, event: UpdateEvent, resource_events: &mut Vec<ResourceEvent>) -> Loop {
+    fn handle_update(&mut self, event: UpdateEvent) -> Loop {
         match event {
             UpdateEvent::FrameRequested(frame_data) => self.handle_frame_request(frame_data),
-            UpdateEvent::Input(event) => self.handle_input(event, resource_events),
+            UpdateEvent::Input(event) => self.handle_input(event),
         }
     }
 
-    fn update<Events>(&mut self, events: Events, resource_events: &mut Vec<ResourceEvent>) -> Loop where
+    fn update<Events>(&mut self, events: Events) -> Loop where
         Events: IntoIterator<Item = UpdateEvent>,
     {
         for event in events {
-            if self.handle_update(event, resource_events) == Loop::Break {
+            if self.handle_update(event) == Loop::Break {
                 return Loop::Break;
             }
         }
@@ -392,21 +410,14 @@ impl State {
     fn create_hud_camera(&self, (frame_width, frame_height): (u32, u32)) -> Matrix4<f32> {
         cgmath::ortho(0.0, frame_width as f32, frame_height as f32, 0.0, -1.0, 1.0)
     }
-
-    fn create_subdivided_planet_mesh(&self) -> Mesh {
-        primitives::icosahedron(self.planet_radius)
-            .subdivide(self.planet_subdivs, &|a, b| math::midpoint_arc(self.planet_radius, a, b))
-            .generate_dual()
-    }
 }
 
-fn handle_resource_events<Events>(resources: &mut Resources, display: &glium::Display, state: &State, events: Events) where
-    Events: IntoIterator<Item = ResourceEvent>,
-{
-    for event in events {
+fn handle_resource_events(resources: &mut Resources, display: &glium::Display, resource_rx: &Receiver<ResourceEvent>) {
+    while let Ok(event) = resource_rx.try_recv() {
         match event {
-            ResourceEvent::RegeneratePlanet => {
-                resources.planet_vertex_buffer = VertexBuffer::new(display, &create_vertices(&state.create_subdivided_planet_mesh())).unwrap();
+            ResourceEvent::RegeneratePlanet { radius, subdivs } => {
+                let planet_mesh = create_planet_mesh(radius, subdivs);
+                resources.planet_vertex_buffer = VertexBuffer::new(display, &create_vertices(&planet_mesh)).unwrap();
                 resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
             },
         }
@@ -510,7 +521,11 @@ fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui
 }
 
 fn main() {
-    let mut state = State::init();
+    use std::sync::mpsc;
+
+    let (resource_tx, resource_rx) = mpsc::channel();
+
+    let mut state = State::init(resource_tx);
     let display = init_display(&state);
     let mut resources = init_resources(&display, &state);
 
@@ -544,14 +559,12 @@ fn main() {
             iter::once(UpdateEvent::FrameRequested(frame_data))
                 .chain(input_events);
 
-        let mut resource_events = vec![];
-
-        match state.update(update_events, &mut resource_events) {
+        match state.update(update_events) {
             Loop::Break => break,
             Loop::Continue => {
                 let mut frame = display.draw();
 
-                handle_resource_events(&mut resources, &display, &state, resource_events);
+                handle_resource_events(&mut resources, &display, &resource_rx); // TODO: move resource_rx to Resources struct
                 render_scene(&mut frame, &state, &resources);
 
                 if state.is_showing_ui {
