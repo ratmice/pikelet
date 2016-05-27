@@ -304,7 +304,7 @@ impl State {
         }
     }
 
-    fn handle_frame_request(&mut self, frame_data: FrameData) {
+    fn handle_frame_request(&mut self, frame_data: FrameData) -> Loop {
         self.delta_time = frame_data.delta_time;
         self.window_dimensions = frame_data.window_dimensions;
         self.hidpi_factor = frame_data.hidpi_factor;
@@ -315,6 +315,8 @@ impl State {
         if self.is_dragging {
             self.camera_rotation_delta = Rad::new(0.0);
         }
+
+        Loop::Continue
     }
 
     fn handle_input(&mut self, event: InputEvent, resource_events: &mut Vec<ResourceEvent>) -> Loop {
@@ -342,17 +344,19 @@ impl State {
         Loop::Continue
     }
 
+    fn handle_update(&mut self, event: UpdateEvent, resource_events: &mut Vec<ResourceEvent>) -> Loop {
+        match event {
+            UpdateEvent::FrameRequested(frame_data) => self.handle_frame_request(frame_data),
+            UpdateEvent::Input(event) => self.handle_input(event, resource_events),
+        }
+    }
+
     fn update<Events>(&mut self, events: Events, resource_events: &mut Vec<ResourceEvent>) -> Loop where
         Events: IntoIterator<Item = UpdateEvent>,
     {
         for event in events {
-            match event {
-                UpdateEvent::FrameRequested(frame_data) => self.handle_frame_request(frame_data),
-                UpdateEvent::Input(event) => {
-                    if let Loop::Break = self.handle_input(event, resource_events) {
-                        return Loop::Break;
-                    }
-                },
+            if self.handle_update(event, resource_events) == Loop::Break {
+                return Loop::Break;
             }
         }
 
