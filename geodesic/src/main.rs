@@ -42,84 +42,6 @@ pub mod times;
 pub mod render;
 pub mod ui;
 
-fn init_display(state: &State) -> glium::Display {
-    use glium::DisplayBuild;
-    use glium::glutin::WindowBuilder;
-
-    let (width, height) = state.window_dimensions;
-
-    WindowBuilder::new()
-        .with_title(state.window_title.clone())
-        .with_dimensions(width, height)
-        .with_depth_buffer(24)
-        .build_glium()
-        .unwrap()
-}
-
-fn init_resources(display: &glium::Display, state: &State) -> Resources {
-    use glium::backend::Facade;
-    use rusttype::FontCollection;
-    use std::fs::File;
-    use std::io;
-    use std::io::prelude::*;
-    use std::path::Path;
-
-    let assets =
-        FolderSearch::ParentsThenKids(3, 3)
-            .for_folder("resources")
-            .expect("Could not locate `resources` folder");
-
-    let load_shader = |assets: &Path, path| -> io::Result<String> {
-        let mut file = try!(File::open(assets.join(path)));
-        let mut buffer = String::new();
-        try!(file.read_to_string(&mut buffer));
-
-        Ok(buffer)
-    };
-
-    let flat_shaded_vert    = load_shader(&assets, "shaders/flat_shaded.v.glsl").unwrap();
-    let flat_shaded_frag    = load_shader(&assets, "shaders/flat_shaded.f.glsl").unwrap();
-    let text_vert           = load_shader(&assets, "shaders/text.v.glsl").unwrap();
-    let text_frag           = load_shader(&assets, "shaders/text.f.glsl").unwrap();
-    let unshaded_vert       = load_shader(&assets, "shaders/unshaded.v.glsl").unwrap();
-    let unshaded_frag       = load_shader(&assets, "shaders/unshaded.f.glsl").unwrap();
-
-    let flat_shaded_program = Program::from_source(display, &flat_shaded_vert, &flat_shaded_frag, None).unwrap();
-    let text_program        = Program::from_source(display, &text_vert, &text_frag, None).unwrap();
-    let unshaded_program    = Program::from_source(display, &unshaded_vert, &unshaded_frag, None).unwrap();
-
-    let blogger_sans_font = {
-        let mut file = File::open(assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap();
-        let mut buffer = vec![];
-        file.read_to_end(&mut buffer).unwrap();
-
-        let font_collection = FontCollection::from_bytes(buffer);
-        font_collection.into_font().unwrap()
-    };
-
-    let planet_mesh = create_planet_mesh(state.planet_radius, state.planet_subdivs);
-
-    Resources {
-        context: display.get_context().clone(),
-
-        planet_vertex_buffer: VertexBuffer::new(display, &create_vertices(&planet_mesh)).unwrap(),
-        index_buffer: NoIndices(PrimitiveType::TrianglesList),
-
-        text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
-        text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
-
-        stars0_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&state.star_field.stars0)).unwrap(),
-        stars1_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&state.star_field.stars1)).unwrap(),
-        stars2_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&state.star_field.stars2)).unwrap(),
-
-        flat_shaded_program: flat_shaded_program,
-        text_program: text_program,
-        unshaded_program: unshaded_program,
-
-        blogger_sans_font: blogger_sans_font,
-    }
-}
-
 pub fn create_planet_mesh(radius: f32, subdivs: usize) -> Mesh {
     primitives::icosahedron(radius)
         .subdivide(subdivs, &|a, b| math::midpoint_arc(radius, a, b))
@@ -222,9 +144,6 @@ enum Loop {
 }
 
 struct State {
-    update_rx: Receiver<UpdateEvent>,
-    resource_tx: Sender<ResourceEvent>,
-
     delta_time: f32,
     frames_per_second: f32,
 
@@ -261,11 +180,8 @@ struct State {
 }
 
 impl State {
-    fn init(update_rx: Receiver<UpdateEvent>, resource_tx: Sender<ResourceEvent>) -> State {
+    fn new() -> State {
         State {
-            update_rx: update_rx,
-            resource_tx: resource_tx,
-
             delta_time: 0.0,
             frames_per_second: 0.0,
 
@@ -302,83 +218,82 @@ impl State {
         }
     }
 
-    fn handle_mouse_update(&mut self, new_position: Point2<i32>) {
-        let old_position = mem::replace(&mut self.mouse_position, new_position);
-        let mouse_delta = new_position - old_position;
+    fn init_display(&self) -> glium::Display {
+        use glium::DisplayBuild;
+        use glium::glutin::WindowBuilder;
 
-        if !self.is_ui_capturing_mouse {
-            if self.is_dragging {
-                let (window_width, _) = self.window_dimensions;
-                let rotations_per_second = (mouse_delta.x as f32 / window_width as f32) * self.camera_drag_factor;
-                self.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.delta_time;
-            }
+        let (width, height) = self.window_dimensions;
 
-            if self.is_zooming {
-                let zoom_delta = mouse_delta.x as f32 * self.delta_time;
-                self.camera_xz_radius = self.camera_xz_radius - (zoom_delta * self.camera_zoom_factor);
-            }
-        }
+        WindowBuilder::new()
+            .with_title(self.window_title.clone())
+            .with_dimensions(width, height)
+            .with_depth_buffer(24)
+            .build_glium()
+            .unwrap()
     }
 
-    fn handle_frame_request(&mut self, frame_data: FrameData) -> Loop {
-        self.delta_time = frame_data.delta_time;
-        self.window_dimensions = frame_data.window_dimensions;
-        self.hidpi_factor = frame_data.hidpi_factor;
-        self.frames_per_second = frame_data.frames_per_second;
+    fn init_resources(&self, display: &glium::Display) -> Resources {
+        use glium::backend::Facade;
+        use rusttype::FontCollection;
+        use std::fs::File;
+        use std::io;
+        use std::io::prelude::*;
+        use std::path::Path;
 
-        self.camera_rotation -= self.camera_rotation_delta;
+        let assets =
+            FolderSearch::ParentsThenKids(3, 3)
+                .for_folder("resources")
+                .expect("Could not locate `resources` folder");
 
-        if self.is_dragging {
-            self.camera_rotation_delta = Rad::new(0.0);
+        let load_shader = |assets: &Path, path| -> io::Result<String> {
+            let mut file = try!(File::open(assets.join(path)));
+            let mut buffer = String::new();
+            try!(file.read_to_string(&mut buffer));
+
+            Ok(buffer)
+        };
+
+        let flat_shaded_vert    = load_shader(&assets, "shaders/flat_shaded.v.glsl").unwrap();
+        let flat_shaded_frag    = load_shader(&assets, "shaders/flat_shaded.f.glsl").unwrap();
+        let text_vert           = load_shader(&assets, "shaders/text.v.glsl").unwrap();
+        let text_frag           = load_shader(&assets, "shaders/text.f.glsl").unwrap();
+        let unshaded_vert       = load_shader(&assets, "shaders/unshaded.v.glsl").unwrap();
+        let unshaded_frag       = load_shader(&assets, "shaders/unshaded.f.glsl").unwrap();
+
+        let flat_shaded_program = Program::from_source(display, &flat_shaded_vert, &flat_shaded_frag, None).unwrap();
+        let text_program        = Program::from_source(display, &text_vert, &text_frag, None).unwrap();
+        let unshaded_program    = Program::from_source(display, &unshaded_vert, &unshaded_frag, None).unwrap();
+
+        let blogger_sans_font = {
+            let mut file = File::open(assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap();
+            let mut buffer = vec![];
+            file.read_to_end(&mut buffer).unwrap();
+
+            let font_collection = FontCollection::from_bytes(buffer);
+            font_collection.into_font().unwrap()
+        };
+
+        let planet_mesh = create_planet_mesh(self.planet_radius, self.planet_subdivs);
+
+        Resources {
+            context: display.get_context().clone(),
+
+            planet_vertex_buffer: VertexBuffer::new(display, &create_vertices(&planet_mesh)).unwrap(),
+            index_buffer: NoIndices(PrimitiveType::TrianglesList),
+
+            text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
+            text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
+
+            stars0_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars0)).unwrap(),
+            stars1_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars1)).unwrap(),
+            stars2_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars2)).unwrap(),
+
+            flat_shaded_program: flat_shaded_program,
+            text_program: text_program,
+            unshaded_program: unshaded_program,
+
+            blogger_sans_font: blogger_sans_font,
         }
-
-        Loop::Continue
-    }
-
-    fn handle_input(&mut self, event: InputEvent) -> Loop {
-        use InputEvent::*;
-
-        match event {
-            Close => return Loop::Break,
-            SetShowingStarField(value) => self.is_showing_star_field = value,
-            SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
-            SetWireframe(value) => self.is_wireframe = value,
-            ToggleUi => self.is_showing_ui = !self.is_showing_ui,
-            // ResetState => *self = State::init(self.resource_tx.clone()),
-            ResetState => {},
-            DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
-            DragEnd => self.is_dragging = false,
-            ZoomStart => self.is_zooming = true,
-            ZoomEnd => self.is_zooming = false,
-            MousePosition(position) => self.handle_mouse_update(position),
-            UpdatePlanetSubdivisions(planet_subdivs) => {
-                self.planet_subdivs = planet_subdivs;
-                self.resource_tx.send(ResourceEvent::RegeneratePlanet {
-                    radius: self.planet_radius,
-                    subdivs: self.planet_subdivs,
-                }).unwrap();
-            },
-            NoOp => {},
-        }
-
-        Loop::Continue
-    }
-
-    fn handle_update(&mut self, event: UpdateEvent) -> Loop {
-        match event {
-            UpdateEvent::FrameRequested(frame_data) => self.handle_frame_request(frame_data),
-            UpdateEvent::Input(event) => self.handle_input(event),
-        }
-    }
-
-    fn update(&mut self) -> Loop {
-        while let Ok(event) = self.update_rx.try_recv() {
-            if self.handle_update(event) == Loop::Break {
-                return Loop::Break;
-            }
-        }
-
-        Loop::Continue
     }
 
     fn scene_camera_position(&self) -> Point3<f32> {
@@ -408,6 +323,100 @@ impl State {
 
     fn create_hud_camera(&self, (frame_width, frame_height): (u32, u32)) -> Matrix4<f32> {
         cgmath::ortho(0.0, frame_width as f32, frame_height as f32, 0.0, -1.0, 1.0)
+    }
+}
+
+struct Game {
+    update_rx: Receiver<UpdateEvent>,
+    resource_tx: Sender<ResourceEvent>,
+    state: State,
+}
+
+impl Game {
+    fn new(update_rx: Receiver<UpdateEvent>, resource_tx: Sender<ResourceEvent>, state: State) -> Game {
+        Game {
+            update_rx: update_rx,
+            resource_tx: resource_tx,
+            state: state,
+        }
+    }
+
+    fn handle_mouse_update(&mut self, new_position: Point2<i32>) {
+        let old_position = mem::replace(&mut self.state.mouse_position, new_position);
+        let mouse_delta = new_position - old_position;
+
+        if !self.state.is_ui_capturing_mouse {
+            if self.state.is_dragging {
+                let (window_width, _) = self.state.window_dimensions;
+                let rotations_per_second = (mouse_delta.x as f32 / window_width as f32) * self.state.camera_drag_factor;
+                self.state.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.state.delta_time;
+            }
+
+            if self.state.is_zooming {
+                let zoom_delta = mouse_delta.x as f32 * self.state.delta_time;
+                self.state.camera_xz_radius = self.state.camera_xz_radius - (zoom_delta * self.state.camera_zoom_factor);
+            }
+        }
+    }
+
+    fn handle_frame_request(&mut self, frame_data: FrameData) -> Loop {
+        self.state.delta_time = frame_data.delta_time;
+        self.state.window_dimensions = frame_data.window_dimensions;
+        self.state.hidpi_factor = frame_data.hidpi_factor;
+        self.state.frames_per_second = frame_data.frames_per_second;
+
+        self.state.camera_rotation -= self.state.camera_rotation_delta;
+
+        if self.state.is_dragging {
+            self.state.camera_rotation_delta = Rad::new(0.0);
+        }
+
+        Loop::Continue
+    }
+
+    fn handle_input(&mut self, event: InputEvent) -> Loop {
+        use InputEvent::*;
+
+        match event {
+            Close => return Loop::Break,
+            SetShowingStarField(value) => self.state.is_showing_star_field = value,
+            SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
+            SetWireframe(value) => self.state.is_wireframe = value,
+            ToggleUi => self.state.is_showing_ui = !self.state.is_showing_ui,
+            ResetState => self.state = State::new(),
+            DragStart => if !self.state.is_ui_capturing_mouse { self.state.is_dragging = true },
+            DragEnd => self.state.is_dragging = false,
+            ZoomStart => self.state.is_zooming = true,
+            ZoomEnd => self.state.is_zooming = false,
+            MousePosition(position) => self.handle_mouse_update(position),
+            UpdatePlanetSubdivisions(planet_subdivs) => {
+                self.state.planet_subdivs = planet_subdivs;
+                self.resource_tx.send(ResourceEvent::RegeneratePlanet {
+                    radius: self.state.planet_radius,
+                    subdivs: self.state.planet_subdivs,
+                }).unwrap();
+            },
+            NoOp => {},
+        }
+
+        Loop::Continue
+    }
+
+    fn handle_update(&mut self, event: UpdateEvent) -> Loop {
+        match event {
+            UpdateEvent::FrameRequested(frame_data) => self.handle_frame_request(frame_data),
+            UpdateEvent::Input(event) => self.handle_input(event),
+        }
+    }
+
+    fn update(&mut self) -> Loop {
+        while let Ok(event) = self.update_rx.try_recv() {
+            if self.handle_update(event) == Loop::Break {
+                return Loop::Break;
+            }
+        }
+
+        Loop::Continue
     }
 }
 
@@ -527,16 +536,18 @@ fn main() {
     let (ui_tx, ui_rx) = mpsc::channel();
     let (update_tx, update_rx) = mpsc::channel();
 
-    let mut state = State::init(update_rx, resource_tx);
-    let display = init_display(&state);
-    let mut resources = init_resources(&display, &state);
+    let state = State::new();
+    let display = state.init_display();
+    let mut resources = state.init_resources(&display);
+
+    let mut game = Game::new(update_rx, resource_tx, state);
 
     let mut ui_context = UiContext::new(ui_rx);
     let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
 
     for time in times::in_seconds() {
         for event in display.poll_events() {
-            if state.is_showing_ui {
+            if game.state.is_showing_ui {
                 ui_tx.send(event.clone()).unwrap()
             };
 
@@ -545,7 +556,7 @@ fn main() {
 
         let window = display.get_window().unwrap();
 
-        if state.is_showing_ui {
+        if game.state.is_showing_ui {
             ui_context.update(window.hidpi_factor());
         }
 
@@ -558,16 +569,16 @@ fn main() {
 
         update_tx.send(UpdateEvent::FrameRequested(frame_data)).unwrap();
 
-        match state.update() {
+        match game.update() {
             Loop::Break => break,
             Loop::Continue => {
                 let mut frame = display.draw();
 
                 handle_resource_events(&mut resources, &display, &resource_rx); // TODO: move resource_rx to Resources struct
-                render_scene(&mut frame, &state, &resources);
+                render_scene(&mut frame, &game.state, &resources);
 
-                if state.is_showing_ui {
-                    render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
+                if game.state.is_showing_ui {
+                    render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &game.state, &update_tx);
                 }
 
                 frame.finish().unwrap()
