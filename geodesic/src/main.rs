@@ -118,7 +118,6 @@ enum ResourceEvent {
 #[derive(Clone)]
 enum RenderEvent {
     Data(State),
-    Quit,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -384,10 +383,7 @@ impl Game {
         use InputEvent::*;
 
         match event {
-            Close => {
-                self.send_quit();
-                return Loop::Break;
-            },
+            Close => return Loop::Break,
             SetShowingStarField(value) => self.state.is_showing_star_field = value,
             SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.state.is_wireframe = value,
@@ -413,10 +409,6 @@ impl Game {
 
     fn send_render_data(&self) {
         self.render_tx.send(RenderEvent::Data(self.state.clone())).unwrap();
-    }
-
-    fn send_quit(&self) {
-        self.render_tx.send(RenderEvent::Quit).unwrap();
     }
 
     fn update(&mut self, event: UpdateEvent) -> Loop {
@@ -578,13 +570,11 @@ fn main() {
         };
 
         if let Err(_) = update_tx.send(UpdateEvent::FrameRequested(frame_data)) {
-            // The update thread must have closed - should be ok to quit now!
-            println!("Closing from `UpdateEvent::FrameRequested`");
             break 'main;
         }
 
         match render_rx.recv() {
-            Ok(RenderEvent::Quit) | Err(_) => break,
+            Err(_) => break 'main,
             Ok(RenderEvent::Data(state)) => {
                 // Get user input
                 for event in display.poll_events() {
@@ -595,8 +585,6 @@ fn main() {
                     }
 
                     if let Err(_) = update_tx.send(UpdateEvent::Input(InputEvent::from(event))) {
-                        // The update thread must have closed - should be ok to quit now!
-                        println!("Closing from `UpdateEvent::Input`");
                         break 'main;
                     }
                 }
