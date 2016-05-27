@@ -538,7 +538,6 @@ fn main() {
     use std::thread;
 
     let (resource_tx, resource_rx) = mpsc::channel();
-    let (ui_tx, ui_rx) = mpsc::channel();
     let (update_tx, update_rx) = mpsc::channel();
     let (render_tx, render_rx) = mpsc::channel();
 
@@ -556,7 +555,7 @@ fn main() {
         }
     });
 
-    let mut ui_context = UiContext::new(ui_rx);
+    let mut ui_context = UiContext::new();
     let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
 
     'main: for time in times::in_seconds() {
@@ -579,9 +578,7 @@ fn main() {
                 // Get user input
                 for event in display.poll_events() {
                     if state.is_showing_ui {
-                        // TODO: Get rid of the ui channel?
-                        ui_tx.send(event.clone()).unwrap();
-                        ui_context.update(window.hidpi_factor());
+                        ui_context.update(event.clone(), window.hidpi_factor());
                     }
 
                     if let Err(_) = update_tx.send(UpdateEvent::Input(InputEvent::from(event))) {
