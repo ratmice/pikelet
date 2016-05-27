@@ -207,8 +207,8 @@ enum ResourceEvent {
 
 #[derive(Clone, Debug, PartialEq)]
 enum Loop {
-    Continue(Vec<ResourceEvent>),
-    Close,
+    Continue,
+    Break,
 }
 
 struct State {
@@ -317,11 +317,11 @@ impl State {
         }
     }
 
-    fn handle_input(&mut self, event: InputEvent, resource_events: &mut Vec<ResourceEvent>) -> bool {
+    fn handle_input(&mut self, event: InputEvent, resource_events: &mut Vec<ResourceEvent>) -> Loop {
         use InputEvent::*;
 
         match event {
-            Close => return false,
+            Close => return Loop::Break,
             SetShowingStarField(value) => self.is_showing_star_field = value,
             SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.is_wireframe = value,
@@ -339,26 +339,24 @@ impl State {
             NoOp => {},
         }
 
-        true
+        Loop::Continue
     }
 
-    fn update<Events>(&mut self, events: Events) -> Loop where
+    fn update<Events>(&mut self, events: Events, resource_events: &mut Vec<ResourceEvent>) -> Loop where
         Events: IntoIterator<Item = UpdateEvent>,
     {
-        let mut resource_events = vec![];
-
         for event in events {
             match event {
                 UpdateEvent::FrameRequested(frame_data) => self.handle_frame_request(frame_data),
                 UpdateEvent::Input(event) => {
-                    if !self.handle_input(event, &mut resource_events) {
-                        return Loop::Close;
+                    if let Loop::Break = self.handle_input(event, resource_events) {
+                        return Loop::Break;
                     }
                 },
             }
         }
 
-        Loop::Continue(resource_events)
+        Loop::Continue
     }
 
     fn scene_camera_position(&self) -> Point3<f32> {
@@ -399,7 +397,7 @@ impl State {
     }
 }
 
-fn apply_render_events<Events>(resources: &mut Resources, display: &glium::Display, state: &State, events: Events) where
+fn handle_resource_events<Events>(resources: &mut Resources, display: &glium::Display, state: &State, events: Events) where
     Events: IntoIterator<Item = ResourceEvent>,
 {
     for event in events {
@@ -539,16 +537,18 @@ fn main() {
                 .chain(display_events.into_iter().map(InputEvent::from))
                 .map(UpdateEvent::Input);
 
-        let events =
+        let update_events =
             iter::once(UpdateEvent::FrameRequested(frame_data))
                 .chain(input_events);
 
-        match state.update(events) {
-            Loop::Close => break,
-            Loop::Continue(render_events) => {
+        let mut resource_events = vec![];
+
+        match state.update(update_events, &mut resource_events) {
+            Loop::Break => break,
+            Loop::Continue => {
                 let mut frame = display.draw();
 
-                apply_render_events(&mut resources, &display, &state, render_events);
+                handle_resource_events(&mut resources, &display, &state, resource_events);
                 render_scene(&mut frame, &state, &resources);
 
                 if state.is_showing_ui {
