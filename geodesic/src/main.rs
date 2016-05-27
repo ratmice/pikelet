@@ -63,7 +63,8 @@ fn init_resources(display: &glium::Display, state: &State) -> Resources {
     use std::io::prelude::*;
     use std::path::Path;
 
-    let assets = FolderSearch::ParentsThenKids(3, 3)
+    let assets =
+        FolderSearch::ParentsThenKids(3, 3)
             .for_folder("resources")
             .expect("Could not locate `resources` folder");
 
@@ -182,19 +183,19 @@ pub enum InputEvent {
 impl From<glutin::Event> for InputEvent {
     fn from(src: glutin::Event) -> InputEvent {
         use glium::glutin::ElementState::*;
-        use glium::glutin::Event::*;
+        use glium::glutin::Event;
         use glium::glutin::MouseButton;
         use glium::glutin::VirtualKeyCode as Key;
 
         match src {
-            Closed | KeyboardInput(Pressed, _, Some(Key::Escape)) => InputEvent::Close,
-            KeyboardInput(Pressed, _, Some(Key::R)) => InputEvent::ResetState,
-            KeyboardInput(Pressed, _, Some(Key::U)) => InputEvent::ToggleUi,
-            MouseInput(Pressed, MouseButton::Left) => InputEvent::DragStart,
-            MouseInput(Released, MouseButton::Left) => InputEvent::DragEnd,
-            MouseInput(Pressed, MouseButton::Right) => InputEvent::ZoomStart,
-            MouseInput(Released, MouseButton::Right) => InputEvent::ZoomEnd,
-            MouseMoved(x, y) => InputEvent::MousePosition(Point2::new(x, y)),
+            Event::Closed | Event::KeyboardInput(Pressed, _, Some(Key::Escape)) => InputEvent::Close,
+            Event::KeyboardInput(Pressed, _, Some(Key::R)) => InputEvent::ResetState,
+            Event::KeyboardInput(Pressed, _, Some(Key::U)) => InputEvent::ToggleUi,
+            Event::MouseInput(Pressed, MouseButton::Left) => InputEvent::DragStart,
+            Event::MouseInput(Released, MouseButton::Left) => InputEvent::DragEnd,
+            Event::MouseInput(Pressed, MouseButton::Right) => InputEvent::ZoomStart,
+            Event::MouseInput(Released, MouseButton::Right) => InputEvent::ZoomEnd,
+            Event::MouseMoved(x, y) => InputEvent::MousePosition(Point2::new(x, y)),
             _ => InputEvent::NoOp,
         }
     }
@@ -394,9 +395,7 @@ impl State {
 
     fn create_subdivided_planet_mesh(&self) -> Mesh {
         primitives::icosahedron(self.planet_radius)
-            .subdivide(self.planet_subdivs, &|a, b| {
-                math::midpoint_arc(self.planet_radius, a, b)
-            })
+            .subdivide(self.planet_subdivs, &|a, b| math::midpoint_arc(self.planet_radius, a, b))
             .generate_dual()
     }
 }
