@@ -222,6 +222,7 @@ enum Loop {
 }
 
 struct State {
+    update_rx: Receiver<UpdateEvent>,
     resource_tx: Sender<ResourceEvent>,
 
     delta_time: f32,
@@ -260,8 +261,9 @@ struct State {
 }
 
 impl State {
-    fn init(resource_tx: Sender<ResourceEvent>) -> State {
+    fn init(update_rx: Receiver<UpdateEvent>, resource_tx: Sender<ResourceEvent>) -> State {
         State {
+            update_rx: update_rx,
             resource_tx: resource_tx,
 
             delta_time: 0.0,
@@ -342,9 +344,8 @@ impl State {
             SetUiCapturingMouse(value) => self.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.is_wireframe = value,
             ToggleUi => self.is_showing_ui = !self.is_showing_ui,
-            ResetState => {
-                *self = State::init(self.resource_tx.clone())
-            },
+            // ResetState => *self = State::init(self.resource_tx.clone()),
+            ResetState => {},
             DragStart => if !self.is_ui_capturing_mouse { self.is_dragging = true },
             DragEnd => self.is_dragging = false,
             ZoomStart => self.is_zooming = true,
@@ -370,10 +371,8 @@ impl State {
         }
     }
 
-    fn update<Events>(&mut self, events: Events) -> Loop where
-        Events: IntoIterator<Item = UpdateEvent>,
-    {
-        for event in events {
+    fn update(&mut self) -> Loop {
+        while let Ok(event) = self.update_rx.try_recv() {
             if self.handle_update(event) == Loop::Break {
                 return Loop::Break;
             }
@@ -455,25 +454,28 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
     // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK).unwrap();
 }
 
-fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui::Renderer, state: &State) -> Vec<InputEvent> {
+fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui::Renderer, state: &State, update_tx: &Sender<UpdateEvent>) {
     use InputEvent::*;
 
     let ui = ui_context.frame(state.window_dimensions, state.delta_time);
-    let mut events = vec![];
+
+    let send_event = |event| {
+        update_tx.send(UpdateEvent::Input(event)).unwrap();
+    };
 
     ui.window(im_str!("State"))
         .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
         .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
             ui::checkbox(&ui, im_str!("Wireframe"), state.is_wireframe)
-                .map(|v| events.push(SetWireframe(v)));
+                .map(|v| send_event(SetWireframe(v)));
             ui::checkbox(&ui, im_str!("Show star field"), state.is_showing_star_field)
-                .map(|v| events.push(SetShowingStarField(v)));
+                .map(|v| send_event(SetShowingStarField(v)));
             ui::slider_i32(&ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
-                .map(|v| events.push(UpdatePlanetSubdivisions(v as usize)));
+                .map(|v| send_event(UpdatePlanetSubdivisions(v as usize)));
 
             if ui.small_button(im_str!("Reset state")) {
-                events.push(ResetState);
+                send_event(ResetState);
             }
 
             ui.tree_node(im_str!("State")).build(|| {
@@ -512,35 +514,39 @@ fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui
         });
 
     if ui.want_capture_mouse() != state.is_ui_capturing_mouse {
-        events.push(SetUiCapturingMouse(ui.want_capture_mouse()));
+        send_event(SetUiCapturingMouse(ui.want_capture_mouse()));
     }
 
     ui_renderer.render(frame, ui, state.hidpi_factor).unwrap();
-
-    events
 }
 
 fn main() {
     use std::sync::mpsc;
 
     let (resource_tx, resource_rx) = mpsc::channel();
+    let (ui_tx, ui_rx) = mpsc::channel();
+    let (update_tx, update_rx) = mpsc::channel();
 
-    let mut state = State::init(resource_tx);
+    let mut state = State::init(update_rx, resource_tx);
     let display = init_display(&state);
     let mut resources = init_resources(&display, &state);
 
-    let mut ui_context = UiContext::new();
+    let mut ui_context = UiContext::new(ui_rx);
     let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
-    let mut ui_events = Vec::new();
 
     for time in times::in_seconds() {
-        use std::iter::{self, FromIterator};
+        for event in display.poll_events() {
+            if state.is_showing_ui {
+                ui_tx.send(event.clone()).unwrap()
+            };
+
+            update_tx.send(UpdateEvent::Input(InputEvent::from(event))).unwrap();
+        }
 
         let window = display.get_window().unwrap();
-        let display_events = Vec::from_iter(display.poll_events());
 
         if state.is_showing_ui {
-            ui_context.update(display_events.iter(), window.hidpi_factor());
+            ui_context.update(window.hidpi_factor());
         }
 
         let frame_data = FrameData {
@@ -550,16 +556,9 @@ fn main() {
             frames_per_second: 1.0 / time.delta() as f32,
         };
 
-        let input_events =
-            ui_events.into_iter()
-                .chain(display_events.into_iter().map(InputEvent::from))
-                .map(UpdateEvent::Input);
+        update_tx.send(UpdateEvent::FrameRequested(frame_data)).unwrap();
 
-        let update_events =
-            iter::once(UpdateEvent::FrameRequested(frame_data))
-                .chain(input_events);
-
-        match state.update(update_events) {
+        match state.update() {
             Loop::Break => break,
             Loop::Continue => {
                 let mut frame = display.draw();
@@ -568,9 +567,7 @@ fn main() {
                 render_scene(&mut frame, &state, &resources);
 
                 if state.is_showing_ui {
-                    ui_events = render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state);
-                } else {
-                    ui_events = Vec::new();
+                    render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
                 }
 
                 frame.finish().unwrap()

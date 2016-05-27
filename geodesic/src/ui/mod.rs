@@ -1,6 +1,7 @@
 use glium::backend::Facade;
 use glium::glutin;
 use imgui::{self, ImGui, ImGuiKey, Ui};
+use std::sync::mpsc::Receiver;
 
 use render::RenderResult;
 
@@ -10,13 +11,14 @@ mod render;
 
 pub struct Context {
     imgui: ImGui,
+    ui_rx: Receiver<glutin::Event>,
     mouse_pos: (i32, i32),
     mouse_pressed: (bool, bool, bool),
     mouse_wheel: f32,
 }
 
 impl Context {
-    pub fn new() -> Context {
+    pub fn new(ui_rx: Receiver<glutin::Event>) -> Context {
         let mut imgui = ImGui::init();
 
         imgui.set_ini_filename(None);
@@ -38,6 +40,7 @@ impl Context {
 
         Context {
             imgui: imgui,
+            ui_rx: ui_rx,
             mouse_pos: (0, 0),
             mouse_pressed: (false, false, false),
             mouse_wheel: 0.0
@@ -48,16 +51,14 @@ impl Context {
         Renderer::init(&mut self.imgui, facade)
     }
 
-    pub fn update<'a, Events>(&mut self, events: Events, hidpi_factor: f32) where
-        Events: 'a + Iterator<Item = &'a glutin::Event>,
-    {
+    pub fn update(&mut self, hidpi_factor: f32) {
         use glium::glutin::ElementState::Pressed;
         use glium::glutin::Event::*;
         use glium::glutin::{MouseButton, MouseScrollDelta};
         use glium::glutin::VirtualKeyCode as Key;
 
-        for event in events {
-            match *event {
+        while let Ok(event) = self.ui_rx.try_recv() {
+            match event {
                 KeyboardInput(state, _, Some(code)) => match code {
                     Key::Tab => self.imgui.set_key(0, state == Pressed),
                     Key::Left => self.imgui.set_key(1, state == Pressed),
