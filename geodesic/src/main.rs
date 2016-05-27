@@ -414,8 +414,8 @@ impl Game {
     fn update(&mut self, event: UpdateEvent) -> Loop {
         match event {
             UpdateEvent::FrameRequested(frame_data) => {
-                // We send the data for the last frame so that renderer can
-                // get started doing it's job asynchronously!
+                // We send the data for the last frame so that the renderer
+                // can get started doing it's job in parallel!
                 self.send_render_data();
                 self.handle_frame_request(frame_data)
             },
@@ -544,6 +544,8 @@ fn main() {
     let state = State::new();
     let display = state.init_display();
     let mut resources = state.init_resources(&display);
+    let mut ui_context = UiContext::new();
+    let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
 
     // Spawn update thread
     thread::spawn(move || {
@@ -554,9 +556,6 @@ fn main() {
             if game.update(event) == Loop::Break { break };
         }
     });
-
-    let mut ui_context = UiContext::new();
-    let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
 
     'main: for time in times::in_seconds() {
         let window = display.get_window().unwrap();
@@ -590,17 +589,15 @@ fn main() {
                 handle_resource_events(&mut resources, &display, &resource_rx);
 
                 // Time to render!
-                {
-                    let mut frame = display.draw();
 
-                    render_scene(&mut frame, &state, &resources);
+                let mut frame = display.draw();
 
-                    if state.is_showing_ui {
-                        render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
-                    }
-
-                    frame.finish().unwrap();
+                render_scene(&mut frame, &state, &resources);
+                if state.is_showing_ui {
+                    render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
                 }
+
+                frame.finish().unwrap();
             }
         }
 
