@@ -87,6 +87,17 @@ pub struct FrameData {
     frames_per_second: f32,
 }
 
+impl FrameData {
+    fn new(width: u32, height: u32) -> FrameData {
+        FrameData {
+            window_dimensions: (width, height),
+            hidpi_factor: 1.0,
+            delta_time: 0.0,
+            frames_per_second: 0.0,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum UpdateEvent {
     FrameRequested(FrameData),
@@ -145,8 +156,7 @@ impl From<glutin::Event> for InputEvent {
 
 #[derive(Clone)]
 struct State {
-    delta_time: f32,
-    frames_per_second: f32,
+    frame_data: FrameData,
 
     is_wireframe: bool,
     is_showing_star_field: bool,
@@ -157,8 +167,6 @@ struct State {
 
     window_title: String,
     mouse_position: Point2<i32>,
-    window_dimensions: (u32, u32),
-    hidpi_factor: f32,
 
     light_dir: Vector3<f32>,
 
@@ -183,8 +191,7 @@ struct State {
 impl State {
     fn new() -> State {
         State {
-            delta_time: 0.0,
-            frames_per_second: 0.0,
+            frame_data: FrameData::new(1000, 500),
 
             is_wireframe: false,
             is_showing_star_field: true,
@@ -197,8 +204,6 @@ impl State {
 
             window_title: "Geodesic Test".to_string(),
             mouse_position: Point2::origin(),
-            window_dimensions: (1000, 500),
-            hidpi_factor: 1.0,
 
             camera_rotation: Rad::new(0.0),
             camera_rotation_delta: Rad::new(0.0),
@@ -219,11 +224,18 @@ impl State {
         }
     }
 
+    fn reset(&mut self) {
+        let frame_data = self.frame_data;
+
+        *self = State::new();
+        self.frame_data = frame_data;
+    }
+
     fn init_display(&self) -> glium::Display {
         use glium::DisplayBuild;
         use glium::glutin::WindowBuilder;
 
-        let (width, height) = self.window_dimensions;
+        let (width, height) = self.frame_data.window_dimensions;
 
         WindowBuilder::new()
             .with_title(self.window_title.clone())
@@ -346,23 +358,20 @@ impl Game {
 
         if !self.state.is_ui_capturing_mouse {
             if self.state.is_dragging {
-                let (window_width, _) = self.state.window_dimensions;
+                let (window_width, _) = self.state.frame_data.window_dimensions;
                 let rotations_per_second = (mouse_delta.x as f32 / window_width as f32) * self.state.camera_drag_factor;
-                self.state.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.state.delta_time;
+                self.state.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.state.frame_data.delta_time;
             }
 
             if self.state.is_zooming {
-                let zoom_delta = mouse_delta.x as f32 * self.state.delta_time;
+                let zoom_delta = mouse_delta.x as f32 * self.state.frame_data.delta_time;
                 self.state.camera_xz_radius = self.state.camera_xz_radius - (zoom_delta * self.state.camera_zoom_factor);
             }
         }
     }
 
     fn handle_frame_request(&mut self, frame_data: FrameData) -> Loop {
-        self.state.delta_time = frame_data.delta_time;
-        self.state.window_dimensions = frame_data.window_dimensions;
-        self.state.hidpi_factor = frame_data.hidpi_factor;
-        self.state.frames_per_second = frame_data.frames_per_second;
+        self.state.frame_data = frame_data;
 
         self.state.camera_rotation -= self.state.camera_rotation_delta;
 
@@ -382,7 +391,7 @@ impl Game {
             SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.state.is_wireframe = value,
             ToggleUi => self.state.is_showing_ui = !self.state.is_showing_ui,
-            ResetState => self.state = State::new(),
+            ResetState => self.state.reset(),
             DragStart => if !self.state.is_ui_capturing_mouse { self.state.is_dragging = true },
             DragEnd => self.state.is_dragging = false,
             ZoomStart => self.state.is_zooming = true,
@@ -423,7 +432,7 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
 
     let mut target = RenderTarget {
         frame: frame,
-        hidpi_factor: state.hidpi_factor,
+        hidpi_factor: state.frame_data.hidpi_factor,
         resources: resources,
         camera: state.create_scene_camera(frame_dimensions),
         hud_matrix: state.create_hud_camera(frame_dimensions),
@@ -452,9 +461,11 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
 fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui::Renderer, state: &State, update_tx: &Sender<UpdateEvent>) {
     use InputEvent::*;
 
-    let ui = ui_context.frame(state.window_dimensions, state.delta_time);
+    let ui = ui_context.frame(state.frame_data.window_dimensions, state.frame_data.delta_time);
 
     let send_event = |event| {
+        // FIXME: could cause a panic on the slim chance that the update thread
+        //  closes during ui rendering.
         update_tx.send(UpdateEvent::Input(event)).unwrap();
     };
 
@@ -474,8 +485,10 @@ fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui
             }
 
             ui.tree_node(im_str!("State")).build(|| {
-                ui.text(im_str!("delta_time: {:?}", state.delta_time));
-                ui.text(im_str!("frames_per_second: {:?}", state.frames_per_second));
+                ui.text(im_str!("delta_time: {:?}", state.frame_data.delta_time));
+                ui.text(im_str!("frames_per_second: {:?}", state.frame_data.frames_per_second));
+                ui.text(im_str!("hidpi_factor: {:?}", state.frame_data.hidpi_factor));
+                ui.text(im_str!("window_dimensions: {:?}", state.frame_data.window_dimensions));
 
                 ui.separator();
 
@@ -493,7 +506,6 @@ fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui
                 ui.separator();
 
                 ui.text(im_str!("mouse_position: {:?}", state.mouse_position));
-                ui.text(im_str!("window_dimensions: {:?}", state.window_dimensions));
 
                 ui.separator();
 
@@ -512,7 +524,7 @@ fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui
         send_event(SetUiCapturingMouse(ui.want_capture_mouse()));
     }
 
-    ui_renderer.render(frame, ui, state.hidpi_factor).unwrap();
+    ui_renderer.render(frame, ui, state.frame_data.hidpi_factor).unwrap();
 }
 
 fn main() {
