@@ -175,7 +175,6 @@ impl Dual for Mesh {
 
         let mut mesh = Mesh::empty();
 
-        // TODO: make some iterators!
         for (face_index, point_indices) in self.triangles().enumerate() {
             face_cache.entry(point_indices[0]).or_insert(face_index);
             face_cache.entry(point_indices[1]).or_insert(face_index);
