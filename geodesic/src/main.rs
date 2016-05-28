@@ -20,7 +20,7 @@ use glium::glutin;
 use glium::index::{PrimitiveType, NoIndices};
 use rayon::prelude::*;
 use std::mem;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Sender, SyncSender};
 use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
@@ -342,12 +342,12 @@ impl State {
 
 struct Game {
     resource_tx: Sender<ResourceEvent>,
-    render_tx: Sender<RenderData>,
+    render_tx: SyncSender<RenderData>,
     state: State,
 }
 
 impl Game {
-    fn new(resource_tx: Sender<ResourceEvent>, render_tx: Sender<RenderData>, state: State) -> Game {
+    fn new(resource_tx: Sender<ResourceEvent>, render_tx: SyncSender<RenderData>, state: State) -> Game {
         Game {
             resource_tx: resource_tx,
             render_tx: render_tx,
@@ -542,7 +542,7 @@ fn main() {
 
     let (update_tx, update_rx) = mpsc::channel();
     let (resource_tx, resource_rx) = mpsc::channel();
-    let (render_tx, render_rx) = mpsc::channel();
+    let (render_tx, render_rx) = mpsc::sync_channel(1);
 
     let state = State::new();
     let display = state.init_display();
