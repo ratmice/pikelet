@@ -170,8 +170,8 @@ impl Dual for Mesh {
             adjacent_edge.face
         }
 
-        let mut centroid_index: HashMap<FaceIndex, PositionIndex> = HashMap::new();
-        let mut face_index: HashMap<PositionIndex, FaceIndex> = HashMap::new();
+        let mut centroid_cache: HashMap<FaceIndex, PositionIndex> = HashMap::new();
+        let mut face_cache: HashMap<PositionIndex, FaceIndex> = HashMap::new();
 
         let mut mesh = Mesh::empty();
 
@@ -183,11 +183,11 @@ impl Dual for Mesh {
                 let e2 = &self.edges[e1.next];
 
                 let p0 = e0.position;
-                face_index.entry(p0).or_insert(fi);
+                face_cache.entry(p0).or_insert(fi);
                 let p1 = e1.position;
-                face_index.entry(p1).or_insert(fi);
+                face_cache.entry(p1).or_insert(fi);
                 let p2 = e2.position;
-                face_index.entry(p2).or_insert(fi);
+                face_cache.entry(p2).or_insert(fi);
 
                 vec![
                     self.positions[p0],
@@ -197,20 +197,23 @@ impl Dual for Mesh {
             };
 
             let cp = mesh.add_position(math::centroid(&points));
-            centroid_index.insert(fi, cp);
+            centroid_cache.insert(fi, cp);
         }
 
         for pi in 0..self.positions.len() {
-            if let Some(fi0) = face_index.get_mut(&pi) {
-                let mut centroids: Vec<PositionIndex> = Vec::new();
-
+            if let Some(fi0) = face_cache.get_mut(&pi) {
+                let mut centroids = Vec::with_capacity(6);
+                let mut centroid_indices = Vec::with_capacity(6);
                 let mut current_face_index = *fi0;
-
                 let mut cycle_check = 0;
+
                 loop {
                     let current_face = &self.faces[current_face_index];
-                    let ci = centroid_index[&current_face_index];
-                    centroids.push(ci);
+                    let centroid_index = centroid_cache[&current_face_index];
+
+                    centroid_indices.push(centroid_index);
+                    centroids.push(mesh.positions[centroid_index]);
+
                     let ei = {
                         let e0 = &self.edges[current_face.root];
                         if e0.position == pi {
@@ -242,27 +245,22 @@ impl Dual for Mesh {
                 }
 
                 let centroid_count = centroids.len();
-                let cp = {
-                    use std::iter::FromIterator;
-
-                    let positions = Vec::from_iter(centroids[0..centroid_count].iter().map(|i| mesh.positions[*i]));
-                    let centroid = math::centroid(&positions);
-                    mesh.add_position(centroid)
-                };
+                let centroid = math::centroid(&centroids[0..centroid_count]);
+                let centroid_index = mesh.add_position(centroid);
 
                 if centroid_count == 6 {
-                    mesh.add_triangle(cp, centroids[0], centroids[1]);
-                    mesh.add_triangle(cp, centroids[1], centroids[2]);
-                    mesh.add_triangle(cp, centroids[2], centroids[3]);
-                    mesh.add_triangle(cp, centroids[3], centroids[4]);
-                    mesh.add_triangle(cp, centroids[4], centroids[5]);
-                    mesh.add_triangle(cp, centroids[5], centroids[0]);
+                    mesh.add_triangle(centroid_index, centroid_indices[0], centroid_indices[1]);
+                    mesh.add_triangle(centroid_index, centroid_indices[1], centroid_indices[2]);
+                    mesh.add_triangle(centroid_index, centroid_indices[2], centroid_indices[3]);
+                    mesh.add_triangle(centroid_index, centroid_indices[3], centroid_indices[4]);
+                    mesh.add_triangle(centroid_index, centroid_indices[4], centroid_indices[5]);
+                    mesh.add_triangle(centroid_index, centroid_indices[5], centroid_indices[0]);
                 } else if centroid_count == 5 {
-                    mesh.add_triangle(cp, centroids[0], centroids[1]);
-                    mesh.add_triangle(cp, centroids[1], centroids[2]);
-                    mesh.add_triangle(cp, centroids[2], centroids[3]);
-                    mesh.add_triangle(cp, centroids[3], centroids[4]);
-                    mesh.add_triangle(cp, centroids[4], centroids[0]);
+                    mesh.add_triangle(centroid_index, centroid_indices[0], centroid_indices[1]);
+                    mesh.add_triangle(centroid_index, centroid_indices[1], centroid_indices[2]);
+                    mesh.add_triangle(centroid_index, centroid_indices[2], centroid_indices[3]);
+                    mesh.add_triangle(centroid_index, centroid_indices[3], centroid_indices[4]);
+                    mesh.add_triangle(centroid_index, centroid_indices[4], centroid_indices[0]);
                 } else {
                     panic!("Incorrect number of centroids!");
                 }
