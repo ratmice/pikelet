@@ -75,16 +75,17 @@ impl Context {
                 let y = y as f32 / hidpi_factor;
                 self.imgui.set_mouse_pos(x, y);
             },
-            MouseInput(state, MouseButton::Left) => self.mouse_pressed.0 = state == Pressed,
-            MouseInput(state, MouseButton::Right) => self.mouse_pressed.1 = state == Pressed,
-            MouseInput(state, MouseButton::Middle) => self.mouse_pressed.2 = state == Pressed,
+            MouseInput(state, MouseButton::Left) => { self.mouse_pressed.0 = state == Pressed; self.set_mouse_presses() },
+            MouseInput(state, MouseButton::Right) => { self.mouse_pressed.1 = state == Pressed; self.set_mouse_presses() },
+            MouseInput(state, MouseButton::Middle) => { self.mouse_pressed.2 = state == Pressed; self.set_mouse_presses() },
             MouseWheel(MouseScrollDelta::LineDelta(_, y), _) => self.imgui.set_mouse_wheel(y),
             MouseWheel(MouseScrollDelta::PixelDelta(_, y), _) => self.imgui.set_mouse_wheel(y),
             ReceivedCharacter(c) => self.imgui.add_input_character(c),
             _ => {},
         }
+    }
 
-        // TODO: don't set this every time?
+    fn set_mouse_presses(&mut self) {
         self.imgui.set_mouse_down(&[self.mouse_pressed.0, self.mouse_pressed.1, self.mouse_pressed.2, false, false]);
     }
 
