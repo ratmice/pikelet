@@ -206,7 +206,6 @@ impl Dual for Mesh {
 
             let mut centroids = Vec::with_capacity(6);
             let mut centroid_indices = Vec::with_capacity(6);
-            let mut cycle_check = 0;
 
             loop {
                 let current_face = &self.faces[current_face_index];
@@ -234,10 +233,8 @@ impl Dual for Mesh {
                     break;
                 }
 
-                cycle_check += 1;
-
                 // Make sure we don't spin out of control
-                assert!(cycle_check <= 6, "Infinite loop detected!");
+                assert!(centroids.len() <= 6, "Infinite loop detected!");
             }
 
             let centroid = math::centroid(&centroids);
