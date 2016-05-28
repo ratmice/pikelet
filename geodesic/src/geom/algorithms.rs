@@ -244,25 +244,26 @@ impl Dual for Mesh {
                     }
                 }
 
-                let centroid_count = centroids.len();
-                let centroid = math::centroid(&centroids[0..centroid_count]);
+                let centroid = math::centroid(&centroids);
                 let centroid_index = mesh.add_position(centroid);
 
-                if centroid_count == 6 {
-                    mesh.add_triangle(centroid_index, centroid_indices[0], centroid_indices[1]);
-                    mesh.add_triangle(centroid_index, centroid_indices[1], centroid_indices[2]);
-                    mesh.add_triangle(centroid_index, centroid_indices[2], centroid_indices[3]);
-                    mesh.add_triangle(centroid_index, centroid_indices[3], centroid_indices[4]);
-                    mesh.add_triangle(centroid_index, centroid_indices[4], centroid_indices[5]);
-                    mesh.add_triangle(centroid_index, centroid_indices[5], centroid_indices[0]);
-                } else if centroid_count == 5 {
-                    mesh.add_triangle(centroid_index, centroid_indices[0], centroid_indices[1]);
-                    mesh.add_triangle(centroid_index, centroid_indices[1], centroid_indices[2]);
-                    mesh.add_triangle(centroid_index, centroid_indices[2], centroid_indices[3]);
-                    mesh.add_triangle(centroid_index, centroid_indices[3], centroid_indices[4]);
-                    mesh.add_triangle(centroid_index, centroid_indices[4], centroid_indices[0]);
-                } else {
-                    panic!("Incorrect number of centroids!");
+                match centroids.len() {
+                    6 =>  {
+                        mesh.add_triangle(centroid_index, centroid_indices[0], centroid_indices[1]);
+                        mesh.add_triangle(centroid_index, centroid_indices[1], centroid_indices[2]);
+                        mesh.add_triangle(centroid_index, centroid_indices[2], centroid_indices[3]);
+                        mesh.add_triangle(centroid_index, centroid_indices[3], centroid_indices[4]);
+                        mesh.add_triangle(centroid_index, centroid_indices[4], centroid_indices[5]);
+                        mesh.add_triangle(centroid_index, centroid_indices[5], centroid_indices[0]);
+                    },
+                    5 => {
+                        mesh.add_triangle(centroid_index, centroid_indices[0], centroid_indices[1]);
+                        mesh.add_triangle(centroid_index, centroid_indices[1], centroid_indices[2]);
+                        mesh.add_triangle(centroid_index, centroid_indices[2], centroid_indices[3]);
+                        mesh.add_triangle(centroid_index, centroid_indices[3], centroid_indices[4]);
+                        mesh.add_triangle(centroid_index, centroid_indices[4], centroid_indices[0]);
+                    },
+                    n => panic!("Incorrect number of centroids: {:?}!", n),
                 }
             } else {
                 panic!("Position in Mesh without any connected faces!?");
