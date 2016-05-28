@@ -47,6 +47,21 @@ impl Subdivide for Mesh {
     fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh
         where F: Fn(Position, Position) -> Position
     {
+        fn calc_and_cache_midpoint<F>(index: EdgeIndex, in_mesh: &Mesh, out_mesh: &mut Mesh,
+                                      cache: &mut HashMap<EdgeIndex, PositionIndex>,
+                                      midpoint_fn: &F) -> PositionIndex
+            where F: Fn(Position, Position) -> Position
+        {
+            let edge = &in_mesh.edges[index];
+            let mp_index = out_mesh.add_position(
+                in_mesh.edge_midpoint(edge, midpoint_fn)
+            );
+            if let Some(adjacent_index) = edge.adjacent {
+                cache.insert(adjacent_index, mp_index);
+            }
+            mp_index
+        }
+
         let mut midpoint_cache: HashMap<EdgeIndex, PositionIndex> = HashMap::new();
         let mut split_edges: HashMap<EdgeIndex, (EdgeIndex, EdgeIndex)> = HashMap::new();
 
@@ -134,30 +149,27 @@ impl Subdivide for Mesh {
     }
 }
 
-// TODO: I couldn't figure out how to make this a lambda/closure in subdivide_once
-fn calc_and_cache_midpoint<F>(index: EdgeIndex, in_mesh: &Mesh, out_mesh: &mut Mesh,
-                              cache: &mut HashMap<EdgeIndex, PositionIndex>,
-                              midpoint_fn: &F) -> PositionIndex
-    where F: Fn(Position, Position) -> Position
-{
-    let edge = &in_mesh.edges[index];
-    let mp_index = out_mesh.add_position(
-        in_mesh.edge_midpoint(edge, midpoint_fn)
-    );
-    if let Some(adjacent_index) = edge.adjacent {
-        cache.insert(adjacent_index, mp_index);
-    }
-    mp_index
-}
-
 
 pub trait Dual {
     fn generate_dual(&self) -> Mesh;
 }
 
 impl Dual for Mesh {
-
     fn generate_dual(&self) -> Mesh {
+        fn next_face_around_position(mesh: &Mesh, pi: PositionIndex, ei0: EdgeIndex) -> FaceIndex {
+            let e0 = &mesh.edges[ei0];
+            let e1 = &mesh.edges[e0.next];
+            let e2 = &mesh.edges[e1.next];
+
+            debug_assert_eq!(e0.position, pi);
+            debug_assert_eq!(e2.next, ei0);
+
+            debug_assert!(!e2.is_boundary());
+
+            let adjacent_edge = &mesh.edges[e2.adjacent.unwrap()];
+            adjacent_edge.face
+        }
+
         let mut centroid_index: HashMap<FaceIndex, PositionIndex> = HashMap::new();
         let mut face_index: HashMap<PositionIndex, FaceIndex> = HashMap::new();
 
@@ -287,18 +299,4 @@ impl Dual for Mesh {
 
         mesh
     }
-}
-
-fn next_face_around_position(mesh: &Mesh, pi: PositionIndex, ei0: EdgeIndex) -> FaceIndex {
-    let e0 = &mesh.edges[ei0];
-    let e1 = &mesh.edges[e0.next];
-    let e2 = &mesh.edges[e1.next];
-
-    debug_assert_eq!(e0.position, pi);
-    debug_assert_eq!(e2.next, ei0);
-
-    debug_assert!(!e2.is_boundary());
-
-    let adjacent_edge = &mesh.edges[e2.adjacent.unwrap()];
-    adjacent_edge.face
 }
