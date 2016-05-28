@@ -224,12 +224,8 @@ impl Dual for Mesh {
                         if e1.position == pi {
                             e0.next
                         } else {
-                            let e2 = &self.edges[e1.next];
-                            if e2.position == pi {
-                                e1.next
-                            } else {
-                                panic!("Unable to find outgoing edge for position {}", pi);
-                            }
+                            assert!(pi == self.edges[e1.next].position, "Unable to find outgoing edge for position {}", pi);
+                            e1.next
                         }
                     }
                 };
@@ -238,11 +234,10 @@ impl Dual for Mesh {
                     break;
                 }
 
-                // Make sure we don't spin out of control
                 cycle_check += 1;
-                if cycle_check > 6 {
-                    panic!("Infinite loop detected!");
-                }
+
+                // Make sure we don't spin out of control
+                assert!(cycle_check <= 6, "Infinite loop detected!");
             }
 
             let centroid = math::centroid(&centroids);
