@@ -527,6 +527,12 @@ fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui
     ui_renderer.render(frame, ui, state.frame_data.hidpi_factor).unwrap();
 }
 
+macro_rules! try_or {
+    ($e:expr, $or:expr) => {
+        match $e { Ok(x) => x, Err(_) => $or }
+    };
+}
+
 fn main() {
     use std::sync::mpsc;
     use std::thread;
@@ -560,27 +566,22 @@ fn main() {
             frames_per_second: 1.0 / time.delta() as f32,
         };
 
-        if let Err(_) = update_tx.send(UpdateEvent::FrameRequested(frame_data)) {
-            break 'main;
-        }
+        try_or!(update_tx.send(UpdateEvent::FrameRequested(frame_data)), break 'main);
 
-        match render_rx.recv() {
-            Err(_) => break 'main,
-            Ok(RenderEvent::RegeneratePlanet { radius, subdivs }) => {
+        match try_or!(render_rx.recv(), break 'main) {
+            RenderEvent::RegeneratePlanet { radius, subdivs } => {
                 let planet_mesh = create_planet_mesh(radius, subdivs);
                 resources.planet_vertex_buffer = VertexBuffer::new(&display, &create_vertices(&planet_mesh)).unwrap();
                 resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
             },
-            Ok(RenderEvent::Data(state)) => {
+            RenderEvent::Data(state) => {
                 // Get user input
                 for event in display.poll_events() {
                     if state.is_showing_ui {
                         ui_context.update(event.clone(), window.hidpi_factor());
                     }
 
-                    if let Err(_) = update_tx.send(UpdateEvent::Input(InputEvent::from(event))) {
-                        break 'main;
-                    }
+                    try_or!(update_tx.send(UpdateEvent::Input(InputEvent::from(event))), break 'main);
                 }
 
                 // Time to render!
