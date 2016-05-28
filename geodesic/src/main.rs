@@ -121,10 +121,11 @@ pub enum InputEvent {
     NoOp,
 }
 
+struct RenderData(State);
+
 #[derive(Clone)]
-enum RenderEvent {
+enum ResourceEvent {
     RegeneratePlanet { radius: f32, subdivs: usize },
-    Data(State),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -340,13 +341,15 @@ impl State {
 }
 
 struct Game {
-    render_tx: Sender<RenderEvent>,
+    resource_tx: Sender<ResourceEvent>,
+    render_tx: Sender<RenderData>,
     state: State,
 }
 
 impl Game {
-    fn new(render_tx: Sender<RenderEvent>, state: State) -> Game {
+    fn new(resource_tx: Sender<ResourceEvent>, render_tx: Sender<RenderData>, state: State) -> Game {
         Game {
+            resource_tx: resource_tx,
             render_tx: render_tx,
             state: state,
         }
@@ -399,7 +402,7 @@ impl Game {
             MousePosition(position) => self.handle_mouse_update(position),
             UpdatePlanetSubdivisions(planet_subdivs) => {
                 self.state.planet_subdivs = planet_subdivs;
-                self.render_tx.send(RenderEvent::RegeneratePlanet {
+                self.resource_tx.send(ResourceEvent::RegeneratePlanet {
                     radius: self.state.planet_radius,
                     subdivs: self.state.planet_subdivs,
                 }).unwrap();
@@ -411,7 +414,7 @@ impl Game {
     }
 
     fn send_render_data(&self) {
-        self.render_tx.send(RenderEvent::Data(self.state.clone())).unwrap();
+        self.render_tx.send(RenderData(self.state.clone())).unwrap();
     }
 
     fn update(&mut self, event: UpdateEvent) -> Loop {
@@ -538,6 +541,7 @@ fn main() {
     use std::thread;
 
     let (update_tx, update_rx) = mpsc::channel();
+    let (resource_tx, resource_rx) = mpsc::channel();
     let (render_tx, render_rx) = mpsc::channel();
 
     let state = State::new();
@@ -548,10 +552,9 @@ fn main() {
 
     // Spawn update thread
     thread::spawn(move || {
-        let mut game = Game::new(render_tx, state);
+        let mut game = Game::new(resource_tx, render_tx, state);
 
-        loop {
-            let event = update_rx.recv().unwrap();
+        for event in update_rx.iter() {
             if game.update(event) == Loop::Break { break };
         }
     });
@@ -567,34 +570,37 @@ fn main() {
         };
 
         try_or!(update_tx.send(UpdateEvent::FrameRequested(frame_data)), break 'main);
+        let RenderData(state) = try_or!(render_rx.recv(), break 'main);
 
-        match try_or!(render_rx.recv(), break 'main) {
-            RenderEvent::RegeneratePlanet { radius, subdivs } => {
-                let planet_mesh = create_planet_mesh(radius, subdivs);
-                resources.planet_vertex_buffer = VertexBuffer::new(&display, &create_vertices(&planet_mesh)).unwrap();
-                resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
-            },
-            RenderEvent::Data(state) => {
-                // Get user input
-                for event in display.poll_events() {
-                    if state.is_showing_ui {
-                        ui_context.update(event.clone(), window.hidpi_factor());
-                    }
-
-                    try_or!(update_tx.send(UpdateEvent::Input(InputEvent::from(event))), break 'main);
-                }
-
-                // Time to render!
-
-                let mut frame = display.draw();
-
-                render_scene(&mut frame, &state, &resources);
-                if state.is_showing_ui {
-                    render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
-                }
-
-                frame.finish().unwrap();
+        // Get user input
+        for event in display.poll_events() {
+            if state.is_showing_ui {
+                ui_context.update(event.clone(), window.hidpi_factor());
             }
+            try_or!(update_tx.send(UpdateEvent::Input(InputEvent::from(event))), break 'main);
+        }
+
+        // Update resources
+        while let Ok(event) = resource_rx.try_recv() {
+            match event {
+                ResourceEvent::RegeneratePlanet { radius, subdivs } => {
+                    let planet_mesh = create_planet_mesh(radius, subdivs);
+                    resources.planet_vertex_buffer = VertexBuffer::new(&display, &create_vertices(&planet_mesh)).unwrap();
+                    resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
+                },
+            }
+        }
+
+        // Time to render!
+        {
+            let mut frame = display.draw();
+
+            render_scene(&mut frame, &state, &resources);
+            if state.is_showing_ui {
+                render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
+            }
+
+            frame.finish().unwrap();
         }
 
         thread::sleep(Duration::from_millis(10)); // battery saver ;)
