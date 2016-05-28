@@ -183,13 +183,14 @@ impl Dual for Mesh {
                 let e2 = &self.edges[e1.next];
 
                 let p0 = e0.position;
-                face_cache.entry(p0).or_insert(fi);
                 let p1 = e1.position;
-                face_cache.entry(p1).or_insert(fi);
                 let p2 = e2.position;
+
+                face_cache.entry(p0).or_insert(fi);
+                face_cache.entry(p1).or_insert(fi);
                 face_cache.entry(p2).or_insert(fi);
 
-                vec![
+                [
                     self.positions[p0],
                     self.positions[p1],
                     self.positions[p2],
