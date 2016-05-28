@@ -156,13 +156,13 @@ mod tests {
         let mut cycle_check = 0;
         for (fi, face) in mesh.faces.iter().enumerate() {
             let ei0 = face.root;
-            let mut eiN = ei0;
+            let mut ei_n = ei0;
             loop {
-                let ref edge = mesh.edges[eiN];
+                let ref edge = mesh.edges[ei_n];
                 assert_eq!(edge.face, fi);
 
-                eiN = edge.next;
-                if eiN == ei0 {
+                ei_n = edge.next;
+                if ei_n == ei0 {
                     break;
                 }
                 cycle_check += 1;
