@@ -201,72 +201,70 @@ impl Dual for Mesh {
         }
 
         for pi in 0..self.positions.len() {
-            if let Some(fi0) = face_cache.get_mut(&pi) {
-                let mut centroids = Vec::with_capacity(6);
-                let mut centroid_indices = Vec::with_capacity(6);
-                let mut current_face_index = *fi0;
-                let mut cycle_check = 0;
+            let fi0 = *face_cache.get(&pi).expect("Position in Mesh without any connected faces!?");
+            let mut current_face_index = fi0;
 
-                loop {
-                    let current_face = &self.faces[current_face_index];
-                    let centroid_index = centroid_cache[&current_face_index];
+            let mut centroids = Vec::with_capacity(6);
+            let mut centroid_indices = Vec::with_capacity(6);
+            let mut cycle_check = 0;
 
-                    centroid_indices.push(centroid_index);
-                    centroids.push(mesh.positions[centroid_index]);
+            loop {
+                let current_face = &self.faces[current_face_index];
+                let centroid_index = centroid_cache[&current_face_index];
 
-                    let ei = {
-                        let e0 = &self.edges[current_face.root];
-                        if e0.position == pi {
-                            current_face.root
+                centroid_indices.push(centroid_index);
+                centroids.push(mesh.positions[centroid_index]);
+
+                let ei = {
+                    let e0 = &self.edges[current_face.root];
+                    if e0.position == pi {
+                        current_face.root
+                    } else {
+                        let e1 = &self.edges[e0.next];
+                        if e1.position == pi {
+                            e0.next
                         } else {
-                            let e1 = &self.edges[e0.next];
-                            if e1.position == pi {
-                                e0.next
+                            let e2 = &self.edges[e1.next];
+                            if e2.position == pi {
+                                e1.next
                             } else {
-                                let e2 = &self.edges[e1.next];
-                                if e2.position == pi {
-                                    e1.next
-                                } else {
-                                    panic!("Unable to find outgoing edge for position {}", pi);
-                                }
+                                panic!("Unable to find outgoing edge for position {}", pi);
                             }
                         }
-                    };
-                    current_face_index = next_face_around_position(&self, pi, ei);
-                    if current_face_index == *fi0 {
-                        break;
                     }
-
-                    // Make sure we don't spin out of control
-                    cycle_check += 1;
-                    if cycle_check > 6 {
-                        panic!("Infinite loop detected!");
-                    }
+                };
+                current_face_index = next_face_around_position(&self, pi, ei);
+                if current_face_index == fi0 {
+                    break;
                 }
 
-                let centroid = math::centroid(&centroids);
-                let centroid_index = mesh.add_position(centroid);
-
-                match centroids.len() {
-                    6 =>  {
-                        mesh.add_triangle(centroid_index, centroid_indices[0], centroid_indices[1]);
-                        mesh.add_triangle(centroid_index, centroid_indices[1], centroid_indices[2]);
-                        mesh.add_triangle(centroid_index, centroid_indices[2], centroid_indices[3]);
-                        mesh.add_triangle(centroid_index, centroid_indices[3], centroid_indices[4]);
-                        mesh.add_triangle(centroid_index, centroid_indices[4], centroid_indices[5]);
-                        mesh.add_triangle(centroid_index, centroid_indices[5], centroid_indices[0]);
-                    },
-                    5 => {
-                        mesh.add_triangle(centroid_index, centroid_indices[0], centroid_indices[1]);
-                        mesh.add_triangle(centroid_index, centroid_indices[1], centroid_indices[2]);
-                        mesh.add_triangle(centroid_index, centroid_indices[2], centroid_indices[3]);
-                        mesh.add_triangle(centroid_index, centroid_indices[3], centroid_indices[4]);
-                        mesh.add_triangle(centroid_index, centroid_indices[4], centroid_indices[0]);
-                    },
-                    n => panic!("Incorrect number of centroids: {:?}!", n),
+                // Make sure we don't spin out of control
+                cycle_check += 1;
+                if cycle_check > 6 {
+                    panic!("Infinite loop detected!");
                 }
-            } else {
-                panic!("Position in Mesh without any connected faces!?");
+            }
+
+            let centroid = math::centroid(&centroids);
+            let centroid_index = mesh.add_position(centroid);
+
+            match centroids.len() {
+                6 =>  {
+                    mesh.add_triangle(centroid_index, centroid_indices[0], centroid_indices[1]);
+                    mesh.add_triangle(centroid_index, centroid_indices[1], centroid_indices[2]);
+                    mesh.add_triangle(centroid_index, centroid_indices[2], centroid_indices[3]);
+                    mesh.add_triangle(centroid_index, centroid_indices[3], centroid_indices[4]);
+                    mesh.add_triangle(centroid_index, centroid_indices[4], centroid_indices[5]);
+                    mesh.add_triangle(centroid_index, centroid_indices[5], centroid_indices[0]);
+                },
+                5 => {
+                    mesh.add_triangle(centroid_index, centroid_indices[0], centroid_indices[1]);
+                    mesh.add_triangle(centroid_index, centroid_indices[1], centroid_indices[2]);
+                    mesh.add_triangle(centroid_index, centroid_indices[2], centroid_indices[3]);
+                    mesh.add_triangle(centroid_index, centroid_indices[3], centroid_indices[4]);
+                    mesh.add_triangle(centroid_index, centroid_indices[4], centroid_indices[0]);
+                },
+                n => panic!("Incorrect number of centroids: {:?}!", n),
             }
         }
 
