@@ -231,14 +231,52 @@ impl Dual for Mesh {
 
                 let centroid_count = centroids.len();
                 if centroid_count == 6 {
-                    mesh.add_triangle(centroids[0], centroids[1], centroids[2]);
-                    mesh.add_triangle(centroids[2], centroids[3], centroids[4]);
-                    mesh.add_triangle(centroids[4], centroids[5], centroids[0]);
-                    mesh.add_triangle(centroids[0], centroids[2], centroids[4]);
+                    let cp = {
+                        // dumb... is there a way to just build a view into a Vec?
+                        let positions = vec![
+                            mesh.positions[centroids[0]],
+                            mesh.positions[centroids[1]],
+                            mesh.positions[centroids[2]],
+                            mesh.positions[centroids[3]],
+                            mesh.positions[centroids[4]],
+                            mesh.positions[centroids[5]],
+                        ];
+                        let new_point = math::centroid(&positions);
+                        mesh.add_position(new_point)
+                    };
+                    mesh.add_triangle(cp, centroids[0], centroids[1]);
+                    mesh.add_triangle(cp, centroids[1], centroids[2]);
+                    mesh.add_triangle(cp, centroids[2], centroids[3]);
+                    mesh.add_triangle(cp, centroids[3], centroids[4]);
+                    mesh.add_triangle(cp, centroids[4], centroids[5]);
+                    mesh.add_triangle(cp, centroids[5], centroids[0]);
+
+                    // mesh.add_triangle(centroids[0], centroids[1], centroids[2]);
+                    // mesh.add_triangle(centroids[2], centroids[3], centroids[4]);
+                    // mesh.add_triangle(centroids[4], centroids[5], centroids[0]);
+                    // mesh.add_triangle(centroids[0], centroids[2], centroids[4]);
                 } else if centroid_count == 5 {
-                    mesh.add_triangle(centroids[0], centroids[1], centroids[4]);
-                    mesh.add_triangle(centroids[4], centroids[1], centroids[2]);
-                    mesh.add_triangle(centroids[2], centroids[3], centroids[4]);
+                    let cp = {
+                        // dumb... is there a way to just build a view into a Vec?
+                        let positions = vec![
+                            mesh.positions[centroids[0]],
+                            mesh.positions[centroids[1]],
+                            mesh.positions[centroids[2]],
+                            mesh.positions[centroids[3]],
+                            mesh.positions[centroids[4]],
+                        ];
+                        let new_point = math::centroid(&positions);
+                        mesh.add_position(new_point)
+                    };
+                    mesh.add_triangle(cp, centroids[0], centroids[1]);
+                    mesh.add_triangle(cp, centroids[1], centroids[2]);
+                    mesh.add_triangle(cp, centroids[2], centroids[3]);
+                    mesh.add_triangle(cp, centroids[3], centroids[4]);
+                    mesh.add_triangle(cp, centroids[4], centroids[0]);
+
+                    // mesh.add_triangle(centroids[0], centroids[1], centroids[4]);
+                    // mesh.add_triangle(centroids[4], centroids[1], centroids[2]);
+                    // mesh.add_triangle(centroids[2], centroids[3], centroids[4]);
                 } else {
                     panic!("Incorrect number of centroids!");
                 }
