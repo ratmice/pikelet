@@ -1,3 +1,4 @@
+use std::slice::Iter as SliceIter;
 
 use super::*;
 
@@ -111,5 +112,37 @@ impl Mesh {
         self.faces.push(Face::new(e0));
 
         id
+    }
+
+    /// Iterate through the faces, yielding point indices as if each face
+    /// were a triangle.
+    pub fn triangles(&self) -> Triangles {
+        Triangles {
+            mesh: self,
+            iter: self.faces.iter(),
+        }
+    }
+}
+
+pub struct Triangles<'a> {
+    mesh: &'a Mesh,
+    iter: SliceIter<'a, Face>,
+}
+
+impl<'a> Iterator for Triangles<'a> {
+    type Item = [PositionIndex; 3];
+
+    fn next(&mut self) -> Option<[PositionIndex; 3]> {
+        self.iter.next().map(|face| {
+            let e0 = &self.mesh.edges[face.root];
+            let e1 = &self.mesh.edges[e0.next];
+            let e2 = &self.mesh.edges[e1.next];
+
+            [e0.position, e1.position, e2.position]
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
     }
 }

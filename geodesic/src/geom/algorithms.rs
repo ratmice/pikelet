@@ -176,29 +176,19 @@ impl Dual for Mesh {
         let mut mesh = Mesh::empty();
 
         // TODO: make some iterators!
-        for (fi, face) in self.faces.iter().enumerate() {
-            let points = {
-                let e0 = &self.edges[face.root];
-                let e1 = &self.edges[e0.next];
-                let e2 = &self.edges[e1.next];
+        for (face_index, point_indices) in self.triangles().enumerate() {
+            face_cache.entry(point_indices[0]).or_insert(face_index);
+            face_cache.entry(point_indices[1]).or_insert(face_index);
+            face_cache.entry(point_indices[2]).or_insert(face_index);
 
-                let p0 = e0.position;
-                let p1 = e1.position;
-                let p2 = e2.position;
+            let face_positions = [
+                self.positions[point_indices[0]],
+                self.positions[point_indices[1]],
+                self.positions[point_indices[2]],
+            ];
 
-                face_cache.entry(p0).or_insert(fi);
-                face_cache.entry(p1).or_insert(fi);
-                face_cache.entry(p2).or_insert(fi);
-
-                [
-                    self.positions[p0],
-                    self.positions[p1],
-                    self.positions[p2],
-                ]
-            };
-
-            let cp = mesh.add_position(math::centroid(&points));
-            centroid_cache.insert(fi, cp);
+            let centroid_index = mesh.add_position(math::centroid(&face_positions));
+            centroid_cache.insert(face_index, centroid_index);
         }
 
         for pi in 0..self.positions.len() {
