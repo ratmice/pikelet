@@ -20,7 +20,7 @@ use glium::glutin;
 use glium::index::{PrimitiveType, NoIndices};
 use rayon::prelude::*;
 use std::mem;
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
@@ -110,13 +110,9 @@ pub enum InputEvent {
     NoOp,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-enum ResourceEvent {
-    RegeneratePlanet { radius: f32, subdivs: usize },
-}
-
 #[derive(Clone)]
 enum RenderEvent {
+    RegeneratePlanet { radius: f32, subdivs: usize },
     Data(State),
 }
 
@@ -332,15 +328,13 @@ impl State {
 }
 
 struct Game {
-    resource_tx: Sender<ResourceEvent>,
     render_tx: Sender<RenderEvent>,
     state: State,
 }
 
 impl Game {
-    fn new(resource_tx: Sender<ResourceEvent>, render_tx: Sender<RenderEvent>, state: State) -> Game {
+    fn new(render_tx: Sender<RenderEvent>, state: State) -> Game {
         Game {
-            resource_tx: resource_tx,
             render_tx: render_tx,
             state: state,
         }
@@ -396,7 +390,7 @@ impl Game {
             MousePosition(position) => self.handle_mouse_update(position),
             UpdatePlanetSubdivisions(planet_subdivs) => {
                 self.state.planet_subdivs = planet_subdivs;
-                self.resource_tx.send(ResourceEvent::RegeneratePlanet {
+                self.render_tx.send(RenderEvent::RegeneratePlanet {
                     radius: self.state.planet_radius,
                     subdivs: self.state.planet_subdivs,
                 }).unwrap();
@@ -420,18 +414,6 @@ impl Game {
                 self.handle_frame_request(frame_data)
             },
             UpdateEvent::Input(event) => self.handle_input(event),
-        }
-    }
-}
-
-fn handle_resource_events(resources: &mut Resources, display: &glium::Display, resource_rx: &Receiver<ResourceEvent>) {
-    while let Ok(event) = resource_rx.try_recv() {
-        match event {
-            ResourceEvent::RegeneratePlanet { radius, subdivs } => {
-                let planet_mesh = create_planet_mesh(radius, subdivs);
-                resources.planet_vertex_buffer = VertexBuffer::new(display, &create_vertices(&planet_mesh)).unwrap();
-                resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
-            },
         }
     }
 }
@@ -537,7 +519,6 @@ fn main() {
     use std::sync::mpsc;
     use std::thread;
 
-    let (resource_tx, resource_rx) = mpsc::channel();
     let (update_tx, update_rx) = mpsc::channel();
     let (render_tx, render_rx) = mpsc::channel();
 
@@ -549,7 +530,7 @@ fn main() {
 
     // Spawn update thread
     thread::spawn(move || {
-        let mut game = Game::new(resource_tx, render_tx, state);
+        let mut game = Game::new(render_tx, state);
 
         loop {
             let event = update_rx.recv().unwrap();
@@ -573,6 +554,11 @@ fn main() {
 
         match render_rx.recv() {
             Err(_) => break 'main,
+            Ok(RenderEvent::RegeneratePlanet { radius, subdivs }) => {
+                let planet_mesh = create_planet_mesh(radius, subdivs);
+                resources.planet_vertex_buffer = VertexBuffer::new(&display, &create_vertices(&planet_mesh)).unwrap();
+                resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
+            },
             Ok(RenderEvent::Data(state)) => {
                 // Get user input
                 for event in display.poll_events() {
@@ -584,9 +570,6 @@ fn main() {
                         break 'main;
                     }
                 }
-
-                // TODO: move resource_rx to Resources struct
-                handle_resource_events(&mut resources, &display, &resource_rx);
 
                 // Time to render!
 
