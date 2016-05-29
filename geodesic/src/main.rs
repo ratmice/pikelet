@@ -19,6 +19,7 @@ use glium::{Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingM
 use glium::glutin;
 use glium::index::{PrimitiveType, NoIndices};
 use rayon::prelude::*;
+use std::collections::VecDeque;
 use std::mem;
 use std::sync::mpsc::{Sender, SyncSender};
 use std::time::Duration;
@@ -122,11 +123,6 @@ pub enum InputEvent {
 }
 
 struct RenderData(State);
-
-#[derive(Clone)]
-enum JobEvent {
-    RegeneratePlanet { radius: f32, subdivs: usize },
-}
 
 #[derive(Clone)]
 enum ResourceEvent {
@@ -346,13 +342,13 @@ impl State {
 }
 
 struct Game {
-    job_tx: Sender<JobEvent>,
+    job_tx: Sender<Job>,
     render_tx: SyncSender<RenderData>,
     state: State,
 }
 
 impl Game {
-    fn new(job_tx: Sender<JobEvent>, render_tx: SyncSender<RenderData>, state: State) -> Game {
+    fn new(job_tx: Sender<Job>, render_tx: SyncSender<RenderData>, state: State) -> Game {
         Game {
             job_tx: job_tx,
             render_tx: render_tx,
@@ -407,10 +403,13 @@ impl Game {
             MousePosition(position) => self.handle_mouse_update(position),
             UpdatePlanetSubdivisions(planet_subdivs) => {
                 self.state.planet_subdivs = planet_subdivs;
-                self.job_tx.send(JobEvent::RegeneratePlanet {
-                    radius: self.state.planet_radius,
-                    subdivs: self.state.planet_subdivs,
-                }).unwrap();
+                self.job_tx.send((
+                    JobId::RegeneratePlanet,
+                    JobData::RegeneratePlanet {
+                        radius: self.state.planet_radius,
+                        subdivs: self.state.planet_subdivs,
+                    },
+                )).expect("Failed to send planet job");
             },
             NoOp => {},
         }
@@ -419,7 +418,8 @@ impl Game {
     }
 
     fn send_render_data(&self) {
-        self.render_tx.send(RenderData(self.state.clone())).unwrap();
+        self.render_tx.send(RenderData(self.state.clone()))
+            .expect("Failed to send render data");
     }
 
     fn update(&mut self, event: UpdateEvent) -> Loop {
@@ -541,6 +541,90 @@ macro_rules! try_or {
     };
 }
 
+#[derive(Clone, Debug, PartialEq)]
+enum JobId {
+    RegeneratePlanet,
+}
+
+#[derive(Debug)]
+enum JobData {
+    RegeneratePlanet {
+        radius: f32,
+        subdivs: usize,
+    },
+}
+
+type Job = (JobId, JobData);
+
+#[derive(Debug)]
+struct JobQueue {
+    queue: VecDeque<Job>,
+}
+
+impl JobQueue {
+    fn new() -> JobQueue {
+        JobQueue {
+            queue: VecDeque::new(),
+        }
+    }
+
+    fn pop_front(&mut self) -> Option<Job> {
+        self.queue.pop_front()
+    }
+
+    fn push_back(&mut self, id: JobId, data: JobData) -> Option<JobData> {
+        use std::mem;
+
+        for &mut (ref queued_id, ref mut queued_data) in &mut self.queue {
+            if *queued_id == id {
+                return Some(mem::replace(queued_data, data));
+            }
+        }
+
+        self.queue.push_back((id, data));
+        None
+    }
+
+    fn spawn<F>(mut f: F) -> Sender<Job> where
+        F: FnMut(JobId, JobData) + Send + 'static,
+    {
+        use std::sync::{Arc, Mutex};
+        use std::sync::mpsc;
+        use std::thread;
+
+        let (job_tx, job_rx) = mpsc::channel();
+        let queue = Arc::new(Mutex::new(JobQueue::new()));
+
+        {
+            let queue = queue.clone();
+            thread::spawn(move || {
+                for (id, data) in job_rx.iter() {
+                    let mut queue = queue.lock().unwrap();
+                    queue.push_back(id, data);
+                }
+            });
+        }
+
+        thread::spawn(move || {
+            loop {
+                let job = {
+                    let mut queue = queue.lock().unwrap();
+                    queue.pop_front()
+                };
+
+                if let Some((id, data)) = job {
+                    f(id, data);
+                }
+
+                // Better way? The other thread could be something like an OTP gen_server...
+                thread::sleep(Duration::from_millis(10));
+            }
+        });
+
+        job_tx
+    }
+}
+
 fn main() {
     use std::sync::mpsc;
     use std::thread;
@@ -557,27 +641,19 @@ fn main() {
 
     // Spawn update thread
     thread::spawn(move || {
-        let (job_tx, job_rx) = mpsc::channel();
+        let job_tx = JobQueue::spawn(move |_, data| {
+            match data {
+                JobData::RegeneratePlanet { radius, subdivs } => {
+                    let mesh = create_planet_mesh(radius, subdivs);
+                    let vertices = create_vertices(&mesh);
+                    let resource_event = ResourceEvent::PlanetData(vertices);
 
-        let mut game = Game::new(job_tx, render_tx, state);
-
-        // Spawn worker thread
-        thread::spawn(move || {
-            while let Ok(event) = job_rx.recv() {
-                match event {
-                    JobEvent::RegeneratePlanet { radius, subdivs } => {
-                        println!("Regenerating planet, subdivs = {:?}", subdivs);
-                        let mesh = create_planet_mesh(radius, subdivs);
-                        let vertices = create_vertices(&mesh);
-                        let resource_event = ResourceEvent::PlanetData(vertices);
-                        println!("Planet generation complete!");
-
-                        resource_tx.send(resource_event).unwrap();
-                    },
-                }
+                    resource_tx.send(resource_event).unwrap();
+                },
             }
         });
 
+        let mut game = Game::new(job_tx, render_tx, state);
         for event in update_rx.iter() {
             if game.update(event) == Loop::Break { break };
         }
