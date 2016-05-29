@@ -566,12 +566,14 @@ fn main() {
             while let Ok(event) = job_rx.recv() {
                 match event {
                     JobEvent::RegeneratePlanet { radius, subdivs } => {
+                        println!("Regenerating planet, subdivs = {:?}", subdivs);
                         let mesh = create_planet_mesh(radius, subdivs);
                         let vertices = create_vertices(&mesh);
                         let resource_event = ResourceEvent::PlanetData(vertices);
+                        println!("Planet generation complete!");
 
                         resource_tx.send(resource_event).unwrap();
-                    }
+                    },
                 }
             }
         });
