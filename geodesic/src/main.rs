@@ -387,6 +387,11 @@ impl Game {
         Loop::Continue
     }
 
+    fn queue_job(&self, id: JobId, data: JobData) {
+        let job = Job::new(id, data);
+        self.job_tx.send(job).expect("Failed queue job");
+    }
+
     fn handle_input(&mut self, event: InputEvent) -> Loop {
         use InputEvent::*;
 
@@ -405,16 +410,13 @@ impl Game {
             UpdatePlanetSubdivisions(planet_subdivs) => {
                 self.state.planet_subdivs = planet_subdivs;
 
-                let planet_job = Job::new(
+                self.queue_job(
                     JobId::RegeneratePlanet,
                     JobData::RegeneratePlanet {
                         radius: self.state.planet_radius,
                         subdivs: self.state.planet_subdivs,
                     },
                 );
-
-                self.job_tx.send(planet_job)
-                    .expect("Failed to send planet job");
             },
             NoOp => {},
         }
