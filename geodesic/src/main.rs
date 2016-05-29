@@ -124,8 +124,13 @@ pub enum InputEvent {
 struct RenderData(State);
 
 #[derive(Clone)]
-enum ResourceEvent {
+enum JobEvent {
     RegeneratePlanet { radius: f32, subdivs: usize },
+}
+
+#[derive(Clone)]
+enum ResourceEvent {
+    PlanetData(Vec<Vertex>),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -341,15 +346,15 @@ impl State {
 }
 
 struct Game {
-    resource_tx: Sender<ResourceEvent>,
+    job_tx: Sender<JobEvent>,
     render_tx: SyncSender<RenderData>,
     state: State,
 }
 
 impl Game {
-    fn new(resource_tx: Sender<ResourceEvent>, render_tx: SyncSender<RenderData>, state: State) -> Game {
+    fn new(job_tx: Sender<JobEvent>, render_tx: SyncSender<RenderData>, state: State) -> Game {
         Game {
-            resource_tx: resource_tx,
+            job_tx: job_tx,
             render_tx: render_tx,
             state: state,
         }
@@ -402,7 +407,7 @@ impl Game {
             MousePosition(position) => self.handle_mouse_update(position),
             UpdatePlanetSubdivisions(planet_subdivs) => {
                 self.state.planet_subdivs = planet_subdivs;
-                self.resource_tx.send(ResourceEvent::RegeneratePlanet {
+                self.job_tx.send(JobEvent::RegeneratePlanet {
                     radius: self.state.planet_radius,
                     subdivs: self.state.planet_subdivs,
                 }).unwrap();
@@ -552,7 +557,24 @@ fn main() {
 
     // Spawn update thread
     thread::spawn(move || {
-        let mut game = Game::new(resource_tx, render_tx, state);
+        let (job_tx, job_rx) = mpsc::channel();
+
+        let mut game = Game::new(job_tx, render_tx, state);
+
+        // Spawn worker thread
+        thread::spawn(move || {
+            while let Ok(event) = job_rx.recv() {
+                match event {
+                    JobEvent::RegeneratePlanet { radius, subdivs } => {
+                        let mesh = create_planet_mesh(radius, subdivs);
+                        let vertices = create_vertices(&mesh);
+                        let resource_event = ResourceEvent::PlanetData(vertices);
+
+                        resource_tx.send(resource_event).unwrap();
+                    }
+                }
+            }
+        });
 
         for event in update_rx.iter() {
             if game.update(event) == Loop::Break { break };
@@ -583,9 +605,8 @@ fn main() {
         // Update resources
         while let Ok(event) = resource_rx.try_recv() {
             match event {
-                ResourceEvent::RegeneratePlanet { radius, subdivs } => {
-                    let planet_mesh = create_planet_mesh(radius, subdivs);
-                    resources.planet_vertex_buffer = VertexBuffer::new(&display, &create_vertices(&planet_mesh)).unwrap();
+                ResourceEvent::PlanetData(vertices) => {
+                    resources.planet_vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
                     resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
                 },
             }
