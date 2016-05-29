@@ -34,6 +34,9 @@ impl<Id: PartialEq, Data> JobQueue<Id, Data> {
 
         for queued_job in &mut self.queued_jobs {
             if queued_job.id == job.id {
+                // Should we replace the queued job in its current positions,
+                // or remove the queued job and push the new one to the back of
+                // the queue?
                 return Some(mem::replace(queued_job, job));
             }
         }
