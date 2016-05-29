@@ -19,7 +19,6 @@ use glium::{Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingM
 use glium::glutin;
 use glium::index::{PrimitiveType, NoIndices};
 use rayon::prelude::*;
-use std::collections::VecDeque;
 use std::mem;
 use std::sync::mpsc::{Sender, SyncSender};
 use std::time::Duration;
@@ -29,6 +28,7 @@ use geom::Mesh;
 use geom::primitives;
 use geom::algorithms::{Subdivide, Dual};
 use geom::star_field::{Star, StarField};
+use job_queue::Job;
 use render::{Resources, RenderTarget, Vertex};
 use ui::Context as UiContext;
 
@@ -36,6 +36,7 @@ pub mod app;
 pub mod camera;
 pub mod color;
 pub mod geom;
+pub mod job_queue;
 pub mod math;
 pub mod text;
 pub mod times;
@@ -342,13 +343,13 @@ impl State {
 }
 
 struct Game {
-    job_tx: Sender<Job>,
+    job_tx: Sender<Job<JobId, JobData>>,
     render_tx: SyncSender<RenderData>,
     state: State,
 }
 
 impl Game {
-    fn new(job_tx: Sender<Job>, render_tx: SyncSender<RenderData>, state: State) -> Game {
+    fn new(job_tx: Sender<Job<JobId, JobData>>, render_tx: SyncSender<RenderData>, state: State) -> Game {
         Game {
             job_tx: job_tx,
             render_tx: render_tx,
@@ -403,13 +404,17 @@ impl Game {
             MousePosition(position) => self.handle_mouse_update(position),
             UpdatePlanetSubdivisions(planet_subdivs) => {
                 self.state.planet_subdivs = planet_subdivs;
-                self.job_tx.send((
+
+                let planet_job = Job::new(
                     JobId::RegeneratePlanet,
                     JobData::RegeneratePlanet {
                         radius: self.state.planet_radius,
                         subdivs: self.state.planet_subdivs,
                     },
-                )).expect("Failed to send planet job");
+                );
+
+                self.job_tx.send(planet_job)
+                    .expect("Failed to send planet job");
             },
             NoOp => {},
         }
@@ -554,77 +559,6 @@ enum JobData {
     },
 }
 
-type Job = (JobId, JobData);
-
-#[derive(Debug)]
-struct JobQueue {
-    queue: VecDeque<Job>,
-}
-
-impl JobQueue {
-    fn new() -> JobQueue {
-        JobQueue {
-            queue: VecDeque::new(),
-        }
-    }
-
-    fn pop_front(&mut self) -> Option<Job> {
-        self.queue.pop_front()
-    }
-
-    fn push_back(&mut self, id: JobId, data: JobData) -> Option<JobData> {
-        use std::mem;
-
-        for &mut (ref queued_id, ref mut queued_data) in &mut self.queue {
-            if *queued_id == id {
-                return Some(mem::replace(queued_data, data));
-            }
-        }
-
-        self.queue.push_back((id, data));
-        None
-    }
-
-    fn spawn<F>(mut f: F) -> Sender<Job> where
-        F: FnMut(JobId, JobData) + Send + 'static,
-    {
-        use std::sync::{Arc, Mutex};
-        use std::sync::mpsc;
-        use std::thread;
-
-        let (job_tx, job_rx) = mpsc::channel();
-        let queue = Arc::new(Mutex::new(JobQueue::new()));
-
-        {
-            let queue = queue.clone();
-            thread::spawn(move || {
-                for (id, data) in job_rx.iter() {
-                    let mut queue = queue.lock().unwrap();
-                    queue.push_back(id, data);
-                }
-            });
-        }
-
-        thread::spawn(move || {
-            loop {
-                let job = {
-                    let mut queue = queue.lock().unwrap();
-                    queue.pop_front()
-                };
-
-                if let Some((id, data)) = job {
-                    f(id, data);
-                }
-
-                // Better way? The other thread could be something like an OTP gen_server...
-                thread::sleep(Duration::from_millis(10));
-            }
-        });
-
-        job_tx
-    }
-}
-
 fn main() {
     use std::sync::mpsc;
     use std::thread;
@@ -641,8 +575,8 @@ fn main() {
 
     // Spawn update thread
     thread::spawn(move || {
-        let job_tx = JobQueue::spawn(move |_, data| {
-            match data {
+        let job_tx = job_queue::spawn(move |job| {
+            match job.data {
                 JobData::RegeneratePlanet { radius, subdivs } => {
                     let mesh = create_planet_mesh(radius, subdivs);
                     let vertices = create_vertices(&mesh);
