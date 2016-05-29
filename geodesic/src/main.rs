@@ -1,15 +1,22 @@
 extern crate cgmath;
+#[cfg(test)]
+#[macro_use(expect)]
+extern crate expectest;
 extern crate find_folder;
-#[macro_use] extern crate glium;
-#[macro_use] extern crate imgui;
+#[macro_use]
+extern crate glium;
+#[macro_use]
+extern crate imgui;
 extern crate notify;
 extern crate num_traits;
-#[macro_use] extern crate quick_error;
+#[macro_use]
+extern crate quick_error;
 extern crate rand;
 extern crate rayon;
 extern crate rusttype;
 extern crate time;
-#[macro_use] extern crate itertools;
+#[macro_use]
+extern crate itertools;
 
 use cgmath::conv::*;
 use cgmath::prelude::*;

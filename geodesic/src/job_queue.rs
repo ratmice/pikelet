@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Job<Id, Data> {
     pub id: Id,
     pub data: Data,
@@ -86,4 +86,71 @@ pub fn spawn<Id, Data, F>(mut f: F) -> Sender<Job<Id, Data>> where
     });
 
     job_tx
+}
+
+#[cfg(test)]
+mod test {
+    use super::{Job, JobQueue};
+    use expectest::prelude::*;
+
+    #[test]
+    fn test_pop_front_empty() {
+        let mut job_queue: JobQueue<(), ()> = JobQueue::new();
+        expect!(job_queue.pop_front()).to(be_none());
+    }
+
+    #[test]
+    fn test_push_back() {
+        let mut job_queue = JobQueue::new();
+
+        let job0 = Job::new(0, "0");
+        let job1a = Job::new(1, "1a");
+        let job1b = Job::new(1, "1b");
+        let job2 = Job::new(2, "2");
+
+        expect!(job_queue.push_back(job0)).to(be_none());
+        expect!(job_queue.push_back(job1a)).to(be_none());
+        expect!(job_queue.push_back(job2)).to(be_none());
+        expect!(job_queue.push_back(job1b)).to(be_some().value(job1a));
+    }
+
+    #[test]
+    fn test_first_in_first_out() {
+        let mut job_queue = JobQueue::new();
+
+        let job1 = Job::new(1, "1");
+        let job2 = Job::new(2, "2");
+        let job0 = Job::new(0, "0");
+
+        job_queue.push_back(job1);
+        job_queue.push_back(job2);
+        job_queue.push_back(job0);
+
+        expect!(job_queue.pop_front()).to(be_some().value(job1));
+        expect!(job_queue.pop_front()).to(be_some().value(job2));
+        expect!(job_queue.pop_front()).to(be_some().value(job0));
+    }
+
+    #[test]
+    fn test_spawn() {
+        use std::sync::mpsc;
+
+        let job0 = Job::new(0, "0");
+        let job1 = Job::new(1, "1");
+        let job2 = Job::new(2, "2");
+
+        let (tx, rx) = mpsc::channel();
+
+        let job_tx = super::spawn(move |job| {
+            tx.send(job).unwrap();
+        });
+
+        job_tx.send(job0).unwrap();
+        job_tx.send(job1).unwrap();
+        job_tx.send(job2).unwrap();
+
+        expect!(rx.recv()).to(be_ok().value(job0));
+        expect!(rx.recv()).to(be_ok().value(job1));
+        expect!(rx.recv()).to(be_ok().value(job2));
+    }
 }
