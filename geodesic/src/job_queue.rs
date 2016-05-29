@@ -39,6 +39,7 @@ impl<Id: PartialEq, Data> JobQueue<Id, Data> {
         }
 
         self.queued_jobs.push_back(job);
+
         None
     }
 }
@@ -57,6 +58,7 @@ pub fn spawn<Id, Data, F>(mut f: F) -> Sender<Job<Id, Data>> where
 
     {
         let queue = queue.clone();
+
         thread::spawn(move || {
             for job in job_rx.iter() {
                 let mut queue = queue.lock().unwrap();
