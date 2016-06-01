@@ -568,6 +568,35 @@ enum JobData {
     },
 }
 
+fn process_job(job: Job<JobId, JobData>) -> ResourceEvent {
+    match job.data {
+        JobData::RegeneratePlanet { radius, subdivs } => {
+            let mesh = create_planet_mesh(radius, subdivs);
+            let vertices = create_vertices(&mesh);
+
+            ResourceEvent::PlanetData(vertices)
+        },
+    }
+}
+
+fn frame_data(window: &glium::glutin::Window, time_delta: f32) -> FrameData {
+    FrameData {
+        window_dimensions: window.get_inner_size_points().unwrap(),
+        hidpi_factor: window.hidpi_factor(),
+        delta_time: time_delta as f32,
+        frames_per_second: 1.0 / time_delta as f32,
+    }
+}
+
+fn handle_resource_event(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
+    match event {
+        ResourceEvent::PlanetData(vertices) => {
+            resources.planet_vertex_buffer = VertexBuffer::new(display, &vertices).unwrap();
+            resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
+        },
+    }
+}
+
 fn main() {
     use std::sync::mpsc;
     use std::thread;
@@ -585,15 +614,7 @@ fn main() {
     // Spawn update thread
     thread::spawn(move || {
         let job_tx = job_queue::spawn(move |job| {
-            match job.data {
-                JobData::RegeneratePlanet { radius, subdivs } => {
-                    let mesh = create_planet_mesh(radius, subdivs);
-                    let vertices = create_vertices(&mesh);
-                    let resource_event = ResourceEvent::PlanetData(vertices);
-
-                    resource_tx.send(resource_event).unwrap();
-                },
-            }
+            resource_tx.send(process_job(job)).unwrap();
         });
 
         let mut game = Game::new(job_tx, render_tx, state);
@@ -605,13 +626,7 @@ fn main() {
     'main: for time in times::in_seconds() {
         let window = display.get_window().unwrap();
 
-        let frame_data = FrameData {
-            window_dimensions: window.get_inner_size_points().unwrap(),
-            hidpi_factor: window.hidpi_factor(),
-            delta_time: time.delta() as f32,
-            frames_per_second: 1.0 / time.delta() as f32,
-        };
-
+        let frame_data = frame_data(&window, time.delta() as f32);
         try_or!(update_tx.send(UpdateEvent::FrameRequested(frame_data)), break 'main);
         let RenderData(state) = try_or!(render_rx.recv(), break 'main);
 
@@ -625,12 +640,7 @@ fn main() {
 
         // Update resources
         while let Ok(event) = resource_rx.try_recv() {
-            match event {
-                ResourceEvent::PlanetData(vertices) => {
-                    resources.planet_vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
-                    resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
-                },
-            }
+            handle_resource_event(&display, &mut resources, event);
         }
 
         // Time to render!
