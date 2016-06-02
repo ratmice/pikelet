@@ -9,11 +9,13 @@
 pub mod cell {
     pub type Index = usize;
 
+    #[derive(Clone, Copy, Debug)]
     pub enum Orientation {
         TipUp,
         TipDown
     }
 
+    #[derive(Clone, Copy, Debug)]
     pub enum Id {
         Top,
         Center,
@@ -57,20 +59,44 @@ pub mod cell {
         }
     }
 
+    #[derive(Clone, Copy, Debug)]
     pub struct Location {
         level: usize,
         path: usize,
     }
 
+    #[derive(Clone, Copy, Debug)]
     pub struct Data {
         orientation: Orientation,
         location: Location,
     }
 }
 
-pub const SUBDIVISION_LEVELS: usize = 5;
-pub struct Grid {
-    nodes: [cell::Data; (20 * 4) * SUBDIVISION_LEVELS],
+#[derive(Clone, Debug)]
+pub struct QuadTree {
+    nodes: Vec<cell::Data>,
+}
+
+impl QuadTree {
+    pub fn with_subdivisions(levels: usize) -> QuadTree {
+        let nodes = Vec::with_capacity(levels);
+
+        QuadTree {
+            nodes: nodes
+        }
+    }
+}
+
+pub struct Icosahedron {
+    nodes: [QuadTree; 20],
+}
+
+impl Icosahedron {
+    pub fn with_subdivisions(levels: usize) -> Icosahedron {
+        Icosahedron {
+            nodes: [QuadTree::with_subdivisions(levels); 20]
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
