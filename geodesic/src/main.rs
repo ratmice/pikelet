@@ -43,7 +43,7 @@ pub mod app;
 pub mod camera;
 pub mod color;
 pub mod geom;
-pub mod grid;
+pub mod dggs;
 pub mod job_queue;
 pub mod math;
 pub mod text;

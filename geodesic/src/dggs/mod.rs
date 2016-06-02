@@ -111,6 +111,8 @@
 //!
 #![allow(dead_code, unused_variables)]
 
+pub mod htm;
+
 pub struct Layer {
     level: usize,
 }

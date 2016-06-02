@@ -9,15 +9,6 @@
 pub mod cell {
     pub type Index = usize;
 
-    pub struct Location {
-        level: usize,
-        path: usize,
-    }
-
-    pub struct Data {
-        location: Location,
-    }
-
     pub enum Orientation {
         TipUp,
         TipDown
@@ -65,9 +56,27 @@ pub mod cell {
             }
         }
     }
+
+    pub struct Location {
+        level: usize,
+        path: usize,
+    }
+
+    pub struct Data {
+        orientation: Orientation,
+        location: Location,
+    }
 }
 
 pub const SUBDIVISION_LEVELS: usize = 5;
 pub struct Grid {
     nodes: [cell::Data; (20 * 4) * SUBDIVISION_LEVELS],
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
 }
