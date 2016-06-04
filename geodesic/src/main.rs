@@ -25,6 +25,7 @@ use find_folder::Search as FolderSearch;
 use glium::{Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
 use glium::glutin;
 use glium::index::{PrimitiveType, NoIndices};
+use imgui::Ui;
 use rayon::prelude::*;
 use std::mem;
 use std::sync::mpsc::{Sender, SyncSender};
@@ -480,30 +481,22 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
     // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK).unwrap();
 }
 
-fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui::Renderer, state: &State, update_tx: &Sender<UpdateEvent>) {
+fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
     use InputEvent::*;
-
-    let ui = ui_context.frame(state.frame_data.window_dimensions, state.frame_data.delta_time);
-
-    let send_event = |event| {
-        // FIXME: could cause a panic on the slim chance that the update thread
-        //  closes during ui rendering.
-        update_tx.send(UpdateEvent::Input(event)).unwrap();
-    };
 
     ui.window(im_str!("State"))
         .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
         .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
             ui::checkbox(&ui, im_str!("Wireframe"), state.is_wireframe)
-                .map(|v| send_event(SetWireframe(v)));
+                .map(|v| send(SetWireframe(v)));
             ui::checkbox(&ui, im_str!("Show star field"), state.is_showing_star_field)
-                .map(|v| send_event(SetShowingStarField(v)));
+                .map(|v| send(SetShowingStarField(v)));
             ui::slider_i32(&ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
-                .map(|v| send_event(UpdatePlanetSubdivisions(v as usize)));
+                .map(|v| send(UpdatePlanetSubdivisions(v as usize)));
 
             if ui.small_button(im_str!("Reset state")) {
-                send_event(ResetState);
+                send(ResetState);
             }
 
             ui.tree_node(im_str!("State")).build(|| {
@@ -543,10 +536,8 @@ fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui
         });
 
     if ui.want_capture_mouse() != state.is_ui_capturing_mouse {
-        send_event(SetUiCapturingMouse(ui.want_capture_mouse()));
+        send(SetUiCapturingMouse(ui.want_capture_mouse()));
     }
-
-    ui_renderer.render(frame, ui, state.frame_data.hidpi_factor).unwrap();
 }
 
 macro_rules! try_or {
@@ -648,8 +639,17 @@ fn main() {
             let mut frame = display.draw();
 
             render_scene(&mut frame, &state, &resources);
+
             if state.is_showing_ui {
-                render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
+                let ui = ui_context.frame(frame_data.window_dimensions, frame_data.delta_time);
+
+                run_ui(&ui, &state, |event| {
+                    // FIXME: could cause a panic on the slim chance that the update thread
+                    //  closes during ui rendering.
+                    update_tx.send(UpdateEvent::Input(event)).unwrap();
+                });
+
+                ui_renderer.render(&mut frame, ui, frame_data.hidpi_factor).unwrap();
             }
 
             frame.finish().unwrap();
