@@ -1,5 +1,5 @@
 use cgmath::prelude::*;
-use cgmath::{One, Zero, BaseFloat};
+use cgmath::BaseFloat;
 use cgmath::{Point3, Rad, Vector3};
 use rand::{Rand, Rng};
 use rand::distributions::range::SampleRange;

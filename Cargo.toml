@@ -12,7 +12,7 @@ name = "geodesic"
 path = "geodesic/src/main.rs"
 
 [dependencies]
-cgmath = "0.9.1"
+cgmath = "0.10.0"
 find_folder = "0.3.0"
 glium = "0.14.0"
 imgui = "0.0.8"
