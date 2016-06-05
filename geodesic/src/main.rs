@@ -450,6 +450,30 @@ impl Game {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+enum JobId {
+    RegeneratePlanet,
+}
+
+#[derive(Debug)]
+enum JobData {
+    RegeneratePlanet {
+        radius: f32,
+        subdivs: usize,
+    },
+}
+
+fn process_job(job: Job<JobId, JobData>) -> ResourceEvent {
+    match job.data {
+        JobData::RegeneratePlanet { radius, subdivs } => {
+            let mesh = create_planet_mesh(radius, subdivs);
+            let vertices = create_vertices(&mesh);
+
+            ResourceEvent::PlanetData(vertices)
+        },
+    }
+}
+
 fn update_resources(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
     match event {
         ResourceEvent::PlanetData(vertices) => {
@@ -555,60 +579,36 @@ macro_rules! try_or {
     };
 }
 
-#[derive(Clone, Debug, PartialEq)]
-enum JobId {
-    RegeneratePlanet,
-}
-
-#[derive(Debug)]
-enum JobData {
-    RegeneratePlanet {
-        radius: f32,
-        subdivs: usize,
-    },
-}
-
-fn process_job(job: Job<JobId, JobData>) -> ResourceEvent {
-    match job.data {
-        JobData::RegeneratePlanet { radius, subdivs } => {
-            let mesh = create_planet_mesh(radius, subdivs);
-            let vertices = create_vertices(&mesh);
-
-            ResourceEvent::PlanetData(vertices)
-        },
-    }
-}
-
-fn frame_data(window: &glium::glutin::Window, time_delta: f32) -> FrameData {
-    FrameData {
-        window_dimensions: window.get_inner_size_points().unwrap(),
-        hidpi_factor: window.hidpi_factor(),
-        delta_time: time_delta as f32,
-        frames_per_second: 1.0 / time_delta as f32,
-    }
-}
-
-fn update_ui(ui_context: &mut UiContext, state: &State, event: glutin::Event) {
-    if state.is_showing_ui {
-        ui_context.update(event.clone(), state.frame_data.hidpi_factor);
-    }
-}
-
-fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui::Renderer, state: &State, update_tx: &Sender<UpdateEvent>) {
-    if state.is_showing_ui {
-        let ui = ui_context.frame(state.frame_data.window_dimensions, state.frame_data.delta_time);
-
-        run_ui(&ui, &state, |event| {
-            // FIXME: could cause a panic on the slim chance that the update thread
-            //  closes during ui rendering.
-            update_tx.send(UpdateEvent::Input(event)).unwrap();
-        });
-
-        ui_renderer.render(frame, ui, state.frame_data.hidpi_factor).unwrap();
-    }
-}
-
 fn main() {
+    fn frame_data(window: &glium::glutin::Window, time_delta: f32) -> FrameData {
+        FrameData {
+            window_dimensions: window.get_inner_size_points().unwrap(),
+            hidpi_factor: window.hidpi_factor(),
+            delta_time: time_delta as f32,
+            frames_per_second: 1.0 / time_delta as f32,
+        }
+    }
+
+    fn update_ui(ui_context: &mut UiContext, state: &State, event: glutin::Event) {
+        if state.is_showing_ui {
+            ui_context.update(event.clone(), state.frame_data.hidpi_factor);
+        }
+    }
+
+    fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui::Renderer, state: &State, update_tx: &Sender<UpdateEvent>) {
+        if state.is_showing_ui {
+            let ui = ui_context.frame(state.frame_data.window_dimensions, state.frame_data.delta_time);
+
+            run_ui(&ui, &state, |event| {
+                // FIXME: could cause a panic on the slim chance that the update thread
+                //  closes during ui rendering.
+                update_tx.send(UpdateEvent::Input(event)).unwrap();
+            });
+
+            ui_renderer.render(frame, ui, state.frame_data.hidpi_factor).unwrap();
+        }
+    }
+
     use std::sync::mpsc;
     use std::thread;
 
