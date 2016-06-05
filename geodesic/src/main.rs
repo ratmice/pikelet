@@ -450,6 +450,15 @@ impl Game {
     }
 }
 
+fn update_resources(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
+    match event {
+        ResourceEvent::PlanetData(vertices) => {
+            resources.planet_vertex_buffer = VertexBuffer::new(display, &vertices).unwrap();
+            resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
+        },
+    }
+}
+
 fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
     let frame_dimensions = frame.get_dimensions();
 
@@ -579,12 +588,23 @@ fn frame_data(window: &glium::glutin::Window, time_delta: f32) -> FrameData {
     }
 }
 
-fn handle_resource_event(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
-    match event {
-        ResourceEvent::PlanetData(vertices) => {
-            resources.planet_vertex_buffer = VertexBuffer::new(display, &vertices).unwrap();
-            resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
-        },
+fn update_ui(ui_context: &mut UiContext, state: &State, event: glutin::Event) {
+    if state.is_showing_ui {
+        ui_context.update(event.clone(), state.frame_data.hidpi_factor);
+    }
+}
+
+fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui::Renderer, state: &State, update_tx: &Sender<UpdateEvent>) {
+    if state.is_showing_ui {
+        let ui = ui_context.frame(state.frame_data.window_dimensions, state.frame_data.delta_time);
+
+        run_ui(&ui, &state, |event| {
+            // FIXME: could cause a panic on the slim chance that the update thread
+            //  closes during ui rendering.
+            update_tx.send(UpdateEvent::Input(event)).unwrap();
+        });
+
+        ui_renderer.render(frame, ui, state.frame_data.hidpi_factor).unwrap();
     }
 }
 
@@ -615,46 +635,32 @@ fn main() {
     });
 
     'main: for time in times::in_seconds() {
-        let window = display.get_window().unwrap();
-
-        let frame_data = frame_data(&window, time.delta() as f32);
-        try_or!(update_tx.send(UpdateEvent::FrameRequested(frame_data)), break 'main);
-        let RenderData(state) = try_or!(render_rx.recv(), break 'main);
+        // Swap frames with update thread
+        let RenderData(state) = {
+            let window = display.get_window().unwrap();
+            let frame_data = frame_data(&window, time.delta() as f32);
+            try_or!(update_tx.send(UpdateEvent::FrameRequested(frame_data)), break 'main);
+            try_or!(render_rx.recv(), break 'main)
+        };
 
         // Get user input
         for event in display.poll_events() {
-            if state.is_showing_ui {
-                ui_context.update(event.clone(), window.hidpi_factor());
-            }
+            update_ui(&mut ui_context, &state, event.clone());
             try_or!(update_tx.send(UpdateEvent::Input(InputEvent::from(event))), break 'main);
         }
 
         // Update resources
         while let Ok(event) = resource_rx.try_recv() {
-            handle_resource_event(&display, &mut resources, event);
+            update_resources(&display, &mut resources, event);
         }
 
-        // Time to render!
-        {
-            let mut frame = display.draw();
+        // Render frame
+        let mut frame = display.draw();
+        render_scene(&mut frame, &state, &resources);
+        render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
+        frame.finish().unwrap();
 
-            render_scene(&mut frame, &state, &resources);
-
-            if state.is_showing_ui {
-                let ui = ui_context.frame(frame_data.window_dimensions, frame_data.delta_time);
-
-                run_ui(&ui, &state, |event| {
-                    // FIXME: could cause a panic on the slim chance that the update thread
-                    //  closes during ui rendering.
-                    update_tx.send(UpdateEvent::Input(event)).unwrap();
-                });
-
-                ui_renderer.render(&mut frame, ui, frame_data.hidpi_factor).unwrap();
-            }
-
-            frame.finish().unwrap();
-        }
-
-        thread::sleep(Duration::from_millis(10)); // battery saver ;)
+        // Sleep to save on the battery!
+        thread::sleep(Duration::from_millis(10));
     }
 }
