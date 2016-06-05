@@ -1,11 +1,10 @@
 //! The algorithms module contains traits and implementations of rougly any
 //! algorithm that can be understood as a Function `Mesh -> Mesh`.
-//!
 
-
+use cgmath::prelude::*;
 use std::collections::HashMap;
-use ::math;
-use super::*;
+
+use geom::{EdgeIndex, FaceIndex, Mesh, Position, PositionIndex};
 
 /// Trait for types that support being subdivided.
 pub trait Subdivide {
@@ -186,7 +185,7 @@ impl Dual for Mesh {
                 self.positions[point_indices[2]],
             ];
 
-            let centroid_index = mesh.add_position(math::centroid(&face_positions));
+            let centroid_index = mesh.add_position(Position::centroid(&face_positions));
             centroid_cache.insert(face_index, centroid_index);
         }
 
@@ -227,7 +226,7 @@ impl Dual for Mesh {
                 assert!(centroids.len() <= 6, "Infinite loop detected!");
             }
 
-            let centroid = math::centroid(&centroids);
+            let centroid = Position::centroid(&centroids);
             let centroid_index = mesh.add_position(centroid);
 
             match centroids.len() {
