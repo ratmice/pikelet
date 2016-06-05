@@ -40,7 +40,6 @@ use job_queue::Job;
 use render::{Resources, RenderTarget, Vertex};
 use ui::Context as UiContext;
 
-pub mod app;
 pub mod camera;
 pub mod color;
 pub mod geom;
