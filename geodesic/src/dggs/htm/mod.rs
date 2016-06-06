@@ -7,15 +7,26 @@
 //!
 
 pub mod cell {
+    use std::fmt;
+
     pub type Index = usize;
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Debug)]
     pub enum Orientation {
         TipUp,
         TipDown
     }
 
-    #[derive(Clone, Copy, Debug)]
+    impl fmt::Display for Orientation {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match *self {
+                Orientation::TipUp => write!(f, "Tip-Up"),
+                Orientation::TipDown => write!(f, "Tip-Down"),
+            }
+        }
+    }
+
+    #[derive(Clone, Debug)]
     pub enum Id {
         Top,
         Center,
@@ -59,42 +70,106 @@ pub mod cell {
         }
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Debug)]
     pub struct Location {
         level: usize,
         path: usize,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    impl fmt::Display for Location {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "LOC:{},{}", self.level, self.path)
+        }
+    }
+
     pub struct Data {
         orientation: Orientation,
         location: Location,
     }
+
+    impl Data {
+        pub fn default() -> Data {
+            Data {
+                orientation: Orientation::TipUp,
+                location: Location {
+                    level: 0,
+                    path: 0,
+                }
+            }
+        }
+    }
+
+    impl fmt::Debug for Data {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "cell::Data {{ orientation: {}, location: {} }}",
+                   self.orientation, self.location)
+        }
+    }
 }
 
-#[derive(Clone, Debug)]
 pub struct QuadTree {
     nodes: Vec<cell::Data>,
 }
 
 impl QuadTree {
-    pub fn with_subdivisions(levels: usize) -> QuadTree {
-        let nodes = Vec::with_capacity(levels);
+    pub fn with_orientation(orientation: cell::Orientation, levels: usize) -> QuadTree {
+        let tree = QuadTree {
+            nodes: Vec::with_capacity(levels * 4),
+        };
 
-        QuadTree {
-            nodes: nodes
-        }
+        tree
     }
 }
 
 pub struct Icosahedron {
-    nodes: [QuadTree; 20],
+    nodes: Vec<QuadTree>,
 }
 
 impl Icosahedron {
     pub fn with_subdivisions(levels: usize) -> Icosahedron {
         Icosahedron {
-            nodes: [QuadTree::with_subdivisions(levels); 20]
+            nodes: vec! [
+                // 0
+                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                // 1
+                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                // 2
+                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                // 3
+                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                // 4
+                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                // 5
+                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                // 6
+                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                // 7
+                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                // 8
+                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                // 9
+                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                // 10
+                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                // 11
+                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                // 12
+                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                // 13
+                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                // 14
+                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                // 15
+                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                // 16
+                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                // 17
+                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                // 18
+                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                // 19
+                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+            ]
         }
     }
 }
