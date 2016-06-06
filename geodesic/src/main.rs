@@ -1,3 +1,8 @@
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", allow(doc_markdown))]
+#![cfg_attr(feature = "clippy", allow(new_without_default))]
+
 extern crate cgmath;
 #[cfg(test)]
 #[macro_use(expect)]
@@ -60,7 +65,7 @@ pub fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
 
     let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
-    for face in mesh.faces.iter() {
+    for face in &mesh.faces {
         let e0 = face.root;
         let e1 = mesh.edges[e0].next;
         let e2 = mesh.edges[e1].next;
@@ -377,7 +382,7 @@ impl Game {
 
             if self.state.is_zooming {
                 let zoom_delta = mouse_delta.x as f32 * self.state.frame_data.delta_time;
-                self.state.camera_xz_radius = self.state.camera_xz_radius - (zoom_delta * self.state.camera_zoom_factor);
+                self.state.camera_xz_radius -= zoom_delta * self.state.camera_zoom_factor;
             }
         }
     }
@@ -520,11 +525,11 @@ fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
         .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
         .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
-            ui::checkbox(&ui, im_str!("Wireframe"), state.is_wireframe)
+            ui::checkbox(ui, im_str!("Wireframe"), state.is_wireframe)
                 .map(|v| send(SetWireframe(v)));
-            ui::checkbox(&ui, im_str!("Show star field"), state.is_showing_star_field)
+            ui::checkbox(ui, im_str!("Show star field"), state.is_showing_star_field)
                 .map(|v| send(SetShowingStarField(v)));
-            ui::slider_i32(&ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
+            ui::slider_i32(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
                 .map(|v| send(UpdatePlanetSubdivisions(v as usize)));
 
             if ui.small_button(im_str!("Reset state")) {
@@ -598,7 +603,7 @@ fn main() {
         if state.is_showing_ui {
             let ui = ui_context.frame(state.frame_data.window_dimensions, state.frame_data.delta_time);
 
-            run_ui(&ui, &state, |event| {
+            run_ui(&ui, state, |event| {
                 // FIXME: could cause a panic on the slim chance that the update thread
                 //  closes during ui rendering.
                 update_tx.send(UpdateEvent::Input(event)).unwrap();

@@ -81,11 +81,11 @@ impl Mesh {
         self.edges[b].adjacent = Some(a);
 
         debug_assert!({
-            let ref e0 = self.edges[a];
+            let e0 = &self.edges[a];
             let e0p0 = e0.position.clone();
             let e0p1 = self.edges[e0.next].position.clone();
 
-            let ref e1 = self.edges[b];
+            let e1 = &self.edges[b];
             let e1p0 = e1.position.clone();
             let e1p1 = self.edges[e1.next].position.clone();
 

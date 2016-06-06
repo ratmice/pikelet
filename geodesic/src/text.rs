@@ -41,7 +41,7 @@ impl TextData {
         let v_metrics = font.v_metrics(scale);
         let offset = rusttype::point(0.0, v_metrics.ascent);
 
-        let glyphs: Vec<_> = font.layout(&text, scale, offset).collect();
+        let glyphs: Vec<_> = font.layout(text, scale, offset).collect();
 
         let width = glyphs.iter()
             .map(|glyph| glyph.unpositioned().h_metrics().advance_width)
