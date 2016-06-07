@@ -10,6 +10,8 @@ pub mod cell {
     use std::fmt;
 
     pub type Index = usize;
+    pub type Level = usize;
+    pub type Path = usize;
 
     #[derive(Clone, Debug)]
     pub enum Orientation {
@@ -38,8 +40,8 @@ pub mod cell {
     }
 
     impl Id {
-        fn to_bits(&self) -> u32 {
-            match *self {
+        pub fn to_bits(id: Id) -> u32 {
+            match id {
                 Id::Top         => 0b00,
                 Id::Center      => 0b10,
                 Id::TopLeft     => 0b01,
@@ -50,7 +52,7 @@ pub mod cell {
             }
         }
 
-        fn from_bits(orientation: Orientation, bits: u32) -> Id {
+        pub fn from_bits(orientation: Orientation, bits: u32) -> Id {
             match orientation {
                 Orientation::TipUp => match bits {
                     0b00 => Id::Top,
@@ -72,13 +74,13 @@ pub mod cell {
 
     #[derive(Clone, Debug)]
     pub struct Location {
-        level: usize,
-        path: usize,
+        level: Level,
+        path: Path,
     }
 
     impl fmt::Display for Location {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "LOC:{},{}", self.level, self.path)
+            write!(f, "{{ {},{} }}", self.level, self.path)
         }
     }
 
@@ -88,14 +90,21 @@ pub mod cell {
     }
 
     impl Data {
-        pub fn default() -> Data {
+        pub fn new(orientation: Orientation, location: Location) -> Data {
             Data {
-                orientation: Orientation::TipUp,
-                location: Location {
+                orientation: orientation,
+                location: location
+            }
+        }
+
+        pub fn default() -> Data {
+            Data::new(
+                Orientation::TipUp,
+                Location {
                     level: 0,
                     path: 0,
                 }
-            }
+            )
         }
     }
 
@@ -108,16 +117,28 @@ pub mod cell {
 }
 
 pub struct QuadTree {
+    levels: cell::Level,
     nodes: Vec<cell::Data>,
 }
 
 impl QuadTree {
-    pub fn with_orientation(orientation: cell::Orientation, levels: usize) -> QuadTree {
-        let tree = QuadTree {
+    pub fn with_orientation(orientation: cell::Orientation, levels: cell::Level) -> QuadTree {
+        let mut tree = QuadTree {
+            levels: levels,
             nodes: Vec::with_capacity(levels * 4),
         };
 
+        // Since we can't use arrays we have to start by pushing everything
+        // into the vector.
+        for i in 0..levels {
+            tree.nodes.push(cell::Data::default());
+        }
+
         tree
+    }
+
+    pub fn location_for(id: cell::Id, orientation: cell::Orientation, level: cell::Level) -> cell::Location {
+        unimplemented!()
     }
 }
 
@@ -180,4 +201,9 @@ impl Icosahedron {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn zcurve_fundamentals_are_understood() {
+        unimplemented!()
+    }
 }
