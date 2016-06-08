@@ -118,19 +118,25 @@ pub mod cell {
 
 pub struct QuadTree {
     levels: cell::Level,
+    orientation: cell::Orientation,
     nodes: Vec<cell::Data>,
 }
 
 impl QuadTree {
     pub fn with_orientation(orientation: cell::Orientation, levels: cell::Level) -> QuadTree {
+        let cell_count = 4 ^ levels;
+
         let mut tree = QuadTree {
             levels: levels,
-            nodes: Vec::with_capacity(levels * 4),
+            orientation: orientation,
+            nodes: Vec::with_capacity(cell_count),
         };
 
-        // Since we can't use arrays we have to start by pushing everything
-        // into the vector.
-        for i in 0..levels {
+        for i in 0..cell_count {
+            // `i` here is essentially the full path to the current cell at the fully
+            // subdivided level. This means that we can determine the correct attributes
+            // in terms of path and orientation by analyzing this number in relation to
+            // the overall orientation of the quadtree.
             tree.nodes.push(cell::Data::default());
         }
 
