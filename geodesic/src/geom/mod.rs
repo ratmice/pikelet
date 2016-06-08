@@ -107,7 +107,10 @@ impl Edge {
 
 #[cfg(test)]
 mod tests {
-    use ::math;
+    use cgmath::prelude::*;
+    use cgmath::Point3;
+
+    use math;
     use super::{Mesh, Edge, EdgeIndex};
     use super::primitives;
     use super::algorithms::*;
@@ -224,9 +227,7 @@ mod tests {
         let scale: f32 = 1.0;
 
         let tetrahedron = primitives::tetrahedron(scale);
-        let mesh = tetrahedron.subdivide(subdivisions, &|a, b| {
-                math::midpoint(a, b)
-            });
+        let mesh = tetrahedron.subdivide(subdivisions, &Point3::midpoint);
         assert_congruent_nonboundary_mesh(&mesh);
         assert_face_associations(&mesh);
     }
@@ -237,9 +238,7 @@ mod tests {
         let scale: f32 = 1.0;
 
         let tri = primitives::triangle(scale);
-        let mesh = tri.subdivide(subdivisions, &|a, b| {
-                math::midpoint(a, b)
-            });
+        let mesh = tri.subdivide(subdivisions, &Point3::midpoint);
         assert_congruent_mesh(&mesh);
         assert_face_associations(&mesh);
     }
@@ -250,9 +249,7 @@ mod tests {
         let scale: f32 = 1.0;
 
         let plane = primitives::plane(scale);
-        let mesh = plane.subdivide(subdivisions, &|a, b| {
-                math::midpoint(a, b)
-            });
+        let mesh = plane.subdivide(subdivisions, &Point3::midpoint);
         assert_congruent_mesh(&mesh);
         assert_face_associations(&mesh);
     }

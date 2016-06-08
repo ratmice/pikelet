@@ -1,3 +1,8 @@
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", allow(doc_markdown))]
+#![cfg_attr(feature = "clippy", allow(new_without_default))]
+
 extern crate cgmath;
 #[cfg(test)]
 #[macro_use(expect)]
@@ -25,6 +30,7 @@ use find_folder::Search as FolderSearch;
 use glium::{Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
 use glium::glutin;
 use glium::index::{PrimitiveType, NoIndices};
+use imgui::Ui;
 use rayon::prelude::*;
 use std::mem;
 use std::sync::mpsc::{Sender, SyncSender};
@@ -39,7 +45,6 @@ use job_queue::Job;
 use render::{Resources, RenderTarget, Vertex};
 use ui::Context as UiContext;
 
-pub mod app;
 pub mod camera;
 pub mod color;
 pub mod geom;
@@ -61,7 +66,7 @@ pub fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
 
     let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
-    for face in mesh.faces.iter() {
+    for face in &mesh.faces {
         let e0 = face.root;
         let e1 = mesh.edges[e0].next;
         let e2 = mesh.edges[e1].next;
@@ -378,7 +383,7 @@ impl Game {
 
             if self.state.is_zooming {
                 let zoom_delta = mouse_delta.x as f32 * self.state.frame_data.delta_time;
-                self.state.camera_xz_radius = self.state.camera_xz_radius - (zoom_delta * self.state.camera_zoom_factor);
+                self.state.camera_xz_radius -= zoom_delta * self.state.camera_zoom_factor;
             }
         }
     }
@@ -450,6 +455,39 @@ impl Game {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+enum JobId {
+    RegeneratePlanet,
+}
+
+#[derive(Debug)]
+enum JobData {
+    RegeneratePlanet {
+        radius: f32,
+        subdivs: usize,
+    },
+}
+
+fn process_job(job: Job<JobId, JobData>) -> ResourceEvent {
+    match job.data {
+        JobData::RegeneratePlanet { radius, subdivs } => {
+            let mesh = create_planet_mesh(radius, subdivs);
+            let vertices = create_vertices(&mesh);
+
+            ResourceEvent::PlanetData(vertices)
+        },
+    }
+}
+
+fn update_resources(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
+    match event {
+        ResourceEvent::PlanetData(vertices) => {
+            resources.planet_vertex_buffer = VertexBuffer::new(display, &vertices).unwrap();
+            resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
+        },
+    }
+}
+
 fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
     let frame_dimensions = frame.get_dimensions();
 
@@ -481,30 +519,22 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
     // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK).unwrap();
 }
 
-fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui::Renderer, state: &State, update_tx: &Sender<UpdateEvent>) {
+fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
     use InputEvent::*;
-
-    let ui = ui_context.frame(state.frame_data.window_dimensions, state.frame_data.delta_time);
-
-    let send_event = |event| {
-        // FIXME: could cause a panic on the slim chance that the update thread
-        //  closes during ui rendering.
-        update_tx.send(UpdateEvent::Input(event)).unwrap();
-    };
 
     ui.window(im_str!("State"))
         .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
         .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
-            ui::checkbox(&ui, im_str!("Wireframe"), state.is_wireframe)
-                .map(|v| send_event(SetWireframe(v)));
-            ui::checkbox(&ui, im_str!("Show star field"), state.is_showing_star_field)
-                .map(|v| send_event(SetShowingStarField(v)));
-            ui::slider_i32(&ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
-                .map(|v| send_event(UpdatePlanetSubdivisions(v as usize)));
+            ui::checkbox(ui, im_str!("Wireframe"), state.is_wireframe)
+                .map(|v| send(SetWireframe(v)));
+            ui::checkbox(ui, im_str!("Show star field"), state.is_showing_star_field)
+                .map(|v| send(SetShowingStarField(v)));
+            ui::slider_i32(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
+                .map(|v| send(UpdatePlanetSubdivisions(v as usize)));
 
             if ui.small_button(im_str!("Reset state")) {
-                send_event(ResetState);
+                send(ResetState);
             }
 
             ui.tree_node(im_str!("State")).build(|| {
@@ -544,10 +574,8 @@ fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui
         });
 
     if ui.want_capture_mouse() != state.is_ui_capturing_mouse {
-        send_event(SetUiCapturingMouse(ui.want_capture_mouse()));
+        send(SetUiCapturingMouse(ui.want_capture_mouse()));
     }
-
-    ui_renderer.render(frame, ui, state.frame_data.hidpi_factor).unwrap();
 }
 
 macro_rules! try_or {
@@ -556,20 +584,36 @@ macro_rules! try_or {
     };
 }
 
-#[derive(Clone, Debug, PartialEq)]
-enum JobId {
-    RegeneratePlanet,
-}
-
-#[derive(Debug)]
-enum JobData {
-    RegeneratePlanet {
-        radius: f32,
-        subdivs: usize,
-    },
-}
-
 fn main() {
+    fn frame_data(window: &glium::glutin::Window, time_delta: f32) -> FrameData {
+        FrameData {
+            window_dimensions: window.get_inner_size_points().unwrap(),
+            hidpi_factor: window.hidpi_factor(),
+            delta_time: time_delta as f32,
+            frames_per_second: 1.0 / time_delta as f32,
+        }
+    }
+
+    fn update_ui(ui_context: &mut UiContext, state: &State, event: glutin::Event) {
+        if state.is_showing_ui {
+            ui_context.update(event.clone(), state.frame_data.hidpi_factor);
+        }
+    }
+
+    fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui::Renderer, state: &State, update_tx: &Sender<UpdateEvent>) {
+        if state.is_showing_ui {
+            let ui = ui_context.frame(state.frame_data.window_dimensions, state.frame_data.delta_time);
+
+            run_ui(&ui, state, |event| {
+                // FIXME: could cause a panic on the slim chance that the update thread
+                //  closes during ui rendering.
+                update_tx.send(UpdateEvent::Input(event)).unwrap();
+            });
+
+            ui_renderer.render(frame, ui, state.frame_data.hidpi_factor).unwrap();
+        }
+    }
+
     use std::sync::mpsc;
     use std::thread;
 
@@ -586,15 +630,7 @@ fn main() {
     // Spawn update thread
     thread::spawn(move || {
         let job_tx = job_queue::spawn(move |job| {
-            match job.data {
-                JobData::RegeneratePlanet { radius, subdivs } => {
-                    let mesh = create_planet_mesh(radius, subdivs);
-                    let vertices = create_vertices(&mesh);
-                    let resource_event = ResourceEvent::PlanetData(vertices);
-
-                    resource_tx.send(resource_event).unwrap();
-                },
-            }
+            resource_tx.send(process_job(job)).unwrap();
         });
 
         let mut game = Game::new(job_tx, render_tx, state);
@@ -604,48 +640,32 @@ fn main() {
     });
 
     'main: for time in times::in_seconds() {
-        let window = display.get_window().unwrap();
-
-        let frame_data = FrameData {
-            window_dimensions: window.get_inner_size_points().unwrap(),
-            hidpi_factor: window.hidpi_factor(),
-            delta_time: time.delta() as f32,
-            frames_per_second: 1.0 / time.delta() as f32,
+        // Swap frames with update thread
+        let RenderData(state) = {
+            let window = display.get_window().unwrap();
+            let frame_data = frame_data(&window, time.delta() as f32);
+            try_or!(update_tx.send(UpdateEvent::FrameRequested(frame_data)), break 'main);
+            try_or!(render_rx.recv(), break 'main)
         };
-
-        try_or!(update_tx.send(UpdateEvent::FrameRequested(frame_data)), break 'main);
-        let RenderData(state) = try_or!(render_rx.recv(), break 'main);
 
         // Get user input
         for event in display.poll_events() {
-            if state.is_showing_ui {
-                ui_context.update(event.clone(), window.hidpi_factor());
-            }
+            update_ui(&mut ui_context, &state, event.clone());
             try_or!(update_tx.send(UpdateEvent::Input(InputEvent::from(event))), break 'main);
         }
 
         // Update resources
         while let Ok(event) = resource_rx.try_recv() {
-            match event {
-                ResourceEvent::PlanetData(vertices) => {
-                    resources.planet_vertex_buffer = VertexBuffer::new(&display, &vertices).unwrap();
-                    resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
-                },
-            }
+            update_resources(&display, &mut resources, event);
         }
 
-        // Time to render!
-        {
-            let mut frame = display.draw();
+        // Render frame
+        let mut frame = display.draw();
+        render_scene(&mut frame, &state, &resources);
+        render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
+        frame.finish().unwrap();
 
-            render_scene(&mut frame, &state, &resources);
-            if state.is_showing_ui {
-                render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
-            }
-
-            frame.finish().unwrap();
-        }
-
-        thread::sleep(Duration::from_millis(10)); // battery saver ;)
+        // Sleep to save on the battery!
+        thread::sleep(Duration::from_millis(10));
     }
 }

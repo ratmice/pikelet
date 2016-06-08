@@ -1,11 +1,10 @@
 //! The algorithms module contains traits and implementations of rougly any
 //! algorithm that can be understood as a Function `Mesh -> Mesh`.
-//!
 
-
+use cgmath::prelude::*;
 use std::collections::HashMap;
-use ::math;
-use super::*;
+
+use geom::{EdgeIndex, FaceIndex, Mesh, Position, PositionIndex};
 
 /// Trait for types that support being subdivided.
 pub trait Subdivide {
@@ -69,7 +68,7 @@ impl Subdivide for Mesh {
         mesh.positions.extend_from_slice(&self.positions);
 
         // Create our new faces
-        for face in self.faces.iter() {
+        for face in &self.faces {
             let in_e0 = face.root;
             let in_e1 = self.edges[in_e0].next;
             let in_e2 = self.edges[in_e1].next;
@@ -97,7 +96,7 @@ impl Subdivide for Mesh {
                 .remove(&in_e0)
                 .unwrap_or_else(|| {
                     calc_and_cache_midpoint(
-                        in_e0, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
+                        in_e0, self, &mut mesh, &mut midpoint_cache, &midpoint_fn
                     )
                 });
 
@@ -105,7 +104,7 @@ impl Subdivide for Mesh {
                 .remove(&in_e1)
                 .unwrap_or_else(|| {
                     calc_and_cache_midpoint(
-                        in_e1, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
+                        in_e1, self, &mut mesh, &mut midpoint_cache, &midpoint_fn
                     )
                 });
 
@@ -113,7 +112,7 @@ impl Subdivide for Mesh {
                 .remove(&in_e2)
                 .unwrap_or_else(|| {
                     calc_and_cache_midpoint(
-                        in_e2, &self, &mut mesh, &mut midpoint_cache, &midpoint_fn
+                        in_e2, self, &mut mesh, &mut midpoint_cache, &midpoint_fn
                     )
                 });
 
@@ -134,7 +133,7 @@ impl Subdivide for Mesh {
         debug_assert_eq!(split_edges.len(), self.edges.len());
 
         // Update adjacency for remaining edges
-        for (index, &(a, b)) in split_edges.iter() {
+        for (index, &(a, b)) in &split_edges {
             let edge = &self.edges[*index];
             if edge.is_boundary() {
                 continue;
@@ -186,7 +185,7 @@ impl Dual for Mesh {
                 self.positions[point_indices[2]],
             ];
 
-            let centroid_index = mesh.add_position(math::centroid(&face_positions));
+            let centroid_index = mesh.add_position(Position::centroid(&face_positions));
             centroid_cache.insert(face_index, centroid_index);
         }
 
@@ -218,7 +217,7 @@ impl Dual for Mesh {
                         }
                     }
                 };
-                current_face_index = next_face_around_position(&self, pi, ei);
+                current_face_index = next_face_around_position(self, pi, ei);
                 if current_face_index == fi0 {
                     break;
                 }
@@ -227,7 +226,7 @@ impl Dual for Mesh {
                 assert!(centroids.len() <= 6, "Infinite loop detected!");
             }
 
-            let centroid = math::centroid(&centroids);
+            let centroid = Position::centroid(&centroids);
             let centroid_index = mesh.add_position(centroid);
 
             match centroids.len() {

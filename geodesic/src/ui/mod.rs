@@ -78,7 +78,7 @@ impl Context {
             MouseInput(state, MouseButton::Left) => { self.mouse_pressed.0 = state == Pressed; self.set_mouse_presses() },
             MouseInput(state, MouseButton::Right) => { self.mouse_pressed.1 = state == Pressed; self.set_mouse_presses() },
             MouseInput(state, MouseButton::Middle) => { self.mouse_pressed.2 = state == Pressed; self.set_mouse_presses() },
-            MouseWheel(MouseScrollDelta::LineDelta(_, y), _) => self.imgui.set_mouse_wheel(y),
+            MouseWheel(MouseScrollDelta::LineDelta(_, y), _) |
             MouseWheel(MouseScrollDelta::PixelDelta(_, y), _) => self.imgui.set_mouse_wheel(y),
             ReceivedCharacter(c) => self.imgui.add_input_character(c),
             _ => {},

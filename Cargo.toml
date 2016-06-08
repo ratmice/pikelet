@@ -12,7 +12,8 @@ name = "geodesic"
 path = "geodesic/src/main.rs"
 
 [dependencies]
-cgmath = "0.9.1"
+cgmath = "0.10.0"
+clippy = {version = "0.0.73", optional = true}
 find_folder = "0.3.0"
 glium = "0.14.0"
 imgui = "0.0.8"
@@ -27,6 +28,9 @@ itertools = "0.4.15"
 
 [dev-dependencies]
 expectest = "0.5.1"
+
+[features]
+default=[]
 
 [lib]
 name = "vtime"

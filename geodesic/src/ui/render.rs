@@ -81,6 +81,7 @@ pub struct DeviceObjects {
     texture: Texture2d,
 }
 
+#[cfg_attr(feature = "clippy", allow(redundant_closure))]
 fn compile_default_program<F: Facade>(ctx: &F) -> Result<Program, ProgramChooserCreationError> {
     program!(
         ctx,
