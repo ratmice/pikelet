@@ -514,8 +514,12 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
         target.render_solid(&resources.planet_vertex_buffer, state.light_dir, color::GREEN).unwrap();
     }
 
-    // FIXME: https://github.com/Gekkio/imgui-rs/issues/17
-    // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK).unwrap();
+    if state.is_showing_ui {
+        let (window_width, _) = state.frame_data.window_dimensions;
+        let fps_text = format!("{:.2}", state.frame_data.frames_per_second);
+        let fps_location = Point2::new(window_width as f32 - 30.0, 2.0);
+        target.render_hud_text(&fps_text, 12.0, fps_location, color::BLACK).unwrap();
+    }
 }
 
 fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {

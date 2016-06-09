@@ -54,7 +54,7 @@ impl Renderer {
                 &self.device_objects.program,
                 &uniform! {
                     matrix: array4x4(matrix),
-                    texture: self.device_objects.texture.sampled()
+                    tex: self.device_objects.texture.sampled()
                         .magnify_filter(MagnifySamplerFilter::Nearest),
                 },
                 &DrawParameters {
