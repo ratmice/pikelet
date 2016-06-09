@@ -2,17 +2,13 @@ use cgmath::conv::*;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, Point2, Vector3};
 use glium::{self, index, program, texture, vertex};
-use glium::{Frame, IndexBuffer, Program, VertexBuffer};
+use glium::{Frame, VertexBuffer};
 use glium::{DrawParameters, PolygonMode, Surface, BackfaceCullingMode};
-use glium::backend::Context;
-use glium::index::NoIndices;
-use rusttype::Font;
-use std::rc::Rc;
 
 use camera::ComputedCamera;
 use color::Color;
+use resources::{Resources, Vertex};
 use text::TextData;
-use text::Vertex as TextVertex;
 
 pub type RenderResult<T> = Result<T, RenderError>;
 
@@ -47,13 +43,6 @@ quick_error! {
     }
 }
 
-#[derive(Copy, Clone)]
-pub struct Vertex {
-    pub position: [f32; 3],
-}
-
-implement_vertex!(Vertex, position);
-
 fn draw_params<'a>() -> DrawParameters<'a> {
     use glium::{BackfaceCullingMode, Depth, DepthTest};
     use glium::draw_parameters::{Smooth};
@@ -68,26 +57,6 @@ fn draw_params<'a>() -> DrawParameters<'a> {
         smooth: Some(Smooth::Nicest),
         ..DrawParameters::default()
     }
-}
-
-pub struct Resources {
-    pub context: Rc<Context>,
-
-    pub planet_vertex_buffer: Option<VertexBuffer<Vertex>>,
-    pub index_buffer: NoIndices,
-
-    pub stars0_vertex_buffer: VertexBuffer<Vertex>,
-    pub stars1_vertex_buffer: VertexBuffer<Vertex>,
-    pub stars2_vertex_buffer: VertexBuffer<Vertex>,
-
-    pub text_vertex_buffer: VertexBuffer<TextVertex>,
-    pub text_index_buffer: IndexBuffer<u8>,
-
-    pub flat_shaded_program: Program,
-    pub text_program: Program,
-    pub unshaded_program: Program,
-
-    pub blogger_sans_font: Font<'static>,
 }
 
 pub struct RenderTarget<'a> {

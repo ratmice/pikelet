@@ -42,7 +42,8 @@ use geom::primitives;
 use geom::algorithms::{Subdivide, Dual};
 use geom::star_field::{Star, StarField};
 use job_queue::Job;
-use render::{Resources, RenderTarget, Vertex};
+use render::RenderTarget;
+use resources::{Resources, Vertex};
 use ui::Context as UiContext;
 
 pub mod camera;
@@ -53,6 +54,7 @@ pub mod math;
 pub mod text;
 pub mod times;
 pub mod render;
+pub mod resources;
 pub mod ui;
 
 pub fn create_planet_mesh(radius: f32, subdivs: usize) -> Mesh {
