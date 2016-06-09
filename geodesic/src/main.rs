@@ -304,12 +304,10 @@ impl State {
             font_collection.into_font().unwrap()
         };
 
-        let planet_mesh = create_planet_mesh(self.planet_radius, self.planet_subdivs);
-
         Resources {
             context: display.get_context().clone(),
 
-            planet_vertex_buffer: VertexBuffer::new(display, &create_vertices(&planet_mesh)).unwrap(),
+            planet_vertex_buffer: None,
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
             text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
@@ -407,6 +405,16 @@ impl Game {
         self.job_tx.send(job).expect("Failed queue job");
     }
 
+    fn queue_regenete_planet_job(&self) {
+        self.queue_job(
+            JobId::RegeneratePlanet,
+            JobData::RegeneratePlanet {
+                radius: self.state.planet_radius,
+                subdivs: self.state.planet_subdivs,
+            },
+        );
+    }
+
     fn handle_input(&mut self, event: InputEvent) -> Loop {
         use InputEvent::*;
 
@@ -425,14 +433,7 @@ impl Game {
             MousePosition(position) => self.handle_mouse_update(position),
             UpdatePlanetSubdivisions(planet_subdivs) => {
                 self.state.planet_subdivs = planet_subdivs;
-
-                self.queue_job(
-                    JobId::RegeneratePlanet,
-                    JobData::RegeneratePlanet {
-                        radius: self.state.planet_radius,
-                        subdivs: self.state.planet_subdivs,
-                    },
-                );
+                self.queue_regenete_planet_job();
             },
             NoOp => {},
         }
@@ -485,7 +486,7 @@ fn process_job(job: Job<JobId, JobData>) -> ResourceEvent {
 fn update_resources(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
     match event {
         ResourceEvent::PlanetData(vertices) => {
-            resources.planet_vertex_buffer = VertexBuffer::new(display, &vertices).unwrap();
+            resources.planet_vertex_buffer = Some(VertexBuffer::new(display, &vertices).unwrap());
             resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
         },
     }
@@ -513,9 +514,9 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
     }
 
     if state.is_wireframe {
-        target.render_lines(&resources.planet_vertex_buffer, 0.5, color::BLACK).unwrap();
+        resources.planet_vertex_buffer.as_ref().map(|vbo| target.render_lines(vbo, 0.5, color::BLACK).unwrap());
     } else {
-        target.render_solid(&resources.planet_vertex_buffer, state.light_dir, color::GREEN).unwrap();
+        resources.planet_vertex_buffer.as_ref().map(|vbo| target.render_solid(vbo, state.light_dir, color::GREEN).unwrap());
     }
 
     if state.is_showing_ui {
@@ -644,6 +645,7 @@ fn main() {
         });
 
         let mut game = Game::new(job_tx, render_tx, state);
+        game.queue_regenete_planet_job();
         for event in update_rx.iter() {
             if game.update(event) == Loop::Break { break };
         }
