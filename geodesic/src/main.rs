@@ -121,6 +121,7 @@ pub enum UpdateEvent {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum InputEvent {
     Close,
+    SetLimitingFps(bool),
     SetShowingStarField(bool),
     SetUiCapturingMouse(bool),
     SetWireframe(bool),
@@ -173,11 +174,12 @@ impl From<glutin::Event> for InputEvent {
 struct State {
     frame_data: FrameData,
 
-    is_wireframe: bool,
+    is_dragging: bool,
+    is_limiting_fps: bool,
     is_showing_star_field: bool,
     is_showing_ui: bool,
-    is_dragging: bool,
     is_ui_capturing_mouse: bool,
+    is_wireframe: bool,
     is_zooming: bool,
 
     window_title: String,
@@ -208,11 +210,12 @@ impl State {
         State {
             frame_data: FrameData::new(1000, 500),
 
-            is_wireframe: false,
+            is_dragging: false,
+            is_limiting_fps: true,
             is_showing_star_field: true,
             is_showing_ui: true,
-            is_dragging: false,
             is_ui_capturing_mouse: false,
+            is_wireframe: false,
             is_zooming: false,
 
             light_dir: Vector3::new(0.0, 1.0, 0.2),
@@ -409,6 +412,7 @@ impl Game {
 
         match event {
             Close => return Loop::Break,
+            SetLimitingFps(value) => self.state.is_limiting_fps = value,
             SetShowingStarField(value) => self.state.is_showing_star_field = value,
             SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.state.is_wireframe = value,
@@ -533,6 +537,8 @@ fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
                 .map(|v| send(SetWireframe(v)));
             ui::checkbox(ui, im_str!("Show star field"), state.is_showing_star_field)
                 .map(|v| send(SetShowingStarField(v)));
+            ui::checkbox(ui, im_str!("Limit FPS"), state.is_limiting_fps)
+                .map(|v| send(SetLimitingFps(v)));
             ui::slider_i32(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
                 .map(|v| send(UpdatePlanetSubdivisions(v as usize)));
 
@@ -548,11 +554,12 @@ fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
 
                 ui.separator();
 
-                ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
+                ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
+                ui.text(im_str!("is_limiting_fps: {:?}", state.is_limiting_fps));
                 ui.text(im_str!("is_showing_star_field: {:?}", state.is_showing_star_field));
                 ui.text(im_str!("is_showing_ui: {:?}", state.is_showing_ui));
-                ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
                 ui.text(im_str!("is_ui_capturing_mouse: {:?}", state.is_ui_capturing_mouse));
+                ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
                 ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
 
                 ui.separator();
@@ -668,7 +675,8 @@ fn main() {
         render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
         frame.finish().unwrap();
 
-        // Sleep to save on the battery!
-        thread::sleep(Duration::from_millis(10));
+        if state.is_limiting_fps {
+            thread::sleep(Duration::from_millis(10));
+        }
     }
 }
