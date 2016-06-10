@@ -122,6 +122,7 @@ pub enum UpdateEvent {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum InputEvent {
     Close,
+    SetLimitingFps(bool),
     SetShowingStarField(bool),
     SetUiCapturingMouse(bool),
     SetWireframe(bool),
@@ -174,11 +175,12 @@ impl From<glutin::Event> for InputEvent {
 struct State {
     frame_data: FrameData,
 
-    is_wireframe: bool,
+    is_dragging: bool,
+    is_limiting_fps: bool,
     is_showing_star_field: bool,
     is_showing_ui: bool,
-    is_dragging: bool,
     is_ui_capturing_mouse: bool,
+    is_wireframe: bool,
     is_zooming: bool,
 
     window_title: String,
@@ -209,11 +211,12 @@ impl State {
         State {
             frame_data: FrameData::new(1000, 500),
 
-            is_wireframe: false,
+            is_dragging: false,
+            is_limiting_fps: true,
             is_showing_star_field: true,
             is_showing_ui: true,
-            is_dragging: false,
             is_ui_capturing_mouse: false,
+            is_wireframe: false,
             is_zooming: false,
 
             light_dir: Vector3::new(0.0, 1.0, 0.2),
@@ -302,12 +305,10 @@ impl State {
             font_collection.into_font().unwrap()
         };
 
-        let planet_mesh = create_planet_mesh(self.planet_radius, self.planet_subdivs);
-
         Resources {
             context: display.get_context().clone(),
 
-            planet_vertex_buffer: VertexBuffer::new(display, &create_vertices(&planet_mesh)).unwrap(),
+            planet_vertex_buffer: None,
             index_buffer: NoIndices(PrimitiveType::TrianglesList),
 
             text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
@@ -405,11 +406,22 @@ impl Game {
         self.job_tx.send(job).expect("Failed queue job");
     }
 
+    fn queue_regenete_planet_job(&self) {
+        self.queue_job(
+            JobId::RegeneratePlanet,
+            JobData::RegeneratePlanet {
+                radius: self.state.planet_radius,
+                subdivs: self.state.planet_subdivs,
+            },
+        );
+    }
+
     fn handle_input(&mut self, event: InputEvent) -> Loop {
         use InputEvent::*;
 
         match event {
             Close => return Loop::Break,
+            SetLimitingFps(value) => self.state.is_limiting_fps = value,
             SetShowingStarField(value) => self.state.is_showing_star_field = value,
             SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.state.is_wireframe = value,
@@ -422,14 +434,7 @@ impl Game {
             MousePosition(position) => self.handle_mouse_update(position),
             UpdatePlanetSubdivisions(planet_subdivs) => {
                 self.state.planet_subdivs = planet_subdivs;
-
-                self.queue_job(
-                    JobId::RegeneratePlanet,
-                    JobData::RegeneratePlanet {
-                        radius: self.state.planet_radius,
-                        subdivs: self.state.planet_subdivs,
-                    },
-                );
+                self.queue_regenete_planet_job();
             },
             NoOp => {},
         }
@@ -482,7 +487,7 @@ fn process_job(job: Job<JobId, JobData>) -> ResourceEvent {
 fn update_resources(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
     match event {
         ResourceEvent::PlanetData(vertices) => {
-            resources.planet_vertex_buffer = VertexBuffer::new(display, &vertices).unwrap();
+            resources.planet_vertex_buffer = Some(VertexBuffer::new(display, &vertices).unwrap());
             resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
         },
     }
@@ -510,13 +515,17 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
     }
 
     if state.is_wireframe {
-        target.render_lines(&resources.planet_vertex_buffer, 0.5, color::BLACK).unwrap();
+        resources.planet_vertex_buffer.as_ref().map(|vbo| target.render_lines(vbo, 0.5, color::BLACK).unwrap());
     } else {
-        target.render_solid(&resources.planet_vertex_buffer, state.light_dir, color::GREEN).unwrap();
+        resources.planet_vertex_buffer.as_ref().map(|vbo| target.render_solid(vbo, state.light_dir, color::GREEN).unwrap());
     }
 
-    // FIXME: https://github.com/Gekkio/imgui-rs/issues/17
-    // target.render_hud_text(&state.frames_per_second.to_string(), 12.0, Point2::new(2.0, 2.0), color::BLACK).unwrap();
+    if state.is_showing_ui {
+        let (window_width, _) = state.frame_data.window_dimensions;
+        let fps_text = format!("{:.2}", state.frame_data.frames_per_second);
+        let fps_location = Point2::new(window_width as f32 - 30.0, 2.0);
+        target.render_hud_text(&fps_text, 12.0, fps_location, color::BLACK).unwrap();
+    }
 }
 
 fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
@@ -530,6 +539,8 @@ fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
                 .map(|v| send(SetWireframe(v)));
             ui::checkbox(ui, im_str!("Show star field"), state.is_showing_star_field)
                 .map(|v| send(SetShowingStarField(v)));
+            ui::checkbox(ui, im_str!("Limit FPS"), state.is_limiting_fps)
+                .map(|v| send(SetLimitingFps(v)));
             ui::slider_i32(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
                 .map(|v| send(UpdatePlanetSubdivisions(v as usize)));
 
@@ -545,11 +556,12 @@ fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
 
                 ui.separator();
 
-                ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
+                ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
+                ui.text(im_str!("is_limiting_fps: {:?}", state.is_limiting_fps));
                 ui.text(im_str!("is_showing_star_field: {:?}", state.is_showing_star_field));
                 ui.text(im_str!("is_showing_ui: {:?}", state.is_showing_ui));
-                ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
                 ui.text(im_str!("is_ui_capturing_mouse: {:?}", state.is_ui_capturing_mouse));
+                ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
                 ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
 
                 ui.separator();
@@ -634,6 +646,7 @@ fn main() {
         });
 
         let mut game = Game::new(job_tx, render_tx, state);
+        game.queue_regenete_planet_job();
         for event in update_rx.iter() {
             if game.update(event) == Loop::Break { break };
         }
@@ -665,7 +678,8 @@ fn main() {
         render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
         frame.finish().unwrap();
 
-        // Sleep to save on the battery!
-        thread::sleep(Duration::from_millis(10));
+        if state.is_limiting_fps {
+            thread::sleep(Duration::from_millis(10));
+        }
     }
 }
