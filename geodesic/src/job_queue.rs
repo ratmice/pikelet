@@ -2,38 +2,26 @@ use std::collections::VecDeque;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Job<Id, Data> {
-    pub id: Id,
-    pub data: Data,
+struct JobQueue<Job> {
+    queued_jobs: VecDeque<Job>,
 }
 
-impl<Id, Data> Job<Id, Data> {
-    pub fn new(id: Id, data: Data) -> Job<Id, Data> {
-        Job { id: id, data: data }
-    }
-}
-
-struct JobQueue<Id, Data> {
-    queued_jobs: VecDeque<Job<Id, Data>>,
-}
-
-impl<Id: PartialEq, Data> JobQueue<Id, Data> {
-    fn new() -> JobQueue<Id, Data> {
+impl<Job: PartialEq> JobQueue<Job> {
+    fn new() -> JobQueue<Job> {
         JobQueue {
             queued_jobs: VecDeque::new(),
         }
     }
 
-    fn pop_front(&mut self) -> Option<Job<Id, Data>> {
+    fn pop_front(&mut self) -> Option<Job> {
         self.queued_jobs.pop_front()
     }
 
-    fn push_back(&mut self, job: Job<Id, Data>) -> Option<Job<Id, Data>> {
+    fn push_back(&mut self, job: Job) -> Option<Job> {
         use std::mem;
 
         for queued_job in &mut self.queued_jobs {
-            if queued_job.id == job.id {
+            if queued_job == &job {
                 // Should we replace the queued job in its current positions,
                 // or remove the queued job and push the new one to the back of
                 // the queue?
@@ -47,10 +35,9 @@ impl<Id: PartialEq, Data> JobQueue<Id, Data> {
     }
 }
 
-pub fn spawn<Id, Data, F>(mut f: F) -> Sender<Job<Id, Data>> where
-    Id: PartialEq + Send + 'static,
-    Data: Send + 'static,
-    F: FnMut(Job<Id, Data>) + Send + 'static,
+pub fn spawn<Job, F>(mut f: F) -> Sender<Job> where
+    Job: Send + PartialEq + 'static,
+    F: FnMut(Job) + Send + 'static,
 {
     use std::sync::{Arc, Mutex};
     use std::sync::mpsc;
@@ -90,12 +77,21 @@ pub fn spawn<Id, Data, F>(mut f: F) -> Sender<Job<Id, Data>> where
 
 #[cfg(test)]
 mod test {
-    use super::{Job, JobQueue};
+    use super::JobQueue;
     use expectest::prelude::*;
+
+    #[derive(Copy, Clone, Debug)]
+    struct Job(usize, &'static str);
+
+    impl PartialEq for Job {
+        fn eq(&self, other: &Job) -> bool {
+            self.0 == other.0
+        }
+    }
 
     #[test]
     fn test_pop_front_empty() {
-        let mut job_queue: JobQueue<(), ()> = JobQueue::new();
+        let mut job_queue: JobQueue<Job> = JobQueue::new();
         expect!(job_queue.pop_front()).to(be_none());
     }
 
@@ -103,10 +99,10 @@ mod test {
     fn test_push_back() {
         let mut job_queue = JobQueue::new();
 
-        let job0 = Job::new(0, "0");
-        let job1a = Job::new(1, "1a");
-        let job1b = Job::new(1, "1b");
-        let job2 = Job::new(2, "2");
+        let job0 = Job(0, "0");
+        let job1a = Job(1, "1a");
+        let job1b = Job(1, "1b");
+        let job2 = Job(2, "2");
 
         expect!(job_queue.push_back(job0)).to(be_none());
         expect!(job_queue.push_back(job1a)).to(be_none());
@@ -118,9 +114,9 @@ mod test {
     fn test_first_in_first_out() {
         let mut job_queue = JobQueue::new();
 
-        let job1 = Job::new(1, "1");
-        let job2 = Job::new(2, "2");
-        let job0 = Job::new(0, "0");
+        let job1 = Job(1, "1");
+        let job2 = Job(2, "2");
+        let job0 = Job(0, "0");
 
         job_queue.push_back(job1);
         job_queue.push_back(job2);
@@ -135,9 +131,9 @@ mod test {
     fn test_spawn() {
         use std::sync::mpsc;
 
-        let job0 = Job::new(0, "0");
-        let job1 = Job::new(1, "1");
-        let job2 = Job::new(2, "2");
+        let job0 = Job(0, "0");
+        let job1 = Job(1, "1");
+        let job2 = Job(2, "2");
 
         let (tx, rx) = mpsc::channel();
 

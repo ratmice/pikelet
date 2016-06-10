@@ -43,7 +43,6 @@ use geom::Mesh;
 use geom::primitives;
 use geom::algorithms::{Subdivide, Dual};
 use geom::star_field::{Star, StarField};
-use job_queue::Job;
 use render::RenderTarget;
 use resources::{Resources, Vertex};
 use ui::Context as UiContext;
@@ -363,13 +362,13 @@ impl State {
 }
 
 struct Game {
-    job_tx: Sender<Job<JobId, JobData>>,
+    job_tx: Sender<Job>,
     render_tx: SyncSender<RenderData>,
     state: State,
 }
 
 impl Game {
-    fn new(job_tx: Sender<Job<JobId, JobData>>, render_tx: SyncSender<RenderData>, state: State) -> Game {
+    fn new(job_tx: Sender<Job>, render_tx: SyncSender<RenderData>, state: State) -> Game {
         Game {
             job_tx: job_tx,
             render_tx: render_tx,
@@ -407,19 +406,15 @@ impl Game {
         Loop::Continue
     }
 
-    fn queue_job(&self, id: JobId, data: JobData) {
-        let job = Job::new(id, data);
+    fn queue_job(&self, job: Job) {
         self.job_tx.send(job).expect("Failed queue job");
     }
 
     fn queue_regenete_planet_job(&self) {
-        self.queue_job(
-            JobId::RegeneratePlanet,
-            JobData::RegeneratePlanet {
-                radius: self.state.planet_radius,
-                subdivs: self.state.planet_subdivs,
-            },
-        );
+        self.queue_job(Job::RegeneratePlanet {
+            radius: self.state.planet_radius,
+            subdivs: self.state.planet_subdivs,
+        });
     }
 
     fn handle_input(&mut self, event: InputEvent) -> Loop {
@@ -466,22 +461,24 @@ impl Game {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-enum JobId {
-    RegeneratePlanet,
-}
-
 #[derive(Debug)]
-enum JobData {
-    RegeneratePlanet {
-        radius: f32,
-        subdivs: usize,
-    },
+enum Job {
+    RegeneratePlanet { radius: f32, subdivs: usize },
 }
 
-fn process_job(job: Job<JobId, JobData>) -> ResourceEvent {
-    match job.data {
-        JobData::RegeneratePlanet { radius, subdivs } => {
+impl PartialEq for Job {
+    fn eq(&self, other: &Job) -> bool {
+        use Job::*;
+
+        match (self, other) {
+            (&RegeneratePlanet { .. }, &RegeneratePlanet { .. }) => true,
+        }
+    }
+}
+
+fn process_job(job: Job) -> ResourceEvent {
+    match job {
+        Job::RegeneratePlanet { radius, subdivs } => {
             let mesh = create_planet_mesh(radius, subdivs);
             let vertices = create_vertices(&mesh);
 
