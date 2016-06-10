@@ -2,6 +2,7 @@ use glium::{IndexBuffer, Program, VertexBuffer};
 use glium::backend::Context;
 use glium::index::NoIndices;
 use rusttype::Font;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use text::Vertex as TextVertex;
@@ -13,15 +14,12 @@ pub struct Vertex {
 
 implement_vertex!(Vertex, position);
 
+pub type Buffer = (VertexBuffer<Vertex>, NoIndices);
+
 pub struct Resources {
     pub context: Rc<Context>,
 
-    pub planet_vertex_buffer: Option<VertexBuffer<Vertex>>,
-    pub index_buffer: NoIndices,
-
-    pub stars0_vertex_buffer: Option<VertexBuffer<Vertex>>,
-    pub stars1_vertex_buffer: Option<VertexBuffer<Vertex>>,
-    pub stars2_vertex_buffer: Option<VertexBuffer<Vertex>>,
+    pub buffers: HashMap<String, Buffer>,
 
     pub text_vertex_buffer: VertexBuffer<TextVertex>,
     pub text_index_buffer: IndexBuffer<u8>,

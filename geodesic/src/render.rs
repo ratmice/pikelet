@@ -2,12 +2,11 @@ use cgmath::conv::*;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, Point2, Vector3};
 use glium::{self, index, program, texture, vertex};
-use glium::{Frame, VertexBuffer};
-use glium::{DrawParameters, PolygonMode, Surface, BackfaceCullingMode};
+use glium::{DrawParameters, Frame, PolygonMode, Surface, BackfaceCullingMode};
 
 use camera::ComputedCamera;
 use color::Color;
-use resources::{Resources, Vertex};
+use resources::{Resources, Buffer};
 use text::TextData;
 
 pub type RenderResult<T> = Result<T, RenderError>;
@@ -45,7 +44,6 @@ quick_error! {
 
 fn draw_params<'a>() -> DrawParameters<'a> {
     use glium::{BackfaceCullingMode, Depth, DepthTest};
-    use glium::draw_parameters::{Smooth};
 
     DrawParameters {
         backface_culling: BackfaceCullingMode::CullClockwise,
@@ -54,7 +52,6 @@ fn draw_params<'a>() -> DrawParameters<'a> {
             write: true,
             ..Depth::default()
         },
-        smooth: Some(Smooth::Nicest),
         ..DrawParameters::default()
     }
 }
@@ -116,10 +113,10 @@ impl<'a> RenderTarget<'a> {
         Ok(())
     }
 
-    pub fn render_points(&mut self, vertex_buffer: &VertexBuffer<Vertex>, point_size: f32, color: Color) -> RenderResult<()> {
+    pub fn render_points(&mut self, &(ref vertex_buffer, ref index_buffer): &Buffer, point_size: f32, color: Color) -> RenderResult<()> {
         try!(self.frame.draw(
             vertex_buffer,
-            &self.resources.index_buffer,
+            index_buffer,
             &self.resources.unshaded_program,
             &uniform! {
                 color:      color,
@@ -138,10 +135,10 @@ impl<'a> RenderTarget<'a> {
         Ok(())
     }
 
-    pub fn render_lines(&mut self, vertex_buffer: &VertexBuffer<Vertex>, line_width: f32, color: Color) -> RenderResult<()> {
+    pub fn render_lines(&mut self, &(ref vertex_buffer, ref index_buffer): &Buffer, line_width: f32, color: Color) -> RenderResult<()> {
         try!(self.frame.draw(
             vertex_buffer,
-            &self.resources.index_buffer,
+            index_buffer,
             &self.resources.unshaded_program,
             &uniform! {
                 color:      color,
@@ -160,10 +157,10 @@ impl<'a> RenderTarget<'a> {
         Ok(())
     }
 
-    pub fn render_solid(&mut self, vertex_buffer: &VertexBuffer<Vertex>, light_dir: Vector3<f32>, color: Color) -> RenderResult<()> {
+    pub fn render_solid(&mut self, &(ref vertex_buffer, ref index_buffer): &Buffer, light_dir: Vector3<f32>, color: Color) -> RenderResult<()> {
         try!(self.frame.draw(
             vertex_buffer,
-            &self.resources.index_buffer,
+            index_buffer,
             &self.resources.flat_shaded_program,
             &uniform! {
                 color:      color,

@@ -12,6 +12,8 @@ extern crate find_folder;
 extern crate glium;
 #[macro_use]
 extern crate imgui;
+#[macro_use]
+extern crate maplit;
 extern crate notify;
 extern crate num_traits;
 #[macro_use]
@@ -306,18 +308,21 @@ impl State {
             font_collection.into_font().unwrap()
         };
 
+        let stars0_vertex_buffer = VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars0)).unwrap();
+        let stars1_vertex_buffer = VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars1)).unwrap();
+        let stars2_vertex_buffer = VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars2)).unwrap();
+
         Resources {
             context: display.get_context().clone(),
 
-            planet_vertex_buffer: None,
-            index_buffer: NoIndices(PrimitiveType::TrianglesList),
+            buffers: hashmap! {
+                "stars0".to_string() => (stars0_vertex_buffer, NoIndices(PrimitiveType::Points)),
+                "stars1".to_string() => (stars1_vertex_buffer, NoIndices(PrimitiveType::Points)),
+                "stars2".to_string() => (stars2_vertex_buffer, NoIndices(PrimitiveType::Points)),
+            },
 
             text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
             text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
-
-            stars0_vertex_buffer: Some(VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars0)).unwrap()),
-            stars1_vertex_buffer: Some(VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars1)).unwrap()),
-            stars2_vertex_buffer: Some(VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars2)).unwrap()),
 
             flat_shaded_program: flat_shaded_program,
             text_program: text_program,
@@ -488,8 +493,10 @@ fn process_job(job: Job<JobId, JobData>) -> ResourceEvent {
 fn update_resources(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
     match event {
         ResourceEvent::PlanetData(vertices) => {
-            resources.planet_vertex_buffer = Some(VertexBuffer::new(display, &vertices).unwrap());
-            resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
+            resources.buffers.insert("planet".to_string(), (
+                VertexBuffer::new(display, &vertices).unwrap(),
+                NoIndices(PrimitiveType::TrianglesList),
+            ));
         },
     }
 }
@@ -510,15 +517,15 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
 
     if state.is_showing_star_field {
         // TODO: Render centered at eye position
-        resources.stars0_vertex_buffer.as_ref().map(|vbo| target.render_points(vbo, state.star0_size, color::WHITE).unwrap());
-        resources.stars1_vertex_buffer.as_ref().map(|vbo| target.render_points(vbo, state.star1_size, color::WHITE).unwrap());
-        resources.stars2_vertex_buffer.as_ref().map(|vbo| target.render_points(vbo, state.star2_size, color::WHITE).unwrap());
+        resources.buffers.get("stars0").map(|buf| target.render_points(buf, state.star0_size, color::WHITE).unwrap());
+        resources.buffers.get("stars1").map(|buf| target.render_points(buf, state.star1_size, color::WHITE).unwrap());
+        resources.buffers.get("stars2").map(|buf| target.render_points(buf, state.star2_size, color::WHITE).unwrap());
     }
 
     if state.is_wireframe {
-        resources.planet_vertex_buffer.as_ref().map(|vbo| target.render_lines(vbo, 0.5, color::BLACK).unwrap());
+        resources.buffers.get("planet").map(|buf| target.render_lines(buf, 0.5, color::BLACK).unwrap());
     } else {
-        resources.planet_vertex_buffer.as_ref().map(|vbo| target.render_solid(vbo, state.light_dir, color::GREEN).unwrap());
+        resources.buffers.get("planet").map(|buf| target.render_solid(buf, state.light_dir, color::GREEN).unwrap());
     }
 
     if state.is_showing_ui {
