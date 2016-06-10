@@ -100,7 +100,7 @@ impl<'a> RenderTarget<'a> {
         try!(self.frame.draw(
             &self.resources.text_vertex_buffer,
             &self.resources.text_index_buffer,
-            &self.resources.text_program,
+            &self.resources.programs["text"],
             &uniform! {
                 color:    color,
                 text:     text_texture.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
@@ -117,7 +117,7 @@ impl<'a> RenderTarget<'a> {
         try!(self.frame.draw(
             vertex_buffer,
             index_buffer,
-            &self.resources.unshaded_program,
+            &self.resources.programs["unshaded"],
             &uniform! {
                 color:      color,
                 model:      array4x4(Matrix4::from_scale(1.025f32)),
@@ -139,7 +139,7 @@ impl<'a> RenderTarget<'a> {
         try!(self.frame.draw(
             vertex_buffer,
             index_buffer,
-            &self.resources.unshaded_program,
+            &self.resources.programs["unshaded"],
             &uniform! {
                 color:      color,
                 model:      array4x4(Matrix4::from_scale(1.025f32)),
@@ -161,7 +161,7 @@ impl<'a> RenderTarget<'a> {
         try!(self.frame.draw(
             vertex_buffer,
             index_buffer,
-            &self.resources.flat_shaded_program,
+            &self.resources.programs["flat_shaded"],
             &uniform! {
                 color:      color,
                 light_dir:  array3(light_dir),

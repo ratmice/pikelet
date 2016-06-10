@@ -20,13 +20,9 @@ pub struct Resources {
     pub context: Rc<Context>,
 
     pub buffers: HashMap<String, Buffer>,
+    pub programs: HashMap<String, Program>,
 
     pub text_vertex_buffer: VertexBuffer<TextVertex>,
     pub text_index_buffer: IndexBuffer<u8>,
-
-    pub flat_shaded_program: Program,
-    pub text_program: Program,
-    pub unshaded_program: Program,
-
     pub blogger_sans_font: Font<'static>,
 }

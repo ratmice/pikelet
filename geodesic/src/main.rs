@@ -320,14 +320,14 @@ impl State {
                 "stars1".to_string() => (stars1_vertex_buffer, NoIndices(PrimitiveType::Points)),
                 "stars2".to_string() => (stars2_vertex_buffer, NoIndices(PrimitiveType::Points)),
             },
+            programs: hashmap! {
+                "flat_shaded".to_string() => flat_shaded_program,
+                "text".to_string() => text_program,
+                "unshaded".to_string() => unshaded_program,
+            },
 
             text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
             text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
-
-            flat_shaded_program: flat_shaded_program,
-            text_program: text_program,
-            unshaded_program: unshaded_program,
-
             blogger_sans_font: blogger_sans_font,
         }
     }
