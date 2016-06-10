@@ -19,9 +19,9 @@ pub struct Resources {
     pub planet_vertex_buffer: Option<VertexBuffer<Vertex>>,
     pub index_buffer: NoIndices,
 
-    pub stars0_vertex_buffer: VertexBuffer<Vertex>,
-    pub stars1_vertex_buffer: VertexBuffer<Vertex>,
-    pub stars2_vertex_buffer: VertexBuffer<Vertex>,
+    pub stars0_vertex_buffer: Option<VertexBuffer<Vertex>>,
+    pub stars1_vertex_buffer: Option<VertexBuffer<Vertex>>,
+    pub stars2_vertex_buffer: Option<VertexBuffer<Vertex>>,
 
     pub text_vertex_buffer: VertexBuffer<TextVertex>,
     pub text_index_buffer: IndexBuffer<u8>,

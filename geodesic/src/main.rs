@@ -315,9 +315,9 @@ impl State {
             text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
             text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
 
-            stars0_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars0)).unwrap(),
-            stars1_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars1)).unwrap(),
-            stars2_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars2)).unwrap(),
+            stars0_vertex_buffer: Some(VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars0)).unwrap()),
+            stars1_vertex_buffer: Some(VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars1)).unwrap()),
+            stars2_vertex_buffer: Some(VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars2)).unwrap()),
 
             flat_shaded_program: flat_shaded_program,
             text_program: text_program,
@@ -510,9 +510,9 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
 
     if state.is_showing_star_field {
         // TODO: Render centered at eye position
-        target.render_points(&resources.stars0_vertex_buffer, state.star0_size, color::WHITE).unwrap();
-        target.render_points(&resources.stars1_vertex_buffer, state.star1_size, color::WHITE).unwrap();
-        target.render_points(&resources.stars2_vertex_buffer, state.star2_size, color::WHITE).unwrap();
+        resources.stars0_vertex_buffer.as_ref().map(|vbo| target.render_points(vbo, state.star0_size, color::WHITE).unwrap());
+        resources.stars1_vertex_buffer.as_ref().map(|vbo| target.render_points(vbo, state.star1_size, color::WHITE).unwrap());
+        resources.stars2_vertex_buffer.as_ref().map(|vbo| target.render_points(vbo, state.star2_size, color::WHITE).unwrap());
     }
 
     if state.is_wireframe {
