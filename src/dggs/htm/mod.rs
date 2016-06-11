@@ -15,15 +15,15 @@ pub mod cell {
 
     #[derive(Clone, Debug)]
     pub enum Orientation {
-        TipUp,
-        TipDown
+        Up,
+        Down
     }
 
     impl fmt::Display for Orientation {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             match *self {
-                Orientation::TipUp => write!(f, "Tip-Up"),
-                Orientation::TipDown => write!(f, "Tip-Down"),
+                Orientation::Up => write!(f, "Up"),
+                Orientation::Down => write!(f, "Down"),
             }
         }
     }
@@ -40,6 +40,7 @@ pub mod cell {
     }
 
     impl Id {
+        #[cfg_attr(feature = "clippy", allow(match_same_arms))]
         pub fn to_bits(id: Id) -> u32 {
             match id {
                 Id::Top         => 0b00,
@@ -54,14 +55,14 @@ pub mod cell {
 
         pub fn from_bits(orientation: Orientation, bits: u32) -> Id {
             match orientation {
-                Orientation::TipUp => match bits {
+                Orientation::Up => match bits {
                     0b00 => Id::Top,
                     0b10 => Id::Center,
                     0b01 => Id::BottomLeft,
                     0b11 => Id::BottomRight,
                     _ => panic!("Not a valid CellId value."),
                 },
-                Orientation::TipDown => match bits {
+                Orientation::Down => match bits {
                     0b00 => Id::Bottom,
                     0b10 => Id::Center,
                     0b01 => Id::TopLeft,
@@ -99,7 +100,7 @@ pub mod cell {
 
         pub fn default() -> Data {
             Data::new(
-                Orientation::TipUp,
+                Orientation::Up,
                 Location {
                     level: 0,
                     path: 0,
@@ -157,45 +158,45 @@ impl Icosahedron {
         Icosahedron {
             nodes: vec! [
                 // 0
-                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, levels),
                 // 1
-                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, levels),
                 // 2
-                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, levels),
                 // 3
-                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, levels),
                 // 4
-                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, levels),
                 // 5
-                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, levels),
                 // 6
-                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, levels),
                 // 7
-                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, levels),
                 // 8
-                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, levels),
                 // 9
-                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, levels),
                 // 10
-                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, levels),
                 // 11
-                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, levels),
                 // 12
-                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, levels),
                 // 13
-                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, levels),
                 // 14
-                QuadTree::with_orientation(cell::Orientation::TipUp, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, levels),
                 // 15
-                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, levels),
                 // 16
-                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, levels),
                 // 17
-                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, levels),
                 // 18
-                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, levels),
                 // 19
-                QuadTree::with_orientation(cell::Orientation::TipDown, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, levels),
             ]
         }
     }
