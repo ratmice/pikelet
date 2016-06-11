@@ -125,6 +125,7 @@ pub enum UpdateEvent {
 pub enum InputEvent {
     Close,
     SetLimitingFps(bool),
+    SetPlanetSubdivisions(usize),
     SetShowingStarField(bool),
     SetUiCapturingMouse(bool),
     SetWireframe(bool),
@@ -135,7 +136,6 @@ pub enum InputEvent {
     ZoomStart,
     ZoomEnd,
     MousePosition(Point2<i32>),
-    UpdatePlanetSubdivisions(usize),
     NoOp,
 }
 
@@ -423,6 +423,10 @@ impl Game {
         match event {
             Close => return Loop::Break,
             SetLimitingFps(value) => self.state.is_limiting_fps = value,
+            SetPlanetSubdivisions(planet_subdivs) => {
+                self.state.planet_subdivs = planet_subdivs;
+                self.queue_regenete_planet_job();
+            },
             SetShowingStarField(value) => self.state.is_showing_star_field = value,
             SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.state.is_wireframe = value,
@@ -433,10 +437,6 @@ impl Game {
             ZoomStart => self.state.is_zooming = true,
             ZoomEnd => self.state.is_zooming = false,
             MousePosition(position) => self.handle_mouse_update(position),
-            UpdatePlanetSubdivisions(planet_subdivs) => {
-                self.state.planet_subdivs = planet_subdivs;
-                self.queue_regenete_planet_job();
-            },
             NoOp => {},
         }
 
@@ -547,7 +547,7 @@ fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
             ui::checkbox(ui, im_str!("Limit FPS"), state.is_limiting_fps)
                 .map(|v| send(SetLimitingFps(v)));
             ui::slider_i32(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
-                .map(|v| send(UpdatePlanetSubdivisions(v as usize)));
+                .map(|v| send(SetPlanetSubdivisions(v as usize)));
 
             if ui.small_button(im_str!("Reset state")) {
                 send(ResetState);
