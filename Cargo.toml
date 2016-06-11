@@ -3,14 +3,6 @@ authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>", "Chip Collier <photex@gm
 name = "voyager"
 version = "0.0.1"
 
-[[bin]]
-name = "voyager"
-path = "voyager/src/main.rs"
-
-[[bin]]
-name = "geodesic"
-path = "geodesic/src/main.rs"
-
 [dependencies]
 cgmath = "0.10.0"
 clippy = {version = "0.0.75", optional = true}
