@@ -7,8 +7,6 @@
 //!
 
 pub mod cell {
-    use std::fmt;
-
     pub type Index = usize;
     pub type Level = usize;
     pub type Path = usize;
@@ -17,15 +15,6 @@ pub mod cell {
     pub enum Orientation {
         Up,
         Down
-    }
-
-    impl fmt::Display for Orientation {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            match *self {
-                Orientation::Up => write!(f, "Up"),
-                Orientation::Down => write!(f, "Down"),
-            }
-        }
     }
 
     #[derive(Clone, Debug)]
@@ -79,12 +68,7 @@ pub mod cell {
         path: Path,
     }
 
-    impl fmt::Display for Location {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "{{ {},{} }}", self.level, self.path)
-        }
-    }
-
+    #[derive(Debug)]
     pub struct Data {
         orientation: Orientation,
         location: Location,
@@ -106,13 +90,6 @@ pub mod cell {
                     path: 0,
                 }
             )
-        }
-    }
-
-    impl fmt::Debug for Data {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "cell::Data {{ orientation: {}, location: {} }}",
-                   self.orientation, self.location)
         }
     }
 }
