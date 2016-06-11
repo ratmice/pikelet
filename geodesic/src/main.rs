@@ -116,12 +116,6 @@ impl FrameData {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum UpdateEvent {
-    FrameRequested(FrameData),
-    Input(InputEvent),
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum InputEvent {
     Close,
     SetLimitingFps(bool),
@@ -447,18 +441,6 @@ impl Game {
         self.render_tx.send(RenderData(self.state.clone()))
             .expect("Failed to send render data");
     }
-
-    fn update(&mut self, event: UpdateEvent) -> Loop {
-        match event {
-            UpdateEvent::FrameRequested(frame_data) => {
-                // We send the data for the last frame so that the renderer
-                // can get started doing it's job in parallel!
-                self.send_render_data();
-                self.handle_frame_request(frame_data)
-            },
-            UpdateEvent::Input(event) => self.handle_input(event),
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -602,6 +584,12 @@ macro_rules! try_or {
 }
 
 fn main() {
+    #[derive(Copy, Clone, Debug, PartialEq)]
+    pub enum UpdateEvent {
+        FrameRequested(FrameData),
+        Input(InputEvent),
+    }
+
     fn frame_data(window: &glium::glutin::Window, time_delta: f32) -> FrameData {
         FrameData {
             window_dimensions: window.get_inner_size_points().unwrap(),
@@ -652,8 +640,21 @@ fn main() {
 
         let mut game = Game::new(job_tx, render_tx, state);
         game.queue_regenete_planet_job();
+
         for event in update_rx.iter() {
-            if game.update(event) == Loop::Break { break };
+            let loop_result = match event {
+                UpdateEvent::FrameRequested(frame_data) => {
+                    // We send the data for the last frame so that the renderer
+                    // can get started doing it's job in parallel!
+                    game.send_render_data();
+                    game.handle_frame_request(frame_data)
+                },
+                UpdateEvent::Input(event) => {
+                    game.handle_input(event)
+                },
+            };
+
+            if loop_result == Loop::Break { break };
         }
     });
 
@@ -669,7 +670,9 @@ fn main() {
         // Get user input
         for event in display.poll_events() {
             update_ui(&mut ui_context, &state, event.clone());
-            try_or!(update_tx.send(UpdateEvent::Input(InputEvent::from(event))), break 'main);
+
+            let update_event = UpdateEvent::Input(InputEvent::from(event));
+            try_or!(update_tx.send(update_event), break 'main);
         }
 
         // Update resources
