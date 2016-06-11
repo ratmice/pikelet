@@ -34,6 +34,7 @@ use glium::glutin;
 use glium::index::{PrimitiveType, NoIndices};
 use imgui::Ui;
 use rayon::prelude::*;
+use std::collections::HashMap;
 use std::mem;
 use std::sync::mpsc::{Sender, SyncSender};
 use std::time::Duration;
@@ -256,9 +257,11 @@ impl State {
         let unshaded_vert       = load_shader(&assets, "shaders/unshaded.v.glsl").unwrap();
         let unshaded_frag       = load_shader(&assets, "shaders/unshaded.f.glsl").unwrap();
 
-        let flat_shaded_program = Program::from_source(display, &flat_shaded_vert, &flat_shaded_frag, None).unwrap();
-        let text_program        = Program::from_source(display, &text_vert, &text_frag, None).unwrap();
-        let unshaded_program    = Program::from_source(display, &unshaded_vert, &unshaded_frag, None).unwrap();
+        let programs = hashmap! {
+            "flat_shaded".to_string() => Program::from_source(display, &flat_shaded_vert, &flat_shaded_frag, None).unwrap(),
+            "text".to_string()        => Program::from_source(display, &text_vert,        &text_frag,        None).unwrap(),
+            "unshaded".to_string()    => Program::from_source(display, &unshaded_vert,    &unshaded_frag,    None).unwrap(),
+        };
 
         let blogger_sans_font = {
             let mut file = File::open(assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap();
@@ -272,12 +275,8 @@ impl State {
         Resources {
             context: display.get_context().clone(),
 
-            buffers: hashmap! {},
-            programs: hashmap! {
-                "flat_shaded".to_string() => flat_shaded_program,
-                "text".to_string() => text_program,
-                "unshaded".to_string() => unshaded_program,
-            },
+            buffers: HashMap::new(),
+            programs: programs,
 
             text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
             text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
