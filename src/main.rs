@@ -59,33 +59,6 @@ pub mod render;
 pub mod resources;
 pub mod ui;
 
-pub fn create_planet_mesh(radius: f32, subdivs: usize) -> Mesh {
-    primitives::icosahedron(radius)
-        .subdivide(subdivs, &|a, b| math::midpoint_arc(radius, a, b))
-        .generate_dual()
-}
-
-pub fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
-    const VERTICES_PER_FACE: usize = 3;
-
-    let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
-    for face in &mesh.faces {
-        let e0 = face.root;
-        let e1 = mesh.edges[e0].next;
-        let e2 = mesh.edges[e1].next;
-
-        let p0 = mesh.edges[e0].position;
-        let p1 = mesh.edges[e1].position;
-        let p2 = mesh.edges[e2].position;
-
-        vertices.push(Vertex { position: mesh.positions[p0].into() });
-        vertices.push(Vertex { position: mesh.positions[p1].into() });
-        vertices.push(Vertex { position: mesh.positions[p2].into() });
-    }
-
-    vertices
-}
-
 fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
     const STAR_FIELD_RADIUS: f32 = 20.0;
 
@@ -460,6 +433,33 @@ impl PartialEq for Job {
 }
 
 fn process_job(job: Job) -> ResourceEvent {
+    fn create_planet_mesh(radius: f32, subdivs: usize) -> Mesh {
+        primitives::icosahedron(radius)
+            .subdivide(subdivs, &|a, b| math::midpoint_arc(radius, a, b))
+            .generate_dual()
+    }
+
+    fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
+        const VERTICES_PER_FACE: usize = 3;
+
+        let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
+        for face in &mesh.faces {
+            let e0 = face.root;
+            let e1 = mesh.edges[e0].next;
+            let e2 = mesh.edges[e1].next;
+
+            let p0 = mesh.edges[e0].position;
+            let p1 = mesh.edges[e1].position;
+            let p2 = mesh.edges[e2].position;
+
+            vertices.push(Vertex { position: mesh.positions[p0].into() });
+            vertices.push(Vertex { position: mesh.positions[p1].into() });
+            vertices.push(Vertex { position: mesh.positions[p2].into() });
+        }
+
+        vertices
+    }
+
     match job {
         Job::RegeneratePlanet { radius, subdivs } => {
             let mesh = create_planet_mesh(radius, subdivs);
