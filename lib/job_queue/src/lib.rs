@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[macro_use(expect)]
+extern crate expectest;
+
 use std::collections::VecDeque;
 use std::sync::mpsc::Sender;
 use std::time::Duration;

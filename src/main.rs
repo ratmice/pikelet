@@ -25,6 +25,8 @@ extern crate time;
 #[macro_use]
 extern crate itertools;
 
+extern crate job_queue;
+
 use cgmath::conv::*;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
@@ -52,7 +54,6 @@ pub mod camera;
 pub mod color;
 pub mod geom;
 pub mod dggs;
-pub mod job_queue;
 pub mod math;
 pub mod text;
 pub mod times;
