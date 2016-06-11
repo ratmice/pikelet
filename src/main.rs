@@ -59,17 +59,6 @@ pub mod render;
 pub mod resources;
 pub mod ui;
 
-fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
-    const STAR_FIELD_RADIUS: f32 = 20.0;
-
-    let mut star_vertices = Vec::with_capacity(stars.len());
-    stars.par_iter()
-        .map(|star| Vertex { position: array3(star.position.to_point(STAR_FIELD_RADIUS)) })
-        .collect_into(&mut star_vertices);
-
-    star_vertices
-}
-
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct FrameData {
     window_dimensions: (u32, u32),
@@ -111,7 +100,12 @@ struct RenderData(State);
 
 #[derive(Clone)]
 enum ResourceEvent {
-    PlanetData(Vec<Vertex>),
+    Planet(Vec<Vertex>),
+    Stars {
+        stars0: Vec<Vertex>,
+        stars1: Vec<Vertex>,
+        stars2: Vec<Vertex>,
+    },
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -275,18 +269,10 @@ impl State {
             font_collection.into_font().unwrap()
         };
 
-        let stars0_vertex_buffer = VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars0)).unwrap();
-        let stars1_vertex_buffer = VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars1)).unwrap();
-        let stars2_vertex_buffer = VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars2)).unwrap();
-
         Resources {
             context: display.get_context().clone(),
 
-            buffers: hashmap! {
-                "stars0".to_string() => (stars0_vertex_buffer, NoIndices(PrimitiveType::Points)),
-                "stars1".to_string() => (stars1_vertex_buffer, NoIndices(PrimitiveType::Points)),
-                "stars2".to_string() => (stars2_vertex_buffer, NoIndices(PrimitiveType::Points)),
-            },
+            buffers: hashmap! {},
             programs: hashmap! {
                 "flat_shaded".to_string() => flat_shaded_program,
                 "text".to_string() => text_program,
@@ -379,10 +365,14 @@ impl Game {
     }
 
     fn queue_regenete_planet_job(&self) {
-        self.queue_job(Job::RegeneratePlanet {
+        self.queue_job(Job::Planet {
             radius: self.state.planet_radius,
             subdivs: self.state.planet_subdivs,
         });
+    }
+
+    fn queue_regenete_stars_job(&self) {
+        self.queue_job(Job::Stars);
     }
 
     fn handle_input(&mut self, event: InputEvent) -> Loop {
@@ -419,15 +409,16 @@ impl Game {
 
 #[derive(Debug)]
 enum Job {
-    RegeneratePlanet { radius: f32, subdivs: usize },
+    Planet { radius: f32, subdivs: usize },
+    Stars,
 }
 
 impl PartialEq for Job {
     fn eq(&self, other: &Job) -> bool {
-        use Job::*;
-
         match (self, other) {
-            (&RegeneratePlanet { .. }, &RegeneratePlanet { .. }) => true,
+            (&Job::Planet { .. }, &Job::Planet { .. }) |
+            (&Job::Stars, &Job::Stars) => true,
+            (&_, &_) => false,
         }
     }
 }
@@ -460,24 +451,49 @@ fn process_job(job: Job) -> ResourceEvent {
         vertices
     }
 
+    fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
+        const STAR_FIELD_RADIUS: f32 = 20.0;
+
+        let mut star_vertices = Vec::with_capacity(stars.len());
+        stars.par_iter()
+            .map(|star| Vertex { position: array3(star.position.to_point(STAR_FIELD_RADIUS)) })
+            .collect_into(&mut star_vertices);
+
+        star_vertices
+    }
+
     match job {
-        Job::RegeneratePlanet { radius, subdivs } => {
+        Job::Planet { radius, subdivs } => {
             let mesh = create_planet_mesh(radius, subdivs);
             let vertices = create_vertices(&mesh);
 
-            ResourceEvent::PlanetData(vertices)
+            ResourceEvent::Planet(vertices)
         },
+        Job::Stars => {
+            let star_field = StarField::generate();
+
+            ResourceEvent::Stars {
+                stars0: create_star_vertices(&star_field.stars0),
+                stars1: create_star_vertices(&star_field.stars1),
+                stars2: create_star_vertices(&star_field.stars2),
+            }
+        }
     }
 }
 
 fn update_resources(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
     match event {
-        ResourceEvent::PlanetData(vertices) => {
+        ResourceEvent::Planet(vertices) => {
             resources.buffers.insert("planet".to_string(), (
                 VertexBuffer::new(display, &vertices).unwrap(),
                 NoIndices(PrimitiveType::TrianglesList),
             ));
         },
+        ResourceEvent::Stars { stars0, stars1, stars2 } => {
+            resources.buffers.insert("stars0".to_string(), (VertexBuffer::new(display, &stars0).unwrap(), NoIndices(PrimitiveType::Points)));
+            resources.buffers.insert("stars1".to_string(), (VertexBuffer::new(display, &stars1).unwrap(), NoIndices(PrimitiveType::Points)));
+            resources.buffers.insert("stars2".to_string(), (VertexBuffer::new(display, &stars2).unwrap(), NoIndices(PrimitiveType::Points)));
+        }
     }
 }
 
@@ -640,6 +656,8 @@ fn main() {
         });
 
         let mut game = Game::new(job_tx, render_tx, state);
+
+        game.queue_regenete_stars_job();
         game.queue_regenete_planet_job();
 
         for event in update_rx.iter() {
