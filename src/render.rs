@@ -2,17 +2,12 @@ use cgmath::conv::*;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, Point2, Vector3};
 use glium::{self, index, program, texture, vertex};
-use glium::{Frame, IndexBuffer, Program, VertexBuffer};
-use glium::{DrawParameters, PolygonMode, Surface, BackfaceCullingMode};
-use glium::backend::Context;
-use glium::index::NoIndices;
-use rusttype::Font;
-use std::rc::Rc;
+use glium::{DrawParameters, Frame, PolygonMode, Surface, BackfaceCullingMode};
 
 use camera::ComputedCamera;
 use color::Color;
+use resources::{Resources, Buffer};
 use text::TextData;
-use text::Vertex as TextVertex;
 
 pub type RenderResult<T> = Result<T, RenderError>;
 
@@ -47,16 +42,8 @@ quick_error! {
     }
 }
 
-#[derive(Copy, Clone)]
-pub struct Vertex {
-    pub position: [f32; 3],
-}
-
-implement_vertex!(Vertex, position);
-
 fn draw_params<'a>() -> DrawParameters<'a> {
     use glium::{BackfaceCullingMode, Depth, DepthTest};
-    use glium::draw_parameters::{Smooth};
 
     DrawParameters {
         backface_culling: BackfaceCullingMode::CullClockwise,
@@ -65,29 +52,8 @@ fn draw_params<'a>() -> DrawParameters<'a> {
             write: true,
             ..Depth::default()
         },
-        smooth: Some(Smooth::Nicest),
         ..DrawParameters::default()
     }
-}
-
-pub struct Resources {
-    pub context: Rc<Context>,
-
-    pub planet_vertex_buffer: Option<VertexBuffer<Vertex>>,
-    pub index_buffer: NoIndices,
-
-    pub stars0_vertex_buffer: VertexBuffer<Vertex>,
-    pub stars1_vertex_buffer: VertexBuffer<Vertex>,
-    pub stars2_vertex_buffer: VertexBuffer<Vertex>,
-
-    pub text_vertex_buffer: VertexBuffer<TextVertex>,
-    pub text_index_buffer: IndexBuffer<u8>,
-
-    pub flat_shaded_program: Program,
-    pub text_program: Program,
-    pub unshaded_program: Program,
-
-    pub blogger_sans_font: Font<'static>,
 }
 
 pub struct RenderTarget<'a> {
@@ -134,7 +100,7 @@ impl<'a> RenderTarget<'a> {
         try!(self.frame.draw(
             &self.resources.text_vertex_buffer,
             &self.resources.text_index_buffer,
-            &self.resources.text_program,
+            &self.resources.programs["text"],
             &uniform! {
                 color:    color,
                 text:     text_texture.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
@@ -147,11 +113,11 @@ impl<'a> RenderTarget<'a> {
         Ok(())
     }
 
-    pub fn render_points(&mut self, vertex_buffer: &VertexBuffer<Vertex>, point_size: f32, color: Color) -> RenderResult<()> {
+    pub fn render_points(&mut self, &(ref vertex_buffer, ref index_buffer): &Buffer, point_size: f32, color: Color) -> RenderResult<()> {
         try!(self.frame.draw(
             vertex_buffer,
-            &self.resources.index_buffer,
-            &self.resources.unshaded_program,
+            index_buffer,
+            &self.resources.programs["unshaded"],
             &uniform! {
                 color:      color,
                 model:      array4x4(Matrix4::from_scale(1.025f32)),
@@ -169,11 +135,11 @@ impl<'a> RenderTarget<'a> {
         Ok(())
     }
 
-    pub fn render_lines(&mut self, vertex_buffer: &VertexBuffer<Vertex>, line_width: f32, color: Color) -> RenderResult<()> {
+    pub fn render_lines(&mut self, &(ref vertex_buffer, ref index_buffer): &Buffer, line_width: f32, color: Color) -> RenderResult<()> {
         try!(self.frame.draw(
             vertex_buffer,
-            &self.resources.index_buffer,
-            &self.resources.unshaded_program,
+            index_buffer,
+            &self.resources.programs["unshaded"],
             &uniform! {
                 color:      color,
                 model:      array4x4(Matrix4::from_scale(1.025f32)),
@@ -191,11 +157,11 @@ impl<'a> RenderTarget<'a> {
         Ok(())
     }
 
-    pub fn render_solid(&mut self, vertex_buffer: &VertexBuffer<Vertex>, light_dir: Vector3<f32>, color: Color) -> RenderResult<()> {
+    pub fn render_solid(&mut self, &(ref vertex_buffer, ref index_buffer): &Buffer, light_dir: Vector3<f32>, color: Color) -> RenderResult<()> {
         try!(self.frame.draw(
             vertex_buffer,
-            &self.resources.index_buffer,
-            &self.resources.flat_shaded_program,
+            index_buffer,
+            &self.resources.programs["flat_shaded"],
             &uniform! {
                 color:      color,
                 light_dir:  array3(light_dir),

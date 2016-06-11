@@ -12,6 +12,8 @@ extern crate find_folder;
 extern crate glium;
 #[macro_use]
 extern crate imgui;
+#[macro_use]
+extern crate maplit;
 extern crate notify;
 extern crate num_traits;
 #[macro_use]
@@ -41,8 +43,8 @@ use geom::Mesh;
 use geom::primitives;
 use geom::algorithms::{Subdivide, Dual};
 use geom::star_field::{Star, StarField};
-use job_queue::Job;
-use render::{Resources, RenderTarget, Vertex};
+use render::RenderTarget;
+use resources::{Resources, Vertex};
 use ui::Context as UiContext;
 
 pub mod camera;
@@ -54,6 +56,7 @@ pub mod math;
 pub mod text;
 pub mod times;
 pub mod render;
+pub mod resources;
 pub mod ui;
 
 pub fn create_planet_mesh(radius: f32, subdivs: usize) -> Mesh {
@@ -114,15 +117,10 @@ impl FrameData {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum UpdateEvent {
-    FrameRequested(FrameData),
-    Input(InputEvent),
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum InputEvent {
     Close,
     SetLimitingFps(bool),
+    SetPlanetSubdivisions(usize),
     SetShowingStarField(bool),
     SetUiCapturingMouse(bool),
     SetWireframe(bool),
@@ -133,7 +131,6 @@ pub enum InputEvent {
     ZoomStart,
     ZoomEnd,
     MousePosition(Point2<i32>),
-    UpdatePlanetSubdivisions(usize),
     NoOp,
 }
 
@@ -305,23 +302,26 @@ impl State {
             font_collection.into_font().unwrap()
         };
 
+        let stars0_vertex_buffer = VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars0)).unwrap();
+        let stars1_vertex_buffer = VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars1)).unwrap();
+        let stars2_vertex_buffer = VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars2)).unwrap();
+
         Resources {
             context: display.get_context().clone(),
 
-            planet_vertex_buffer: None,
-            index_buffer: NoIndices(PrimitiveType::TrianglesList),
+            buffers: hashmap! {
+                "stars0".to_string() => (stars0_vertex_buffer, NoIndices(PrimitiveType::Points)),
+                "stars1".to_string() => (stars1_vertex_buffer, NoIndices(PrimitiveType::Points)),
+                "stars2".to_string() => (stars2_vertex_buffer, NoIndices(PrimitiveType::Points)),
+            },
+            programs: hashmap! {
+                "flat_shaded".to_string() => flat_shaded_program,
+                "text".to_string() => text_program,
+                "unshaded".to_string() => unshaded_program,
+            },
 
             text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
             text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
-
-            stars0_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars0)).unwrap(),
-            stars1_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars1)).unwrap(),
-            stars2_vertex_buffer: VertexBuffer::new(display, &create_star_vertices(&self.star_field.stars2)).unwrap(),
-
-            flat_shaded_program: flat_shaded_program,
-            text_program: text_program,
-            unshaded_program: unshaded_program,
-
             blogger_sans_font: blogger_sans_font,
         }
     }
@@ -357,13 +357,13 @@ impl State {
 }
 
 struct Game {
-    job_tx: Sender<Job<JobId, JobData>>,
+    job_tx: Sender<Job>,
     render_tx: SyncSender<RenderData>,
     state: State,
 }
 
 impl Game {
-    fn new(job_tx: Sender<Job<JobId, JobData>>, render_tx: SyncSender<RenderData>, state: State) -> Game {
+    fn new(job_tx: Sender<Job>, render_tx: SyncSender<RenderData>, state: State) -> Game {
         Game {
             job_tx: job_tx,
             render_tx: render_tx,
@@ -401,19 +401,15 @@ impl Game {
         Loop::Continue
     }
 
-    fn queue_job(&self, id: JobId, data: JobData) {
-        let job = Job::new(id, data);
+    fn queue_job(&self, job: Job) {
         self.job_tx.send(job).expect("Failed queue job");
     }
 
     fn queue_regenete_planet_job(&self) {
-        self.queue_job(
-            JobId::RegeneratePlanet,
-            JobData::RegeneratePlanet {
-                radius: self.state.planet_radius,
-                subdivs: self.state.planet_subdivs,
-            },
-        );
+        self.queue_job(Job::RegeneratePlanet {
+            radius: self.state.planet_radius,
+            subdivs: self.state.planet_subdivs,
+        });
     }
 
     fn handle_input(&mut self, event: InputEvent) -> Loop {
@@ -422,6 +418,10 @@ impl Game {
         match event {
             Close => return Loop::Break,
             SetLimitingFps(value) => self.state.is_limiting_fps = value,
+            SetPlanetSubdivisions(planet_subdivs) => {
+                self.state.planet_subdivs = planet_subdivs;
+                self.queue_regenete_planet_job();
+            },
             SetShowingStarField(value) => self.state.is_showing_star_field = value,
             SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.state.is_wireframe = value,
@@ -432,10 +432,6 @@ impl Game {
             ZoomStart => self.state.is_zooming = true,
             ZoomEnd => self.state.is_zooming = false,
             MousePosition(position) => self.handle_mouse_update(position),
-            UpdatePlanetSubdivisions(planet_subdivs) => {
-                self.state.planet_subdivs = planet_subdivs;
-                self.queue_regenete_planet_job();
-            },
             NoOp => {},
         }
 
@@ -446,36 +442,26 @@ impl Game {
         self.render_tx.send(RenderData(self.state.clone()))
             .expect("Failed to send render data");
     }
+}
 
-    fn update(&mut self, event: UpdateEvent) -> Loop {
-        match event {
-            UpdateEvent::FrameRequested(frame_data) => {
-                // We send the data for the last frame so that the renderer
-                // can get started doing it's job in parallel!
-                self.send_render_data();
-                self.handle_frame_request(frame_data)
-            },
-            UpdateEvent::Input(event) => self.handle_input(event),
+#[derive(Debug)]
+enum Job {
+    RegeneratePlanet { radius: f32, subdivs: usize },
+}
+
+impl PartialEq for Job {
+    fn eq(&self, other: &Job) -> bool {
+        use Job::*;
+
+        match (self, other) {
+            (&RegeneratePlanet { .. }, &RegeneratePlanet { .. }) => true,
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-enum JobId {
-    RegeneratePlanet,
-}
-
-#[derive(Debug)]
-enum JobData {
-    RegeneratePlanet {
-        radius: f32,
-        subdivs: usize,
-    },
-}
-
-fn process_job(job: Job<JobId, JobData>) -> ResourceEvent {
-    match job.data {
-        JobData::RegeneratePlanet { radius, subdivs } => {
+fn process_job(job: Job) -> ResourceEvent {
+    match job {
+        Job::RegeneratePlanet { radius, subdivs } => {
             let mesh = create_planet_mesh(radius, subdivs);
             let vertices = create_vertices(&mesh);
 
@@ -487,8 +473,10 @@ fn process_job(job: Job<JobId, JobData>) -> ResourceEvent {
 fn update_resources(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
     match event {
         ResourceEvent::PlanetData(vertices) => {
-            resources.planet_vertex_buffer = Some(VertexBuffer::new(display, &vertices).unwrap());
-            resources.index_buffer = NoIndices(PrimitiveType::TrianglesList);
+            resources.buffers.insert("planet".to_string(), (
+                VertexBuffer::new(display, &vertices).unwrap(),
+                NoIndices(PrimitiveType::TrianglesList),
+            ));
         },
     }
 }
@@ -509,15 +497,15 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
 
     if state.is_showing_star_field {
         // TODO: Render centered at eye position
-        target.render_points(&resources.stars0_vertex_buffer, state.star0_size, color::WHITE).unwrap();
-        target.render_points(&resources.stars1_vertex_buffer, state.star1_size, color::WHITE).unwrap();
-        target.render_points(&resources.stars2_vertex_buffer, state.star2_size, color::WHITE).unwrap();
+        resources.buffers.get("stars0").map(|buf| target.render_points(buf, state.star0_size, color::WHITE).unwrap());
+        resources.buffers.get("stars1").map(|buf| target.render_points(buf, state.star1_size, color::WHITE).unwrap());
+        resources.buffers.get("stars2").map(|buf| target.render_points(buf, state.star2_size, color::WHITE).unwrap());
     }
 
     if state.is_wireframe {
-        resources.planet_vertex_buffer.as_ref().map(|vbo| target.render_lines(vbo, 0.5, color::BLACK).unwrap());
+        resources.buffers.get("planet").map(|buf| target.render_lines(buf, 0.5, color::BLACK).unwrap());
     } else {
-        resources.planet_vertex_buffer.as_ref().map(|vbo| target.render_solid(vbo, state.light_dir, color::GREEN).unwrap());
+        resources.buffers.get("planet").map(|buf| target.render_solid(buf, state.light_dir, color::GREEN).unwrap());
     }
 
     if state.is_showing_ui {
@@ -542,7 +530,7 @@ fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
             ui::checkbox(ui, im_str!("Limit FPS"), state.is_limiting_fps)
                 .map(|v| send(SetLimitingFps(v)));
             ui::slider_i32(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
-                .map(|v| send(UpdatePlanetSubdivisions(v as usize)));
+                .map(|v| send(SetPlanetSubdivisions(v as usize)));
 
             if ui.small_button(im_str!("Reset state")) {
                 send(ResetState);
@@ -597,6 +585,12 @@ macro_rules! try_or {
 }
 
 fn main() {
+    #[derive(Copy, Clone, Debug, PartialEq)]
+    pub enum UpdateEvent {
+        FrameRequested(FrameData),
+        Input(InputEvent),
+    }
+
     fn frame_data(window: &glium::glutin::Window, time_delta: f32) -> FrameData {
         FrameData {
             window_dimensions: window.get_inner_size_points().unwrap(),
@@ -647,8 +641,21 @@ fn main() {
 
         let mut game = Game::new(job_tx, render_tx, state);
         game.queue_regenete_planet_job();
+
         for event in update_rx.iter() {
-            if game.update(event) == Loop::Break { break };
+            let loop_result = match event {
+                UpdateEvent::FrameRequested(frame_data) => {
+                    // We send the data for the last frame so that the renderer
+                    // can get started doing it's job in parallel!
+                    game.send_render_data();
+                    game.handle_frame_request(frame_data)
+                },
+                UpdateEvent::Input(event) => {
+                    game.handle_input(event)
+                },
+            };
+
+            if loop_result == Loop::Break { break };
         }
     });
 
@@ -664,7 +671,9 @@ fn main() {
         // Get user input
         for event in display.poll_events() {
             update_ui(&mut ui_context, &state, event.clone());
-            try_or!(update_tx.send(UpdateEvent::Input(InputEvent::from(event))), break 'main);
+
+            let update_event = UpdateEvent::Input(InputEvent::from(event));
+            try_or!(update_tx.send(update_event), break 'main);
         }
 
         // Update resources
