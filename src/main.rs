@@ -104,11 +104,7 @@ struct RenderData(State);
 #[derive(Clone)]
 enum ResourceEvent {
     Planet(Vec<Vertex>),
-    Stars {
-        stars0: Vec<Vertex>,
-        stars1: Vec<Vertex>,
-        stars2: Vec<Vertex>,
-    },
+    Stars(usize, Vec<Vertex>),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -164,6 +160,10 @@ struct State {
     camera_zoom_factor: f32,
     camera_drag_factor: f32,
 
+    star_field_radius: f32,
+    star0_count: usize,
+    star1_count: usize,
+    star2_count: usize,
     star0_size: f32,
     star1_size: f32,
     star2_size: f32,
@@ -199,6 +199,10 @@ impl State {
             camera_zoom_factor: 10.0,
             camera_drag_factor: 10.0,
 
+            star_field_radius: 20.0,
+            star0_count: 100000,
+            star1_count: 10000,
+            star2_count: 1000,
             star0_size: 1.0,
             star1_size: 2.5,
             star2_size: 5.0,
@@ -371,7 +375,9 @@ impl Game {
     }
 
     fn queue_regenete_stars_job(&self) {
-        self.queue_job(Job::Stars);
+        self.queue_job(Job::Stars { index: 2, count: self.state.star2_count, radius: self.state.star_field_radius });
+        self.queue_job(Job::Stars { index: 1, count: self.state.star1_count, radius: self.state.star_field_radius });
+        self.queue_job(Job::Stars { index: 0, count: self.state.star0_count, radius: self.state.star_field_radius });
     }
 
     fn handle_input(&mut self, event: InputEvent) -> Loop {
@@ -409,14 +415,14 @@ impl Game {
 #[derive(Debug)]
 enum Job {
     Planet { radius: f32, subdivs: usize },
-    Stars,
+    Stars { index: usize, count: usize, radius: f32 },
 }
 
 impl PartialEq for Job {
     fn eq(&self, other: &Job) -> bool {
         match (self, other) {
-            (&Job::Planet { .. }, &Job::Planet { .. }) |
-            (&Job::Stars, &Job::Stars) => true,
+            (&Job::Planet { .. }, &Job::Planet { .. }) => true,
+            (&Job::Stars { index: i, .. }, &Job::Stars { index: j, .. }) => i == j,
             (&_, &_) => false,
         }
     }
@@ -471,16 +477,11 @@ fn process_job(job: Job) -> ResourceEvent {
 
             ResourceEvent::Planet(vertices)
         },
-        Job::Stars => {
-            let stars0 = generate_stars(100000);
-            let stars1 = generate_stars(10000);
-            let stars2 = generate_stars(1000);
+        Job::Stars { index, count, radius } => {
+            let stars = generate_stars(count);
+            let vertices = create_star_vertices(&stars, radius);
 
-            ResourceEvent::Stars {
-                stars0: create_star_vertices(&stars0, 20.0),
-                stars1: create_star_vertices(&stars1, 20.0),
-                stars2: create_star_vertices(&stars2, 20.0),
-            }
+            ResourceEvent::Stars(index, vertices)
         }
     }
 }
@@ -493,10 +494,11 @@ fn update_resources(display: &glium::Display, resources: &mut Resources, event: 
                 NoIndices(PrimitiveType::TrianglesList),
             ));
         },
-        ResourceEvent::Stars { stars0, stars1, stars2 } => {
-            resources.buffers.insert("stars0".to_string(), (VertexBuffer::new(display, &stars0).unwrap(), NoIndices(PrimitiveType::Points)));
-            resources.buffers.insert("stars1".to_string(), (VertexBuffer::new(display, &stars1).unwrap(), NoIndices(PrimitiveType::Points)));
-            resources.buffers.insert("stars2".to_string(), (VertexBuffer::new(display, &stars2).unwrap(), NoIndices(PrimitiveType::Points)));
+        ResourceEvent::Stars(index, vertices) => {
+            resources.buffers.insert(format!("stars{}", index), (
+                VertexBuffer::new(display, &vertices).unwrap(),
+                NoIndices(PrimitiveType::Points),
+            ));
         }
     }
 }
