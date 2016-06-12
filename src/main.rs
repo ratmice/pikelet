@@ -35,6 +35,7 @@ use glium::{Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingM
 use glium::glutin;
 use glium::index::{PrimitiveType, NoIndices};
 use imgui::Ui;
+use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::mem;
@@ -45,7 +46,7 @@ use camera::{Camera, ComputedCamera};
 use geom::Mesh;
 use geom::primitives;
 use geom::algorithms::{Subdivide, Dual};
-use geom::star_field::{Star, StarField};
+use math::GeoPoint;
 use render::RenderTarget;
 use resources::{Resources, Vertex};
 use ui::Context as UiContext;
@@ -163,7 +164,6 @@ struct State {
     camera_zoom_factor: f32,
     camera_drag_factor: f32,
 
-    star_field: StarField,
     star0_size: f32,
     star1_size: f32,
     star2_size: f32,
@@ -199,7 +199,6 @@ impl State {
             camera_zoom_factor: 10.0,
             camera_drag_factor: 10.0,
 
-            star_field: StarField::generate(),
             star0_size: 1.0,
             star1_size: 2.5,
             star2_size: 5.0,
@@ -424,7 +423,7 @@ impl PartialEq for Job {
 }
 
 fn process_job(job: Job) -> ResourceEvent {
-    fn create_planet_mesh(radius: f32, subdivs: usize) -> Mesh {
+    fn generate_planet_mesh(radius: f32, subdivs: usize) -> Mesh {
         primitives::icosahedron(radius)
             .subdivide(subdivs, &|a, b| math::midpoint_arc(radius, a, b))
             .generate_dual()
@@ -451,12 +450,15 @@ fn process_job(job: Job) -> ResourceEvent {
         vertices
     }
 
-    fn create_star_vertices(stars: &[Star]) -> Vec<Vertex> {
-        const STAR_FIELD_RADIUS: f32 = 20.0;
+    fn generate_stars(count: usize) -> Vec<GeoPoint<f32>> {
+        let mut rng = rand::weak_rng();
+        (0..count).map(|_| rng.gen()).collect()
+    }
 
+    fn create_star_vertices(stars: &[GeoPoint<f32>], radius: f32) -> Vec<Vertex> {
         let mut star_vertices = Vec::with_capacity(stars.len());
         stars.par_iter()
-            .map(|star| Vertex { position: array3(star.position.to_point(STAR_FIELD_RADIUS)) })
+            .map(|star| Vertex { position: array3(star.to_point(radius)) })
             .collect_into(&mut star_vertices);
 
         star_vertices
@@ -464,18 +466,20 @@ fn process_job(job: Job) -> ResourceEvent {
 
     match job {
         Job::Planet { radius, subdivs } => {
-            let mesh = create_planet_mesh(radius, subdivs);
+            let mesh = generate_planet_mesh(radius, subdivs);
             let vertices = create_vertices(&mesh);
 
             ResourceEvent::Planet(vertices)
         },
         Job::Stars => {
-            let star_field = StarField::generate();
+            let stars0 = generate_stars(100000);
+            let stars1 = generate_stars(10000);
+            let stars2 = generate_stars(1000);
 
             ResourceEvent::Stars {
-                stars0: create_star_vertices(&star_field.stars0),
-                stars1: create_star_vertices(&star_field.stars1),
-                stars2: create_star_vertices(&star_field.stars2),
+                stars0: create_star_vertices(&stars0, 20.0),
+                stars1: create_star_vertices(&stars1, 20.0),
+                stars2: create_star_vertices(&stars2, 20.0),
             }
         }
     }
