@@ -39,7 +39,7 @@ use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::mem;
-use std::sync::mpsc::{Sender, SyncSender};
+use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 use camera::{Camera, ComputedCamera};
@@ -320,15 +320,13 @@ impl State {
 
 struct Game {
     job_tx: Sender<Job>,
-    render_tx: SyncSender<RenderData>,
     state: State,
 }
 
 impl Game {
-    fn new(job_tx: Sender<Job>, render_tx: SyncSender<RenderData>, state: State) -> Game {
+    fn new(job_tx: Sender<Job>, state: State) -> Game {
         Game {
             job_tx: job_tx,
-            render_tx: render_tx,
             state: state,
         }
     }
@@ -406,9 +404,8 @@ impl Game {
         Loop::Continue
     }
 
-    fn send_render_data(&self) {
-        self.render_tx.send(RenderData(self.state.clone()))
-            .expect("Failed to send render data");
+    fn create_render_data(&self) -> RenderData {
+        RenderData(self.state.clone())
     }
 }
 
@@ -661,7 +658,7 @@ fn main() {
             resource_tx.send(process_job(job)).unwrap();
         });
 
-        let mut game = Game::new(job_tx, render_tx, state);
+        let mut game = Game::new(job_tx, state);
 
         game.queue_regenete_stars_job();
         game.queue_regenete_planet_job();
@@ -671,7 +668,9 @@ fn main() {
                 UpdateEvent::FrameRequested(frame_data) => {
                     // We send the data for the last frame so that the renderer
                     // can get started doing it's job in parallel!
-                    game.send_render_data();
+                    let render_data = game.create_render_data();
+                    render_tx.send(render_data).expect("Failed to send render data");
+
                     game.handle_frame_request(frame_data)
                 },
                 UpdateEvent::Input(event) => {
