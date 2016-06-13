@@ -99,7 +99,10 @@ pub enum InputEvent {
     NoOp,
 }
 
-struct RenderData(State);
+struct RenderData {
+    frame_data: FrameData,
+    state: State,
+}
 
 #[derive(Clone)]
 enum ResourceEvent {
@@ -136,8 +139,6 @@ impl From<glutin::Event> for InputEvent {
 
 #[derive(Clone)]
 struct State {
-    frame_data: FrameData,
-
     is_dragging: bool,
     is_limiting_fps: bool,
     is_showing_star_field: bool,
@@ -174,8 +175,6 @@ struct State {
 impl State {
     fn new() -> State {
         State {
-            frame_data: FrameData::new(1000, 500),
-
             is_dragging: false,
             is_limiting_fps: true,
             is_showing_star_field: true,
@@ -211,10 +210,7 @@ impl State {
     }
 
     fn reset(&mut self) {
-        let frame_data = self.frame_data;
-
         *self = State::new();
-        self.frame_data = frame_data;
     }
 
     fn scene_camera_position(&self) -> Point3<f32> {
@@ -248,15 +244,17 @@ impl State {
 }
 
 struct Game {
-    job_tx: Sender<Job>,
+    frame_data: FrameData,
     state: State,
+    job_tx: Sender<Job>,
 }
 
 impl Game {
-    fn new(job_tx: Sender<Job>, state: State) -> Game {
+    fn new(frame_data: FrameData, job_tx: Sender<Job>) -> Game {
         Game {
+            frame_data: frame_data,
+            state: State::new(),
             job_tx: job_tx,
-            state: state,
         }
     }
 
@@ -266,20 +264,20 @@ impl Game {
 
         if !self.state.is_ui_capturing_mouse {
             if self.state.is_dragging {
-                let (window_width, _) = self.state.frame_data.window_dimensions;
+                let (window_width, _) = self.frame_data.window_dimensions;
                 let rotations_per_second = (mouse_delta.x as f32 / window_width as f32) * self.state.camera_drag_factor;
-                self.state.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.state.frame_data.delta_time;
+                self.state.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.frame_data.delta_time;
             }
 
             if self.state.is_zooming {
-                let zoom_delta = mouse_delta.x as f32 * self.state.frame_data.delta_time;
+                let zoom_delta = mouse_delta.x as f32 * self.frame_data.delta_time;
                 self.state.camera_xz_radius -= zoom_delta * self.state.camera_zoom_factor;
             }
         }
     }
 
     fn handle_frame_request(&mut self, frame_data: FrameData) -> Loop {
-        self.state.frame_data = frame_data;
+        self.frame_data = frame_data;
 
         self.state.camera_rotation -= self.state.camera_rotation_delta;
 
@@ -334,7 +332,10 @@ impl Game {
     }
 
     fn create_render_data(&self) -> RenderData {
-        RenderData(self.state.clone())
+        RenderData {
+            frame_data: self.frame_data,
+            state: self.state.clone(),
+        }
     }
 }
 
@@ -498,12 +499,12 @@ fn update_resources(display: &glium::Display, resources: &mut Resources, event: 
     }
 }
 
-fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
+fn render_scene(frame: &mut Frame, frame_data: FrameData, state: &State, resources: &Resources) {
     let frame_dimensions = frame.get_dimensions();
 
     let mut target = RenderTarget {
         frame: frame,
-        hidpi_factor: state.frame_data.hidpi_factor,
+        hidpi_factor: frame_data.hidpi_factor,
         resources: resources,
         camera: state.create_scene_camera(frame_dimensions),
         hud_matrix: state.create_hud_camera(frame_dimensions),
@@ -526,14 +527,14 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
     }
 
     if state.is_ui_enabled {
-        let (window_width, _) = state.frame_data.window_dimensions;
-        let fps_text = format!("{:.2}", state.frame_data.frames_per_second);
+        let (window_width, _) = frame_data.window_dimensions;
+        let fps_text = format!("{:.2}", frame_data.frames_per_second);
         let fps_location = Point2::new(window_width as f32 - 30.0, 2.0);
         target.render_hud_text(&fps_text, 12.0, fps_location, color::BLACK).unwrap();
     }
 }
 
-fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
+fn run_ui<F>(ui: &Ui, frame_data: FrameData, state: &State, send: F) where F: Fn(InputEvent) {
     use InputEvent::*;
 
     ui.window(im_str!("State"))
@@ -554,10 +555,10 @@ fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
             }
 
             ui.tree_node(im_str!("State")).build(|| {
-                ui.text(im_str!("delta_time: {:?}", state.frame_data.delta_time));
-                ui.text(im_str!("frames_per_second: {:?}", state.frame_data.frames_per_second));
-                ui.text(im_str!("hidpi_factor: {:?}", state.frame_data.hidpi_factor));
-                ui.text(im_str!("window_dimensions: {:?}", state.frame_data.window_dimensions));
+                ui.text(im_str!("delta_time: {:?}", frame_data.delta_time));
+                ui.text(im_str!("frames_per_second: {:?}", frame_data.frames_per_second));
+                ui.text(im_str!("hidpi_factor: {:?}", frame_data.hidpi_factor));
+                ui.text(im_str!("window_dimensions: {:?}", frame_data.window_dimensions));
 
                 ui.separator();
 
@@ -608,7 +609,7 @@ fn main() {
         Input(InputEvent),
     }
 
-    fn frame_data(window: &glium::glutin::Window, time_delta: f32) -> FrameData {
+    fn create_frame_data(window: &glium::glutin::Window, time_delta: f32) -> FrameData {
         FrameData {
             window_dimensions: window.get_inner_size_points().unwrap(),
             hidpi_factor: window.hidpi_factor(),
@@ -617,9 +618,9 @@ fn main() {
         }
     }
 
-    fn render_ui(target: &mut Frame, ui_context: &mut UiContext, state: &State, update_tx: &Sender<UpdateEvent>) {
-        ui_context.render(target, state.frame_data, |ui| {
-            run_ui(ui, state, |event| {
+    fn render_ui(target: &mut Frame, ui_context: &mut UiContext, frame_data: FrameData, state: &State, update_tx: &Sender<UpdateEvent>) {
+        ui_context.render(target, frame_data, |ui| {
+            run_ui(ui, frame_data, state, |event| {
                 // FIXME: could cause a panic on the slim chance that the update thread
                 //  closes during ui rendering.
                 update_tx.send(UpdateEvent::Input(event)).unwrap();
@@ -634,8 +635,8 @@ fn main() {
     let (resource_tx, resource_rx) = mpsc::channel();
     let (render_tx, render_rx) = mpsc::sync_channel(1);
 
-    let state = State::new();
-    let display = init_display("Voyager!".to_string(), state.frame_data);
+    let frame_data = FrameData::new(1000, 500);
+    let display = init_display("Voyager!".to_string(), frame_data);
     let mut resources = init_resources(&display);
     let mut ui_context = UiContext::new(&display);
 
@@ -645,7 +646,7 @@ fn main() {
             resource_tx.send(process_job(job)).unwrap();
         });
 
-        let mut game = Game::new(job_tx, state);
+        let mut game = Game::new(frame_data, job_tx);
 
         game.queue_regenete_stars_job();
         game.queue_regenete_planet_job();
@@ -671,9 +672,9 @@ fn main() {
 
     'main: for time in times::in_seconds() {
         // Swap frames with update thread
-        let RenderData(state) = {
+        let RenderData { state, frame_data } = {
             let window = display.get_window().unwrap();
-            let frame_data = frame_data(&window, time.delta() as f32);
+            let frame_data = create_frame_data(&window, time.delta() as f32);
             try_or!(update_tx.send(UpdateEvent::FrameRequested(frame_data)), break 'main);
             try_or!(render_rx.recv(), break 'main)
         };
@@ -693,8 +694,8 @@ fn main() {
 
         // Render frame
         let mut frame = display.draw();
-        render_scene(&mut frame, &state, &resources);
-        render_ui(&mut frame, &mut ui_context, &state, &update_tx);
+        render_scene(&mut frame, frame_data, &state, &resources);
+        render_ui(&mut frame, &mut ui_context, frame_data, &state, &update_tx);
         frame.finish().unwrap();
 
         if state.is_limiting_fps {
