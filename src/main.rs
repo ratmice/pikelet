@@ -548,7 +548,7 @@ fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
                 .map(|v| send(SetShowingStarField(v)));
             ui::checkbox(ui, im_str!("Limit FPS"), state.is_limiting_fps)
                 .map(|v| send(SetLimitingFps(v)));
-            ui::slider_i32(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
+            ui::slider_int(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
                 .map(|v| send(SetPlanetSubdivisions(v as usize)));
 
             if ui.small_button(im_str!("Reset state")) {
@@ -621,21 +621,19 @@ fn main() {
 
     fn update_ui(ui_context: &mut UiContext, state: &State, event: glutin::Event) {
         if state.is_showing_ui {
-            ui_context.update(event.clone(), state.frame_data.hidpi_factor);
+            ui_context.update(event.clone());
         }
     }
 
-    fn render_ui(frame: &mut Frame, ui_context: &mut UiContext, ui_renderer: &mut ui::Renderer, state: &State, update_tx: &Sender<UpdateEvent>) {
+    fn render_ui(target: &mut Frame, ui_context: &mut UiContext, state: &State, update_tx: &Sender<UpdateEvent>) {
         if state.is_showing_ui {
-            let ui = ui_context.frame(state.frame_data.window_dimensions, state.frame_data.delta_time);
-
-            run_ui(&ui, state, |event| {
-                // FIXME: could cause a panic on the slim chance that the update thread
-                //  closes during ui rendering.
-                update_tx.send(UpdateEvent::Input(event)).unwrap();
-            });
-
-            ui_renderer.render(frame, ui, state.frame_data.hidpi_factor).unwrap();
+            ui_context.render(target, state.frame_data, |ui| {
+                run_ui(ui, state, |event| {
+                    // FIXME: could cause a panic on the slim chance that the update thread
+                    //  closes during ui rendering.
+                    update_tx.send(UpdateEvent::Input(event)).unwrap();
+                });
+            }).unwrap();
         }
     }
 
@@ -649,8 +647,7 @@ fn main() {
     let state = State::new();
     let display = state.init_display();
     let mut resources = state.init_resources(&display);
-    let mut ui_context = UiContext::new();
-    let mut ui_renderer = ui_context.init_renderer(&display).unwrap();
+    let mut ui_context = UiContext::new(&display);
 
     // Spawn update thread
     thread::spawn(move || {
@@ -707,7 +704,7 @@ fn main() {
         // Render frame
         let mut frame = display.draw();
         render_scene(&mut frame, &state, &resources);
-        render_ui(&mut frame, &mut ui_context, &mut ui_renderer, &state, &update_tx);
+        render_ui(&mut frame, &mut ui_context, &state, &update_tx);
         frame.finish().unwrap();
 
         if state.is_limiting_fps {
