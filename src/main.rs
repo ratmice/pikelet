@@ -233,61 +233,6 @@ impl State {
             .unwrap()
     }
 
-    fn init_resources(&self, display: &glium::Display) -> Resources {
-        use glium::backend::Facade;
-        use rusttype::FontCollection;
-        use std::fs::File;
-        use std::io;
-        use std::io::prelude::*;
-        use std::path::Path;
-
-        let assets =
-            FolderSearch::ParentsThenKids(3, 3)
-                .for_folder("resources")
-                .expect("Could not locate `resources` folder");
-
-        let load_shader = |assets: &Path, path| -> io::Result<String> {
-            let mut file = try!(File::open(assets.join(path)));
-            let mut buffer = String::new();
-            try!(file.read_to_string(&mut buffer));
-
-            Ok(buffer)
-        };
-
-        let flat_shaded_vert    = load_shader(&assets, "shaders/flat_shaded.v.glsl").unwrap();
-        let flat_shaded_frag    = load_shader(&assets, "shaders/flat_shaded.f.glsl").unwrap();
-        let text_vert           = load_shader(&assets, "shaders/text.v.glsl").unwrap();
-        let text_frag           = load_shader(&assets, "shaders/text.f.glsl").unwrap();
-        let unshaded_vert       = load_shader(&assets, "shaders/unshaded.v.glsl").unwrap();
-        let unshaded_frag       = load_shader(&assets, "shaders/unshaded.f.glsl").unwrap();
-
-        let programs = hashmap! {
-            "flat_shaded".to_string() => Program::from_source(display, &flat_shaded_vert, &flat_shaded_frag, None).unwrap(),
-            "text".to_string()        => Program::from_source(display, &text_vert,        &text_frag,        None).unwrap(),
-            "unshaded".to_string()    => Program::from_source(display, &unshaded_vert,    &unshaded_frag,    None).unwrap(),
-        };
-
-        let blogger_sans_font = {
-            let mut file = File::open(assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap();
-            let mut buffer = vec![];
-            file.read_to_end(&mut buffer).unwrap();
-
-            let font_collection = FontCollection::from_bytes(buffer);
-            font_collection.into_font().unwrap()
-        };
-
-        Resources {
-            context: display.get_context().clone(),
-
-            buffers: HashMap::new(),
-            programs: programs,
-
-            text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
-            text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
-            blogger_sans_font: blogger_sans_font,
-        }
-    }
-
     fn scene_camera_position(&self) -> Point3<f32> {
         Point3 {
             x: Rad::sin(self.camera_rotation) * self.camera_xz_radius,
@@ -483,6 +428,61 @@ fn process_job(job: Job) -> ResourceEvent {
     }
 }
 
+fn init_resources(display: &glium::Display) -> Resources {
+    use glium::backend::Facade;
+    use rusttype::FontCollection;
+    use std::fs::File;
+    use std::io;
+    use std::io::prelude::*;
+    use std::path::Path;
+
+    let assets =
+        FolderSearch::ParentsThenKids(3, 3)
+            .for_folder("resources")
+            .expect("Could not locate `resources` folder");
+
+    let load_shader = |assets: &Path, path| -> io::Result<String> {
+        let mut file = try!(File::open(assets.join(path)));
+        let mut buffer = String::new();
+        try!(file.read_to_string(&mut buffer));
+
+        Ok(buffer)
+    };
+
+    let flat_shaded_vert    = load_shader(&assets, "shaders/flat_shaded.v.glsl").unwrap();
+    let flat_shaded_frag    = load_shader(&assets, "shaders/flat_shaded.f.glsl").unwrap();
+    let text_vert           = load_shader(&assets, "shaders/text.v.glsl").unwrap();
+    let text_frag           = load_shader(&assets, "shaders/text.f.glsl").unwrap();
+    let unshaded_vert       = load_shader(&assets, "shaders/unshaded.v.glsl").unwrap();
+    let unshaded_frag       = load_shader(&assets, "shaders/unshaded.f.glsl").unwrap();
+
+    let programs = hashmap! {
+        "flat_shaded".to_string() => Program::from_source(display, &flat_shaded_vert, &flat_shaded_frag, None).unwrap(),
+        "text".to_string()        => Program::from_source(display, &text_vert,        &text_frag,        None).unwrap(),
+        "unshaded".to_string()    => Program::from_source(display, &unshaded_vert,    &unshaded_frag,    None).unwrap(),
+    };
+
+    let blogger_sans_font = {
+        let mut file = File::open(assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap();
+        let mut buffer = vec![];
+        file.read_to_end(&mut buffer).unwrap();
+
+        let font_collection = FontCollection::from_bytes(buffer);
+        font_collection.into_font().unwrap()
+    };
+
+    Resources {
+        context: display.get_context().clone(),
+
+        buffers: HashMap::new(),
+        programs: programs,
+
+        text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
+        text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
+        blogger_sans_font: blogger_sans_font,
+    }
+}
+
 fn update_resources(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
     match event {
         ResourceEvent::Planet(vertices) => {
@@ -638,7 +638,7 @@ fn main() {
 
     let state = State::new();
     let display = state.init_display();
-    let mut resources = state.init_resources(&display);
+    let mut resources = init_resources(&display);
     let mut ui_context = UiContext::new(&display);
 
     // Spawn update thread
