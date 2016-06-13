@@ -146,7 +146,6 @@ struct State {
     is_wireframe: bool,
     is_zooming: bool,
 
-    window_title: String,
     mouse_position: Point2<i32>,
 
     light_dir: Vector3<f32>,
@@ -187,7 +186,6 @@ impl State {
 
             light_dir: Vector3::new(0.0, 1.0, 0.2),
 
-            window_title: "Geodesic Test".to_string(),
             mouse_position: Point2::origin(),
 
             camera_rotation: Rad::new(0.0),
@@ -217,20 +215,6 @@ impl State {
 
         *self = State::new();
         self.frame_data = frame_data;
-    }
-
-    fn init_display(&self) -> glium::Display {
-        use glium::DisplayBuild;
-        use glium::glutin::WindowBuilder;
-
-        let (width, height) = self.frame_data.window_dimensions;
-
-        WindowBuilder::new()
-            .with_title(self.window_title.clone())
-            .with_dimensions(width, height)
-            .with_depth_buffer(24)
-            .build_glium()
-            .unwrap()
     }
 
     fn scene_camera_position(&self) -> Point3<f32> {
@@ -424,8 +408,22 @@ fn process_job(job: Job) -> ResourceEvent {
             let vertices = create_star_vertices(&stars, radius);
 
             ResourceEvent::Stars(index, vertices)
-        }
+        },
     }
+}
+
+fn init_display(title: String, frame_data: FrameData) -> glium::Display {
+    use glium::DisplayBuild;
+    use glium::glutin::WindowBuilder;
+
+    let (width, height) = frame_data.window_dimensions;
+
+    WindowBuilder::new()
+        .with_title(title)
+        .with_dimensions(width, height)
+        .with_depth_buffer(24)
+        .build_glium()
+        .unwrap()
 }
 
 fn init_resources(display: &glium::Display) -> Resources {
@@ -637,7 +635,7 @@ fn main() {
     let (render_tx, render_rx) = mpsc::sync_channel(1);
 
     let state = State::new();
-    let display = state.init_display();
+    let display = init_display("Voyager!".to_string(), state.frame_data);
     let mut resources = init_resources(&display);
     let mut ui_context = UiContext::new(&display);
 
