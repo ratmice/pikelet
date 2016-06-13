@@ -141,7 +141,7 @@ struct State {
     is_dragging: bool,
     is_limiting_fps: bool,
     is_showing_star_field: bool,
-    is_showing_ui: bool,
+    is_ui_enabled: bool,
     is_ui_capturing_mouse: bool,
     is_wireframe: bool,
     is_zooming: bool,
@@ -180,7 +180,7 @@ impl State {
             is_dragging: false,
             is_limiting_fps: true,
             is_showing_star_field: true,
-            is_showing_ui: true,
+            is_ui_enabled: true,
             is_ui_capturing_mouse: false,
             is_wireframe: false,
             is_zooming: false,
@@ -391,7 +391,7 @@ impl Game {
             SetShowingStarField(value) => self.state.is_showing_star_field = value,
             SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.state.is_wireframe = value,
-            ToggleUi => self.state.is_showing_ui = !self.state.is_showing_ui,
+            ToggleUi => self.state.is_ui_enabled = !self.state.is_ui_enabled,
             ResetState => self.state.reset(),
             DragStart => if !self.state.is_ui_capturing_mouse { self.state.is_dragging = true },
             DragEnd => self.state.is_dragging = false,
@@ -527,7 +527,7 @@ fn render_scene(frame: &mut Frame, state: &State, resources: &Resources) {
         resources.buffers.get("planet").map(|buf| target.render_solid(buf, state.light_dir, color::GREEN).unwrap());
     }
 
-    if state.is_showing_ui {
+    if state.is_ui_enabled {
         let (window_width, _) = state.frame_data.window_dimensions;
         let fps_text = format!("{:.2}", state.frame_data.frames_per_second);
         let fps_location = Point2::new(window_width as f32 - 30.0, 2.0);
@@ -566,7 +566,7 @@ fn run_ui<F>(ui: &Ui, state: &State, send: F) where F: Fn(InputEvent) {
                 ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
                 ui.text(im_str!("is_limiting_fps: {:?}", state.is_limiting_fps));
                 ui.text(im_str!("is_showing_star_field: {:?}", state.is_showing_star_field));
-                ui.text(im_str!("is_showing_ui: {:?}", state.is_showing_ui));
+                ui.text(im_str!("is_ui_enabled: {:?}", state.is_ui_enabled));
                 ui.text(im_str!("is_ui_capturing_mouse: {:?}", state.is_ui_capturing_mouse));
                 ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
                 ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
@@ -619,22 +619,14 @@ fn main() {
         }
     }
 
-    fn update_ui(ui_context: &mut UiContext, state: &State, event: glutin::Event) {
-        if state.is_showing_ui {
-            ui_context.update(event.clone());
-        }
-    }
-
     fn render_ui(target: &mut Frame, ui_context: &mut UiContext, state: &State, update_tx: &Sender<UpdateEvent>) {
-        if state.is_showing_ui {
-            ui_context.render(target, state.frame_data, |ui| {
-                run_ui(ui, state, |event| {
-                    // FIXME: could cause a panic on the slim chance that the update thread
-                    //  closes during ui rendering.
-                    update_tx.send(UpdateEvent::Input(event)).unwrap();
-                });
-            }).unwrap();
-        }
+        ui_context.render(target, state.frame_data, |ui| {
+            run_ui(ui, state, |event| {
+                // FIXME: could cause a panic on the slim chance that the update thread
+                //  closes during ui rendering.
+                update_tx.send(UpdateEvent::Input(event)).unwrap();
+            });
+        }).unwrap();
     }
 
     use std::sync::mpsc;
@@ -687,11 +679,11 @@ fn main() {
             try_or!(update_tx.send(UpdateEvent::FrameRequested(frame_data)), break 'main);
             try_or!(render_rx.recv(), break 'main)
         };
+        ui_context.set_is_enabled(state.is_ui_enabled);
 
         // Get user input
         for event in display.poll_events() {
-            update_ui(&mut ui_context, &state, event.clone());
-
+            ui_context.update(event.clone());
             let update_event = UpdateEvent::Input(InputEvent::from(event));
             try_or!(update_tx.send(update_event), break 'main);
         }

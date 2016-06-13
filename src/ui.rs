@@ -9,6 +9,7 @@ use FrameData;
 pub struct Context {
     imgui: ImGui,
     renderer: Renderer,
+    is_enabled: bool,
     mouse_pos: (i32, i32),
     mouse_pressed: (bool, bool, bool),
     mouse_wheel: f32,
@@ -39,10 +40,19 @@ impl Context {
         Context {
             imgui: imgui,
             renderer: renderer,
+            is_enabled: true,
             mouse_pos: (0, 0),
             mouse_pressed: (false, false, false),
             mouse_wheel: 0.0,
         }
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.is_enabled
+    }
+
+    pub fn set_is_enabled(&mut self, is_enabled: bool) {
+        self.is_enabled = is_enabled;
     }
 
     pub fn update(&mut self, event: glutin::Event) {
@@ -50,6 +60,8 @@ impl Context {
         use glium::glutin::Event::*;
         use glium::glutin::{MouseButton, MouseScrollDelta};
         use glium::glutin::VirtualKeyCode as Key;
+
+        if !self.is_enabled { return };
 
         match event {
             KeyboardInput(state, _, Some(code)) => match code {
@@ -83,6 +95,8 @@ impl Context {
     }
 
     pub fn render<F: FnMut(&Ui)>(&mut self, target: &mut Frame, frame_data: FrameData, mut run_ui: F) -> RendererResult<()> {
+        if !self.is_enabled { return Ok(()) };
+
         self.imgui.set_hidpi_factor(frame_data.hidpi_factor);
         self.imgui.set_mouse_pos(self.mouse_pos.0 as f32, self.mouse_pos.1 as f32);
         self.imgui.set_mouse_down(&[self.mouse_pressed.0, self.mouse_pressed.1, self.mouse_pressed.2, false, false]);
