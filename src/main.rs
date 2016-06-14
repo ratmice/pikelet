@@ -137,6 +137,12 @@ impl From<glutin::Event> for InputEvent {
     }
 }
 
+#[derive(Clone, Debug)]
+struct StarField {
+    count: usize,
+    size: f32,
+}
+
 #[derive(Clone)]
 struct State {
     is_dragging: bool,
@@ -161,12 +167,9 @@ struct State {
     camera_drag_factor: f32,
 
     star_field_radius: f32,
-    star0_count: usize,
-    star1_count: usize,
-    star2_count: usize,
-    star0_size: f32,
-    star1_size: f32,
-    star2_size: f32,
+    stars0: StarField,
+    stars1: StarField,
+    stars2: StarField,
 
     planet_radius: f32,
     planet_subdivs: usize,
@@ -197,12 +200,9 @@ impl State {
             camera_drag_factor: 10.0,
 
             star_field_radius: 20.0,
-            star0_count: 100000,
-            star1_count: 10000,
-            star2_count: 1000,
-            star0_size: 1.0,
-            star1_size: 2.5,
-            star2_size: 5.0,
+            stars0: StarField { size: 1.0, count: 100000 },
+            stars1: StarField { size: 2.5, count: 10000 },
+            stars2: StarField { size: 5.0, count: 1000 },
 
             planet_radius: 1.0,
             planet_subdivs: 3,
@@ -300,9 +300,9 @@ impl Game {
     }
 
     fn queue_regenete_stars_job(&self) {
-        self.queue_job(Job::Stars { index: 2, count: self.state.star2_count, radius: self.state.star_field_radius });
-        self.queue_job(Job::Stars { index: 1, count: self.state.star1_count, radius: self.state.star_field_radius });
-        self.queue_job(Job::Stars { index: 0, count: self.state.star0_count, radius: self.state.star_field_radius });
+        self.queue_job(Job::Stars { index: 2, count: self.state.stars2.count, radius: self.state.star_field_radius });
+        self.queue_job(Job::Stars { index: 1, count: self.state.stars1.count, radius: self.state.star_field_radius });
+        self.queue_job(Job::Stars { index: 0, count: self.state.stars0.count, radius: self.state.star_field_radius });
     }
 
     fn handle_input(&mut self, event: InputEvent) -> Loop {
@@ -515,9 +515,9 @@ fn render_scene(frame: &mut Frame, frame_data: FrameData, state: &State, resourc
 
     if state.is_showing_star_field {
         // TODO: Render centered at eye position
-        resources.buffers.get("stars0").map(|buf| target.render_points(buf, state.star0_size, color::WHITE).unwrap());
-        resources.buffers.get("stars1").map(|buf| target.render_points(buf, state.star1_size, color::WHITE).unwrap());
-        resources.buffers.get("stars2").map(|buf| target.render_points(buf, state.star2_size, color::WHITE).unwrap());
+        resources.buffers.get("stars0").map(|buf| target.render_points(buf, state.stars0.size, color::WHITE).unwrap());
+        resources.buffers.get("stars1").map(|buf| target.render_points(buf, state.stars1.size, color::WHITE).unwrap());
+        resources.buffers.get("stars2").map(|buf| target.render_points(buf, state.stars2.size, color::WHITE).unwrap());
     }
 
     if state.is_wireframe {
