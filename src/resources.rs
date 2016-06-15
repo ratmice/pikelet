@@ -1,4 +1,4 @@
-use glium::{Display, IndexBuffer, Program, VertexBuffer};
+use glium::{IndexBuffer, Program, VertexBuffer};
 use glium::backend::Context;
 use glium::index::{PrimitiveType, NoIndices};
 use rusttype::Font;
@@ -47,10 +47,10 @@ pub struct Resources {
 }
 
 impl Resources {
-    pub fn handle_event(&mut self, display: &Display, event: Event) {
+    pub fn handle_event(&mut self, event: Event) {
         match event {
             Event::UploadBuffer(name, vertices, indices) => {
-                let vbo = VertexBuffer::new(display, &vertices).unwrap();
+                let vbo = VertexBuffer::new(&self.context, &vertices).unwrap();
                 let ibo = indices.to_no_indices();
 
                 self.buffers.insert(name, (vbo, ibo));

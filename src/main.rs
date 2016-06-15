@@ -665,7 +665,7 @@ fn main() {
 
         // Update resources
         while let Ok(event) = resource_rx.try_recv() {
-            resources.handle_event(&display, event);
+            resources.handle_event(event);
         }
 
         // Render frame
