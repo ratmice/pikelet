@@ -30,7 +30,16 @@ impl Indices {
 }
 
 pub enum Event {
-    UploadBuffer(String, Vec<Vertex>, Indices),
+    UploadBuffer {
+        name: String,
+        vertices: Vec<Vertex>,
+        indices: Indices,
+    },
+    CompileProgram {
+        name: String,
+        vertex_shader: String,
+        fragment_shader: String,
+    },
 }
 
 pub type Buffer = (VertexBuffer<Vertex>, NoIndices);
@@ -49,11 +58,16 @@ pub struct Resources {
 impl Resources {
     pub fn handle_event(&mut self, event: Event) {
         match event {
-            Event::UploadBuffer(name, vertices, indices) => {
+            Event::UploadBuffer { name, vertices, indices } => {
                 let vbo = VertexBuffer::new(&self.context, &vertices).unwrap();
                 let ibo = indices.to_no_indices();
 
                 self.buffers.insert(name, (vbo, ibo));
+            },
+            Event::CompileProgram { name, vertex_shader, fragment_shader } => {
+                let program = Program::from_source(&self.context, &vertex_shader, &fragment_shader, None).unwrap();
+
+                self.programs.insert(name, program);
             },
         }
     }

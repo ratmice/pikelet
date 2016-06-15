@@ -397,13 +397,21 @@ fn process_job(job: Job) -> ResourceEvent {
             let mesh = generate_planet_mesh(radius, subdivs);
             let vertices = create_vertices(&mesh);
 
-            ResourceEvent::UploadBuffer("planet".to_string(), vertices, Indices::TrianglesList)
+            ResourceEvent::UploadBuffer {
+                name: "planet".to_string(),
+                vertices: vertices,
+                indices: Indices::TrianglesList,
+            }
         },
         Job::Stars { index, count, radius } => {
             let stars = generate_stars(count);
             let vertices = create_star_vertices(&stars, radius);
 
-            ResourceEvent::UploadBuffer(format!("stars{}", index), vertices, Indices::Points)
+            ResourceEvent::UploadBuffer {
+                name: format!("stars{}", index),
+                vertices: vertices,
+                indices: Indices::Points,
+            }
         },
     }
 }
