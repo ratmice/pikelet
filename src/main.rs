@@ -413,11 +413,9 @@ fn process_job(job: Job) -> ResourceEvent {
     }
 }
 
-fn init_display(title: String, frame_data: FrameData) -> glium::Display {
+fn init_display<S: Into<String>>(title: S, (width, height): (u32, u32)) -> glium::Display {
     use glium::DisplayBuild;
     use glium::glutin::WindowBuilder;
-
-    let (width, height) = frame_data.window_dimensions;
 
     WindowBuilder::new()
         .with_title(title)
@@ -636,7 +634,7 @@ fn main() {
     let (render_tx, render_rx) = mpsc::sync_channel(1);
 
     let frame_data = FrameData::new(1000, 500);
-    let display = init_display("Voyager!".to_string(), frame_data);
+    let display = init_display("Voyager!", frame_data.window_dimensions);
     let mut resources = init_resources(&display);
     let mut ui_context = UiContext::new(&display);
 
