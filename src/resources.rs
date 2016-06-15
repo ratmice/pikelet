@@ -1,6 +1,6 @@
-use glium::{IndexBuffer, Program, VertexBuffer};
+use glium::{Display, IndexBuffer, Program, VertexBuffer};
 use glium::backend::Context;
-use glium::index::NoIndices;
+use glium::index::{PrimitiveType, NoIndices};
 use rusttype::Font;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -14,6 +14,25 @@ pub struct Vertex {
 
 implement_vertex!(Vertex, position);
 
+#[derive(Copy, Clone)]
+pub enum Indices {
+    TrianglesList,
+    Points,
+}
+
+impl Indices {
+    fn to_no_indices(&self) -> NoIndices {
+        match *self {
+            Indices::TrianglesList => NoIndices(PrimitiveType::TrianglesList),
+            Indices::Points => NoIndices(PrimitiveType::Points),
+        }
+    }
+}
+
+pub enum Event {
+    UploadBuffer(String, Vec<Vertex>, Indices),
+}
+
 pub type Buffer = (VertexBuffer<Vertex>, NoIndices);
 
 pub struct Resources {
@@ -25,4 +44,17 @@ pub struct Resources {
     pub text_vertex_buffer: VertexBuffer<TextVertex>,
     pub text_index_buffer: IndexBuffer<u8>,
     pub blogger_sans_font: Font<'static>,
+}
+
+impl Resources {
+    pub fn handle_event(&mut self, display: &Display, event: Event) {
+        match event {
+            Event::UploadBuffer(name, vertices, indices) => {
+                let vbo = VertexBuffer::new(display, &vertices).unwrap();
+                let ibo = indices.to_no_indices();
+
+                self.buffers.insert(name, (vbo, ibo));
+            },
+        }
+    }
 }

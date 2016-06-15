@@ -33,7 +33,7 @@ use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
 use glium::{Frame, IndexBuffer, Program, Surface, VertexBuffer, BackfaceCullingMode};
 use glium::glutin;
-use glium::index::{PrimitiveType, NoIndices};
+use glium::index::PrimitiveType;
 use imgui::Ui;
 use rand::Rng;
 use rayon::prelude::*;
@@ -48,7 +48,8 @@ use geom::primitives;
 use geom::algorithms::{Subdivide, Dual};
 use math::GeoPoint;
 use render::RenderTarget;
-use resources::{Resources, Vertex};
+use resources::{Resources, Vertex, Indices};
+use resources::Event as ResourceEvent;
 use ui::Context as UiContext;
 
 pub mod camera;
@@ -102,12 +103,6 @@ pub enum InputEvent {
 struct RenderData {
     frame_data: FrameData,
     state: State,
-}
-
-#[derive(Clone)]
-enum ResourceEvent {
-    Planet(Vec<Vertex>),
-    Stars(usize, Vec<Vertex>),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -402,13 +397,13 @@ fn process_job(job: Job) -> ResourceEvent {
             let mesh = generate_planet_mesh(radius, subdivs);
             let vertices = create_vertices(&mesh);
 
-            ResourceEvent::Planet(vertices)
+            ResourceEvent::UploadBuffer("planet".to_string(), vertices, Indices::TrianglesList)
         },
         Job::Stars { index, count, radius } => {
             let stars = generate_stars(count);
             let vertices = create_star_vertices(&stars, radius);
 
-            ResourceEvent::Stars(index, vertices)
+            ResourceEvent::UploadBuffer(format!("stars{}", index), vertices, Indices::Points)
         },
     }
 }
@@ -477,23 +472,6 @@ fn init_resources(display: &glium::Display) -> Resources {
         text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
         text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
         blogger_sans_font: blogger_sans_font,
-    }
-}
-
-fn update_resources(display: &glium::Display, resources: &mut Resources, event: ResourceEvent) {
-    match event {
-        ResourceEvent::Planet(vertices) => {
-            resources.buffers.insert("planet".to_string(), (
-                VertexBuffer::new(display, &vertices).unwrap(),
-                NoIndices(PrimitiveType::TrianglesList),
-            ));
-        },
-        ResourceEvent::Stars(index, vertices) => {
-            resources.buffers.insert(format!("stars{}", index), (
-                VertexBuffer::new(display, &vertices).unwrap(),
-                NoIndices(PrimitiveType::Points),
-            ));
-        }
     }
 }
 
@@ -687,7 +665,7 @@ fn main() {
 
         // Update resources
         while let Ok(event) = resource_rx.try_recv() {
-            update_resources(&display, &mut resources, event);
+            resources.handle_event(&display, event);
         }
 
         // Render frame
