@@ -97,14 +97,17 @@ impl Context {
     pub fn render<F: FnMut(&Ui)>(&mut self, target: &mut Frame, frame_data: FrameData, mut run_ui: F) -> RendererResult<()> {
         if !self.is_enabled { return Ok(()) };
 
-        self.imgui.set_hidpi_factor(frame_data.hidpi_factor);
-        self.imgui.set_mouse_pos(self.mouse_pos.0 as f32, self.mouse_pos.1 as f32);
+        let scale = self.imgui.display_framebuffer_scale();
+        self.imgui.set_mouse_pos(self.mouse_pos.0 as f32 / scale.0, self.mouse_pos.1 as f32 / scale.1);
         self.imgui.set_mouse_down(&[self.mouse_pressed.0, self.mouse_pressed.1, self.mouse_pressed.2, false, false]);
-        self.imgui.set_mouse_wheel(self.mouse_wheel);
+        self.imgui.set_mouse_wheel(self.mouse_wheel / scale.1);
         self.mouse_wheel = 0.0;
 
-        let (width, height) = frame_data.window_dimensions;
-        let ui = self.imgui.frame(width, height, frame_data.delta_time);
+        let ui = self.imgui.frame(
+            frame_data.size_points,
+            frame_data.size_pixels,
+            frame_data.delta_time,
+        );
 
         run_ui(&ui);
 

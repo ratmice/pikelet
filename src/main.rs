@@ -65,7 +65,8 @@ pub mod ui;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct FrameData {
-    window_dimensions: (u32, u32),
+    size_points: (u32, u32),
+    size_pixels: (u32, u32),
     hidpi_factor: f32,
     delta_time: f32,
     frames_per_second: f32,
@@ -74,7 +75,8 @@ pub struct FrameData {
 impl FrameData {
     fn new(width: u32, height: u32) -> FrameData {
         FrameData {
-            window_dimensions: (width, height),
+            size_points: (width, height),
+            size_pixels: (width, height),
             hidpi_factor: 1.0,
             delta_time: 0.0,
             frames_per_second: 0.0,
@@ -259,7 +261,7 @@ impl Game {
 
         if !self.state.is_ui_capturing_mouse {
             if self.state.is_dragging {
-                let (window_width, _) = self.frame_data.window_dimensions;
+                let (window_width, _) = self.frame_data.size_points;
                 let rotations_per_second = (mouse_delta.x as f32 / window_width as f32) * self.state.camera_drag_factor;
                 self.state.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.frame_data.delta_time;
             }
@@ -518,7 +520,7 @@ fn render_scene(frame: &mut Frame, frame_data: FrameData, state: &State, resourc
     }
 
     if state.is_ui_enabled {
-        let (window_width, _) = frame_data.window_dimensions;
+        let (window_width, _) = frame_data.size_points;
         let fps_text = format!("{:.2}", frame_data.frames_per_second);
         let fps_location = Point2::new(window_width as f32 - 30.0, 2.0);
         target.render_hud_text(&fps_text, 12.0, fps_location, color::BLACK).unwrap();
@@ -548,8 +550,7 @@ fn run_ui<F>(ui: &Ui, frame_data: FrameData, state: &State, send: F) where F: Fn
             ui.tree_node(im_str!("State")).build(|| {
                 ui.text(im_str!("delta_time: {:?}", frame_data.delta_time));
                 ui.text(im_str!("frames_per_second: {:?}", frame_data.frames_per_second));
-                ui.text(im_str!("hidpi_factor: {:?}", frame_data.hidpi_factor));
-                ui.text(im_str!("window_dimensions: {:?}", frame_data.window_dimensions));
+                ui.text(im_str!("size_points: {:?}", frame_data.size_points));
 
                 ui.separator();
 
@@ -602,7 +603,8 @@ fn main() {
 
     fn create_frame_data(window: &glium::glutin::Window, time_delta: f32) -> FrameData {
         FrameData {
-            window_dimensions: window.get_inner_size_points().unwrap(),
+            size_points: window.get_inner_size_points().unwrap(),
+            size_pixels: window.get_inner_size_pixels().unwrap(),
             hidpi_factor: window.hidpi_factor(),
             delta_time: time_delta as f32,
             frames_per_second: 1.0 / time_delta as f32,
@@ -627,7 +629,7 @@ fn main() {
     let (render_tx, render_rx) = mpsc::sync_channel(1);
 
     let frame_data = FrameData::new(1000, 500);
-    let display = init_display("Voyager!", frame_data.window_dimensions);
+    let display = init_display("Voyager!", frame_data.size_points);
     let mut resources = init_resources(&display);
     let mut ui_context = UiContext::new(&display);
 
