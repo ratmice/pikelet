@@ -1,24 +1,24 @@
 use cgmath::{Matrix4, Point2};
 use glium::texture::{ClientFormat, RawImage2d, Texture2dDataSource};
-use rusttype::{self, Font, Scale};
+use super::rusttype::{self, Font, Scale};
 use std::borrow::Cow;
 
 #[derive(Copy, Clone, Debug)]
-pub struct Vertex {
+pub struct TextVertex {
     position: [f32; 2],
     tex_coords: [f32; 2],
 }
 
-implement_vertex!(Vertex, position, tex_coords);
+implement_vertex!(TextVertex, position, tex_coords);
 
 pub const TEXTURE_HEIGHT: f32 = 1.0;
 pub const TEXTURE_WIDTH: f32 = 1.0;
 
-pub const TEXTURE_VERTICES: [Vertex; 4] = [
-    Vertex { position: [          0.0,            0.0], tex_coords: [0.0, 0.0] }, // Top-left
-    Vertex { position: [TEXTURE_WIDTH,            0.0], tex_coords: [1.0, 0.0] }, // Top-right
-    Vertex { position: [TEXTURE_WIDTH, TEXTURE_HEIGHT], tex_coords: [1.0, 1.0] }, // Bottom-right
-    Vertex { position: [          0.0, TEXTURE_HEIGHT], tex_coords: [0.0, 1.0] }, // Bottom-left
+pub const TEXTURE_VERTICES: [TextVertex; 4] = [
+    TextVertex { position: [          0.0,            0.0], tex_coords: [0.0, 0.0] }, // Top-left
+    TextVertex { position: [TEXTURE_WIDTH,            0.0], tex_coords: [1.0, 0.0] }, // Top-right
+    TextVertex { position: [TEXTURE_WIDTH, TEXTURE_HEIGHT], tex_coords: [1.0, 1.0] }, // Bottom-right
+    TextVertex { position: [          0.0, TEXTURE_HEIGHT], tex_coords: [0.0, 1.0] }, // Bottom-left
 ];
 
 pub const TEXTURE_INDICES: [u8; 2 * 3] = [

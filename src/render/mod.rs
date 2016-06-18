@@ -1,18 +1,21 @@
+extern crate rusttype;
+
 use cgmath::conv::*;
 use cgmath::{Matrix4, Point2, Vector3};
 use glium::{self, index, program, texture, vertex};
 use glium::{DrawParameters, Frame, IndexBuffer, PolygonMode, Program, Surface, VertexBuffer};
 use glium::backend::{Context, Facade};
 use glium::index::{PrimitiveType, NoIndices};
-use rusttype::{Font, FontCollection};
+use self::rusttype::{Font, FontCollection};
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
 use camera::ComputedCamera;
 use color::Color;
-use text::{self, TextData};
-use text::Vertex as TextVertex;
+use self::text::{TextData, TextVertex};
+
+mod text;
 
 pub enum DrawCommand {
     Clear {
@@ -140,14 +143,14 @@ impl fmt::Debug for ResourceEvent {
 pub type Buffer = (VertexBuffer<Vertex>, NoIndices);
 
 pub struct Resources {
-    pub context: Rc<Context>,
+    context: Rc<Context>,
 
-    pub buffers: HashMap<String, Buffer>,
-    pub programs: HashMap<String, Program>,
-    pub fonts: HashMap<String, Font<'static>>,
+    buffers: HashMap<String, Buffer>,
+    programs: HashMap<String, Program>,
+    fonts: HashMap<String, Font<'static>>,
 
-    pub text_vertex_buffer: VertexBuffer<TextVertex>,
-    pub text_index_buffer: IndexBuffer<u8>,
+    text_vertex_buffer: VertexBuffer<TextVertex>,
+    text_index_buffer: IndexBuffer<u8>,
 }
 
 impl Resources {

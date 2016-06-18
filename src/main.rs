@@ -20,7 +20,6 @@ extern crate num_traits;
 extern crate quick_error;
 extern crate rand;
 extern crate rayon;
-extern crate rusttype;
 extern crate time;
 #[macro_use]
 extern crate itertools;
@@ -53,7 +52,6 @@ pub mod color;
 pub mod geom;
 pub mod dggs;
 pub mod math;
-pub mod text;
 pub mod times;
 pub mod render;
 pub mod ui;
