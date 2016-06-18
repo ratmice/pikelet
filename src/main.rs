@@ -31,13 +31,11 @@ use cgmath::conv::*;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
-use glium::{Frame, IndexBuffer, Surface, VertexBuffer, BackfaceCullingMode};
+use glium::{Frame, Surface, BackfaceCullingMode};
 use glium::glutin;
-use glium::index::PrimitiveType;
 use imgui::Ui;
 use rand::Rng;
 use rayon::prelude::*;
-use std::collections::HashMap;
 use std::mem;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
@@ -427,40 +425,20 @@ fn init_display<S: Into<String>>(title: S, (width, height): (u32, u32)) -> glium
 }
 
 fn init_resources(display: &glium::Display) -> Resources {
-    use glium::backend::Facade;
-    use rusttype::FontCollection;
     use std::fs::File;
     use std::io;
     use std::io::prelude::*;
     use std::path::Path;
+
+    let mut resources = Resources::new(display);
 
     let assets =
         FolderSearch::ParentsThenKids(3, 3)
             .for_folder("resources")
             .expect("Could not locate `resources` folder");
 
-    let blogger_sans_font = {
-        let mut file = File::open(assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap();
-        let mut buffer = vec![];
-        file.read_to_end(&mut buffer).unwrap();
-
-        let font_collection = FontCollection::from_bytes(buffer);
-        font_collection.into_font().unwrap()
-    };
-
-    let mut resources = Resources {
-        context: display.get_context().clone(),
-
-        buffers: HashMap::new(),
-        programs: HashMap::new(),
-
-        text_vertex_buffer: VertexBuffer::new(display, &text::TEXTURE_VERTICES).unwrap(),
-        text_index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
-        blogger_sans_font: blogger_sans_font,
-    };
-
-    fn load_shader(assets: &Path, path: &str) -> io::Result<String> {
-        let mut file = try!(File::open(assets.join(path)));
+    fn load_shader(path: &Path) -> io::Result<String> {
+        let mut file = try!(File::open(path));
         let mut buffer = String::new();
         try!(file.read_to_string(&mut buffer));
 
@@ -469,20 +447,33 @@ fn init_resources(display: &glium::Display) -> Resources {
 
     resources.handle_event(ResourceEvent::CompileProgram {
         name: "flat_shaded".to_string(),
-        vertex_shader: load_shader(&assets, "shaders/flat_shaded.v.glsl").unwrap(),
-        fragment_shader: load_shader(&assets, "shaders/flat_shaded.f.glsl").unwrap(),
+        vertex_shader: load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
+        fragment_shader: load_shader(&assets.join("shaders/flat_shaded.f.glsl")).unwrap(),
     });
 
     resources.handle_event(ResourceEvent::CompileProgram {
         name: "text".to_string(),
-        vertex_shader: load_shader(&assets, "shaders/text.v.glsl").unwrap(),
-        fragment_shader: load_shader(&assets, "shaders/text.f.glsl").unwrap(),
+        vertex_shader: load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
+        fragment_shader: load_shader(&assets.join("shaders/text.f.glsl")).unwrap(),
     });
 
     resources.handle_event(ResourceEvent::CompileProgram {
         name: "unshaded".to_string(),
-        vertex_shader: load_shader(&assets, "shaders/unshaded.v.glsl").unwrap(),
-        fragment_shader: load_shader(&assets, "shaders/unshaded.f.glsl").unwrap(),
+        vertex_shader: load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
+        fragment_shader: load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap(),
+    });
+
+    fn load_font(path: &Path) -> io::Result<Vec<u8>> {
+        let mut file = try!(File::open(path));
+        let mut buffer = vec![];
+        try!(file.read_to_end(&mut buffer));
+
+        Ok(buffer)
+    }
+
+    resources.handle_event(ResourceEvent::UploadFont {
+        name: "blogger_sans".to_string(),
+        data: load_font(&assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap(),
     });
 
     resources
@@ -516,10 +507,12 @@ fn render_scene(frame: &mut Frame, frame_data: FrameData, state: &State, resourc
     }
 
     if state.is_ui_enabled {
-        let (window_width, _) = frame_data.size_points;
-        let fps_text = format!("{:.2}", frame_data.frames_per_second());
-        let fps_location = Point2::new(window_width as f32 - 30.0, 2.0);
-        target.render_hud_text(&fps_text, 12.0, fps_location, color::BLACK).unwrap();
+        resources.fonts.get("blogger_sans").map(|font| {
+            let (window_width, _) = frame_data.size_points;
+            let fps_text = format!("{:.2}", frame_data.frames_per_second());
+            let fps_location = Point2::new(window_width as f32 - 30.0, 2.0);
+            target.render_hud_text(font, &fps_text, 12.0, fps_location, color::BLACK).unwrap();
+        });
     }
 }
 

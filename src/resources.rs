@@ -1,10 +1,11 @@
 use glium::{IndexBuffer, Program, VertexBuffer};
-use glium::backend::Context;
+use glium::backend::{Context, Facade};
 use glium::index::{PrimitiveType, NoIndices};
-use rusttype::Font;
+use rusttype::{Font, FontCollection};
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use text;
 use text::Vertex as TextVertex;
 
 #[derive(Copy, Clone)]
@@ -40,6 +41,10 @@ pub enum Event {
         vertex_shader: String,
         fragment_shader: String,
     },
+    UploadFont {
+        name: String,
+        data: Vec<u8>,
+    },
 }
 
 pub type Buffer = (VertexBuffer<Vertex>, NoIndices);
@@ -49,13 +54,26 @@ pub struct Resources {
 
     pub buffers: HashMap<String, Buffer>,
     pub programs: HashMap<String, Program>,
+    pub fonts: HashMap<String, Font<'static>>,
 
     pub text_vertex_buffer: VertexBuffer<TextVertex>,
     pub text_index_buffer: IndexBuffer<u8>,
-    pub blogger_sans_font: Font<'static>,
 }
 
 impl Resources {
+    pub fn new<F: Facade>(facade: &F) -> Resources {
+        Resources {
+            context: facade.get_context().clone(),
+
+            buffers: HashMap::new(),
+            programs: HashMap::new(),
+            fonts: HashMap::new(),
+
+            text_vertex_buffer: VertexBuffer::new(facade, &text::TEXTURE_VERTICES).unwrap(),
+            text_index_buffer: IndexBuffer::new(facade, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
+        }
+    }
+
     pub fn handle_event(&mut self, event: Event) {
         match event {
             Event::UploadBuffer { name, vertices, indices } => {
@@ -68,6 +86,12 @@ impl Resources {
                 let program = Program::from_source(&self.context, &vertex_shader, &fragment_shader, None).unwrap();
 
                 self.programs.insert(name, program);
+            },
+            Event::UploadFont { name, data } => {
+                let font_collection = FontCollection::from_bytes(data);
+                let font = font_collection.into_font().unwrap();
+
+                self.fonts.insert(name, font);
             },
         }
     }
