@@ -1,14 +1,20 @@
 use cgmath::conv::*;
 use cgmath::{Matrix4, Point2, Vector3};
 use glium::{self, index, program, texture, vertex};
-use glium::{DrawParameters, Frame, PolygonMode, Surface};
+use glium::{DrawParameters, Frame, IndexBuffer, PolygonMode, Program, Surface, VertexBuffer};
+use glium::backend::{Context, Facade};
+use glium::index::{PrimitiveType, NoIndices};
+use rusttype::{Font, FontCollection};
+use std::collections::HashMap;
+use std::fmt;
+use std::rc::Rc;
 
 use camera::ComputedCamera;
 use color::Color;
-use resources::Resources;
-use text::TextData;
+use text::{self, TextData};
+use text::Vertex as TextVertex;
 
-pub enum Command {
+pub enum DrawCommand {
     Clear {
         color: Color,
     },
@@ -76,116 +82,221 @@ quick_error! {
     }
 }
 
-fn draw_params<'a>() -> DrawParameters<'a> {
-    use glium::{BackfaceCullingMode, Depth, DepthTest};
+#[derive(Copy, Clone)]
+pub struct Vertex {
+    pub position: [f32; 3],
+}
 
-    DrawParameters {
-        backface_culling: BackfaceCullingMode::CullClockwise,
-        depth: Depth {
-            test: DepthTest::IfLess,
-            write: true,
-            ..Depth::default()
-        },
-        ..DrawParameters::default()
+implement_vertex!(Vertex, position);
+
+#[derive(Copy, Clone, Debug)]
+pub enum Indices {
+    TrianglesList,
+    Points,
+}
+
+impl Indices {
+    fn to_no_indices(&self) -> NoIndices {
+        match *self {
+            Indices::TrianglesList => NoIndices(PrimitiveType::TrianglesList),
+            Indices::Points => NoIndices(PrimitiveType::Points),
+        }
     }
 }
 
-pub fn handle_command(frame: &mut Frame, resources: &Resources, command: Command) -> RenderResult<()> {
-    let result = match command {
-        Command::Clear { color } => {
-            frame.clear_color_and_depth(color, 1.0);
-            Some(Ok(()))
-        },
-        Command::Points { buffer_name, size, color, model, camera } => {
-            let program = &resources.programs["unshaded"];
-            let draw_params = DrawParameters { polygon_mode: PolygonMode::Point, point_size: Some(size), ..draw_params() };
-            let uniforms = uniform! {
-                color:      color,
-                model:      array4x4(model),
-                view:       array4x4(camera.view),
-                proj:       array4x4(camera.projection),
-            };
+pub enum ResourceEvent {
+    UploadBuffer {
+        name: String,
+        vertices: Vec<Vertex>,
+        indices: Indices,
+    },
+    CompileProgram {
+        name: String,
+        vertex_shader: String,
+        fragment_shader: String,
+    },
+    UploadFont {
+        name: String,
+        data: Vec<u8>,
+    },
+}
 
-            resources.buffers.get(&buffer_name).map(|&(ref vbuf, ref ibuf)| {
-                frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-            })
-        },
-        Command::Lines { buffer_name, width, color, model, camera } => {
-            let program = &resources.programs["unshaded"];
-            let draw_params = DrawParameters { polygon_mode: PolygonMode::Line, line_width: Some(width), ..draw_params() };
-            let uniforms = uniform! {
-                color:      color,
-                model:      array4x4(model),
-                view:       array4x4(camera.view),
-                proj:       array4x4(camera.projection),
-            };
+impl fmt::Debug for ResourceEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ResourceEvent::UploadBuffer { ref name, ref vertices, ref indices } => {
+                write!(f, "ResourceEvent::UploadBuffer {{ name: {:?}, vertices: vec![_; {}], indices: {:?} }}", name, vertices.len(), indices)
+            },
+            ResourceEvent::CompileProgram { ref name, .. } => {
+                write!(f, "ResourceEvent::CompileProgram {{ name: {:?}, vertex_shader: \"..\", fragment_shader: \"..\"] }}", name)
+            },
+            ResourceEvent::UploadFont { ref name, ref data } => {
+                write!(f, "ResourceEvent::UploadFont {{ name: {:?}, data: vec![_; {}] }}", name, data.len())
+            },
+        }
+    }
+}
 
-            resources.buffers.get(&buffer_name).map(|&(ref vbuf, ref ibuf)| {
-                frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-            })
-        },
-        Command::Solid { buffer_name, light_dir, color, model, camera } => {
-            let program = &resources.programs["flat_shaded"];
-            let draw_params = DrawParameters { polygon_mode: PolygonMode::Fill, ..draw_params() };
-            let uniforms = uniform! {
-                color:      color,
-                light_dir:  array3(light_dir),
-                model:      array4x4(model),
-                view:       array4x4(camera.view),
-                proj:       array4x4(camera.projection),
-                eye:        array3(camera.position),
-            };
+pub type Buffer = (VertexBuffer<Vertex>, NoIndices);
 
-            resources.buffers.get(&buffer_name).map(|&(ref vbuf, ref ibuf)| {
-                frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-            })
-        },
-        Command::Text { font_name, color, text, size, position, screen_matrix } => {
-            use glium::texture::Texture2d;
-            use glium::uniforms::MagnifySamplerFilter;
+pub struct Resources {
+    pub context: Rc<Context>,
 
-            let font = match resources.fonts.get(&font_name) {
-                Some(font) => font,
-                None => return Ok(()),
-            };
-            let text_data = TextData::new(font, &text, size);
-            let text_texture = try!(Texture2d::new(&resources.context, &text_data));
+    pub buffers: HashMap<String, Buffer>,
+    pub programs: HashMap<String, Program>,
+    pub fonts: HashMap<String, Font<'static>>,
 
-            Some(frame.draw(
-                &resources.text_vertex_buffer,
-                &resources.text_index_buffer,
-                &resources.programs["text"],
-                &uniform! {
-                    color:    color,
-                    text:     text_texture.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
-                    proj:     array4x4(screen_matrix),
-                    model:    array4x4(text_data.matrix(position)),
+    pub text_vertex_buffer: VertexBuffer<TextVertex>,
+    pub text_index_buffer: IndexBuffer<u8>,
+}
+
+impl Resources {
+    pub fn new<F: Facade>(facade: &F) -> Resources {
+        Resources {
+            context: facade.get_context().clone(),
+
+            buffers: HashMap::new(),
+            programs: HashMap::new(),
+            fonts: HashMap::new(),
+
+            text_vertex_buffer: VertexBuffer::new(facade, &text::TEXTURE_VERTICES).unwrap(),
+            text_index_buffer: IndexBuffer::new(facade, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
+        }
+    }
+
+    pub fn handle_event(&mut self, event: ResourceEvent) {
+        match event {
+            ResourceEvent::UploadBuffer { name, vertices, indices } => {
+                let vbo = VertexBuffer::new(&self.context, &vertices).unwrap();
+                let ibo = indices.to_no_indices();
+
+                self.buffers.insert(name, (vbo, ibo));
+            },
+            ResourceEvent::CompileProgram { name, vertex_shader, fragment_shader } => {
+                let program = Program::from_source(&self.context, &vertex_shader, &fragment_shader, None).unwrap();
+
+                self.programs.insert(name, program);
+            },
+            ResourceEvent::UploadFont { name, data } => {
+                let font_collection = FontCollection::from_bytes(data);
+                let font = font_collection.into_font().unwrap();
+
+                self.fonts.insert(name, font);
+            },
+        }
+    }
+
+    pub fn handle_draw_command(&self, frame: &mut Frame, command: DrawCommand) -> RenderResult<()> {
+        fn draw_params<'a>() -> DrawParameters<'a> {
+            use glium::{BackfaceCullingMode, Depth, DepthTest};
+
+            DrawParameters {
+                backface_culling: BackfaceCullingMode::CullClockwise,
+                depth: Depth {
+                    test: DepthTest::IfLess,
+                    write: true,
+                    ..Depth::default()
                 },
-                &{
-                    use glium::Blend;
-                    use glium::BlendingFunction::Addition;
-                    use glium::LinearBlendingFactor::*;
+                ..DrawParameters::default()
+            }
+        }
 
-                    let blending_function = Addition {
-                        source: SourceAlpha,
-                        destination: OneMinusSourceAlpha
-                    };
+        let result = match command {
+            DrawCommand::Clear { color } => {
+                frame.clear_color_and_depth(color, 1.0);
+                Some(Ok(()))
+            },
+            DrawCommand::Points { buffer_name, size, color, model, camera } => {
+                let program = &self.programs["unshaded"];
+                let draw_params = DrawParameters { polygon_mode: PolygonMode::Point, point_size: Some(size), ..draw_params() };
+                let uniforms = uniform! {
+                    color:      color,
+                    model:      array4x4(model),
+                    view:       array4x4(camera.view),
+                    proj:       array4x4(camera.projection),
+                };
 
-                    DrawParameters {
-                        blend: Blend {
-                            color: blending_function,
-                            alpha: blending_function,
-                            constant_value: (1.0, 1.0, 1.0, 1.0),
-                        },
-                        ..DrawParameters::default()
-                    }
-                },
-            ))
-        },
-    };
+                self.buffers.get(&buffer_name).map(|&(ref vbuf, ref ibuf)| {
+                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                })
+            },
+            DrawCommand::Lines { buffer_name, width, color, model, camera } => {
+                let program = &self.programs["unshaded"];
+                let draw_params = DrawParameters { polygon_mode: PolygonMode::Line, line_width: Some(width), ..draw_params() };
+                let uniforms = uniform! {
+                    color:      color,
+                    model:      array4x4(model),
+                    view:       array4x4(camera.view),
+                    proj:       array4x4(camera.projection),
+                };
 
-    match result {
-        Some(Ok(())) | None => Ok(()),
-        Some(Err(err)) => Err(RenderError::from(err)),
+                self.buffers.get(&buffer_name).map(|&(ref vbuf, ref ibuf)| {
+                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                })
+            },
+            DrawCommand::Solid { buffer_name, light_dir, color, model, camera } => {
+                let program = &self.programs["flat_shaded"];
+                let draw_params = DrawParameters { polygon_mode: PolygonMode::Fill, ..draw_params() };
+                let uniforms = uniform! {
+                    color:      color,
+                    light_dir:  array3(light_dir),
+                    model:      array4x4(model),
+                    view:       array4x4(camera.view),
+                    proj:       array4x4(camera.projection),
+                    eye:        array3(camera.position),
+                };
+
+                self.buffers.get(&buffer_name).map(|&(ref vbuf, ref ibuf)| {
+                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                })
+            },
+            DrawCommand::Text { font_name, color, text, size, position, screen_matrix } => {
+                use glium::texture::Texture2d;
+                use glium::uniforms::MagnifySamplerFilter;
+
+                let font = match self.fonts.get(&font_name) {
+                    Some(font) => font,
+                    None => return Ok(()),
+                };
+                let text_data = TextData::new(font, &text, size);
+                let text_texture = try!(Texture2d::new(&self.context, &text_data));
+
+                Some(frame.draw(
+                    &self.text_vertex_buffer,
+                    &self.text_index_buffer,
+                    &self.programs["text"],
+                    &uniform! {
+                        color:    color,
+                        text:     text_texture.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
+                        proj:     array4x4(screen_matrix),
+                        model:    array4x4(text_data.matrix(position)),
+                    },
+                    &{
+                        use glium::Blend;
+                        use glium::BlendingFunction::Addition;
+                        use glium::LinearBlendingFactor::*;
+
+                        let blending_function = Addition {
+                            source: SourceAlpha,
+                            destination: OneMinusSourceAlpha
+                        };
+
+                        DrawParameters {
+                            blend: Blend {
+                                color: blending_function,
+                                alpha: blending_function,
+                                constant_value: (1.0, 1.0, 1.0, 1.0),
+                            },
+                            ..DrawParameters::default()
+                        }
+                    },
+                ))
+            },
+        };
+
+        match result {
+            Some(Ok(())) | None => Ok(()),
+            Some(Err(err)) => Err(RenderError::from(err)),
+        }
     }
 }

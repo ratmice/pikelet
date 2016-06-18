@@ -45,8 +45,7 @@ use geom::Mesh;
 use geom::primitives;
 use geom::algorithms::{Subdivide, Dual};
 use math::GeoPoint;
-use resources::{Resources, Vertex, Indices};
-use resources::Event as ResourceEvent;
+use render::{DrawCommand, ResourceEvent, Resources, Vertex, Indices};
 use ui::Context as UiContext;
 
 pub mod camera;
@@ -57,7 +56,6 @@ pub mod math;
 pub mod text;
 pub mod times;
 pub mod render;
-pub mod resources;
 pub mod ui;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -103,7 +101,7 @@ pub enum InputEvent {
 
 struct RenderData {
     frame_data: FrameData,
-    commands: Vec<render::Command>,
+    commands: Vec<DrawCommand>,
     state: State,
 }
 
@@ -329,7 +327,7 @@ impl Game {
     }
 
     fn create_render_data(&self) -> RenderData {
-        use render::Command::*;
+        use render::DrawCommand::*;
 
         let mut commands = vec![
             Clear { color: color::BLUE },
@@ -724,7 +722,7 @@ fn main() {
         // Render frame
         let mut frame = display.draw();
         for command in commands {
-            render::handle_command(&mut frame, &resources, command).unwrap();
+            resources.handle_draw_command(&mut frame, command).unwrap();
         }
         render_ui(&mut frame, &mut ui_context, frame_data, &state, &update_tx);
         frame.finish().unwrap();
