@@ -3,6 +3,7 @@ use glium::backend::{Context, Facade};
 use glium::index::{PrimitiveType, NoIndices};
 use rusttype::{Font, FontCollection};
 use std::collections::HashMap;
+use std::fmt;
 use std::rc::Rc;
 
 use text;
@@ -15,7 +16,7 @@ pub struct Vertex {
 
 implement_vertex!(Vertex, position);
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Indices {
     TrianglesList,
     Points,
@@ -45,6 +46,22 @@ pub enum Event {
         name: String,
         data: Vec<u8>,
     },
+}
+
+impl fmt::Debug for Event {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Event::UploadBuffer { ref name, ref vertices, ref indices } => {
+                write!(f, "Event::UploadBuffer {{ name: {:?}, vertices: vec![_; {}], indices: {:?} }}", name, vertices.len(), indices)
+            },
+            Event::CompileProgram { ref name, .. } => {
+                write!(f, "Event::CompileProgram {{ name: {:?}, vertex_shader: \"..\", fragment_shader: \"..\"] }}", name)
+            },
+            Event::UploadFont { ref name, ref data } => {
+                write!(f, "Event::UploadFont {{ name: {:?}, data: vec![_; {}] }}", name, data.len())
+            },
+        }
+    }
 }
 
 pub type Buffer = (VertexBuffer<Vertex>, NoIndices);
