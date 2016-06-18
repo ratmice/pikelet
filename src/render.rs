@@ -3,7 +3,6 @@ use cgmath::prelude::*;
 use cgmath::{Matrix4, Point2, Vector3};
 use glium::{self, index, program, texture, vertex};
 use glium::{DrawParameters, Frame, PolygonMode, Surface, BackfaceCullingMode};
-use rusttype::Font;
 
 use camera::ComputedCamera;
 use color::Color;
@@ -59,7 +58,6 @@ fn draw_params<'a>() -> DrawParameters<'a> {
 
 pub struct RenderTarget<'a> {
     pub frame: &'a mut Frame,
-    pub hidpi_factor: f32,
     pub resources: &'a Resources,
     pub camera: ComputedCamera,
     pub hud_matrix: Matrix4<f32>,
@@ -71,12 +69,11 @@ impl<'a> RenderTarget<'a> {
         self.frame.clear_color_and_depth(color, 1.0);
     }
 
-    pub fn render_hud_text(&mut self, font: &Font, text: &str, text_size: f32, position: Point2<f32>, color: Color) -> RenderResult<()> {
+    pub fn render_hud_text(&mut self, text_data: &TextData, position: Point2<f32>, color: Color) -> RenderResult<()> {
         use glium::texture::Texture2d;
         use glium::uniforms::MagnifySamplerFilter;
 
-        let text_data = TextData::new(font, text, text_size * self.hidpi_factor);
-        let text_texture = try!(Texture2d::new(&self.resources.context, &text_data));
+        let text_texture = try!(Texture2d::new(&self.resources.context, text_data));
 
         let params = {
             use glium::Blend;
@@ -106,7 +103,7 @@ impl<'a> RenderTarget<'a> {
                 color:    color,
                 text:     text_texture.sampled().magnify_filter(MagnifySamplerFilter::Nearest),
                 proj:     array4x4(self.hud_matrix),
-                model:    array4x4(text_data.matrix(position * self.hidpi_factor)),
+                model:    array4x4(text_data.matrix(position)),
             },
             &params,
         ));

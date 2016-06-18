@@ -31,7 +31,7 @@ use cgmath::conv::*;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
-use glium::{Frame, Surface, BackfaceCullingMode};
+use glium::{Frame, BackfaceCullingMode};
 use glium::glutin;
 use imgui::Ui;
 use rand::Rng;
@@ -48,6 +48,7 @@ use math::GeoPoint;
 use render::RenderTarget;
 use resources::{Resources, Vertex, Indices};
 use resources::Event as ResourceEvent;
+use text::TextData;
 use ui::Context as UiContext;
 
 pub mod camera;
@@ -65,7 +66,6 @@ pub mod ui;
 pub struct FrameData {
     size_points: (u32, u32),
     size_pixels: (u32, u32),
-    hidpi_factor: f32,
     delta_time: f32,
 }
 
@@ -75,6 +75,13 @@ impl FrameData {
             0.0 => 0.0,
             delta_time => 1.0 / delta_time,
         }
+    }
+
+    fn scale_factor(&self) -> (f32, f32) {
+        (
+            if self.size_points.0 == 0 { 0.0 } else { self.size_pixels.0 as f32 / self.size_points.0 as f32 },
+            if self.size_points.1 == 0 { 0.0 } else { self.size_pixels.1 as f32 / self.size_points.1 as f32 },
+        )
     }
 }
 
@@ -480,14 +487,11 @@ fn init_resources(display: &glium::Display) -> Resources {
 }
 
 fn render_scene(frame: &mut Frame, frame_data: FrameData, state: &State, resources: &Resources) {
-    let frame_dimensions = frame.get_dimensions();
-
     let mut target = RenderTarget {
         frame: frame,
-        hidpi_factor: frame_data.hidpi_factor,
         resources: resources,
-        camera: state.create_scene_camera(frame_dimensions),
-        hud_matrix: state.create_hud_camera(frame_dimensions),
+        camera: state.create_scene_camera(frame_data.size_points),
+        hud_matrix: state.create_hud_camera(frame_data.size_pixels),
         culling_mode: BackfaceCullingMode::CullClockwise,
     };
 
@@ -509,9 +513,13 @@ fn render_scene(frame: &mut Frame, frame_data: FrameData, state: &State, resourc
     if state.is_ui_enabled {
         resources.fonts.get("blogger_sans").map(|font| {
             let (window_width, _) = frame_data.size_points;
-            let fps_text = format!("{:.2}", frame_data.frames_per_second());
-            let fps_location = Point2::new(window_width as f32 - 30.0, 2.0);
-            target.render_hud_text(font, &fps_text, 12.0, fps_location, color::BLACK).unwrap();
+            let (scale_x, scale_y) = frame_data.scale_factor();
+
+            let text = format!("{:.2}", frame_data.frames_per_second());
+            let text_data = TextData::new(font, &text, 12.0 * scale_y);
+            let position = Point2::new((window_width as f32 - 30.0) * scale_x, 2.0 * scale_y);
+
+            target.render_hud_text(&text_data, position, color::BLACK).unwrap();
         });
     }
 }
@@ -596,8 +604,7 @@ fn main() {
         FrameData {
             size_points: window.get_inner_size_points().unwrap(),
             size_pixels: window.get_inner_size_pixels().unwrap(),
-            hidpi_factor: window.hidpi_factor(),
-            delta_time: delta_time as f32,
+            delta_time: delta_time,
         }
     }
 
