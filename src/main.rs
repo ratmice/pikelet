@@ -327,9 +327,7 @@ impl Game {
     fn create_render_data(&self) -> RenderData {
         use render::DrawCommand::*;
 
-        let mut commands = vec![
-            Clear { color: color::BLUE },
-        ];
+        let mut commands = Vec::new();
 
         let camera = self.state.create_scene_camera(self.frame_data.size_points);
         let screen_matrix = self.state.create_hud_camera(self.frame_data.size_pixels);
