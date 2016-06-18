@@ -31,7 +31,7 @@ use cgmath::conv::*;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
-use glium::{Frame, BackfaceCullingMode};
+use glium::Frame;
 use glium::glutin;
 use imgui::Ui;
 use rand::Rng;
@@ -45,10 +45,8 @@ use geom::Mesh;
 use geom::primitives;
 use geom::algorithms::{Subdivide, Dual};
 use math::GeoPoint;
-use render::RenderTarget;
 use resources::{Resources, Vertex, Indices};
 use resources::Event as ResourceEvent;
-use text::TextData;
 use ui::Context as UiContext;
 
 pub mod camera;
@@ -487,40 +485,73 @@ fn init_resources(display: &glium::Display) -> Resources {
 }
 
 fn render_scene(frame: &mut Frame, frame_data: FrameData, state: &State, resources: &Resources) {
-    let mut target = RenderTarget {
-        frame: frame,
-        resources: resources,
-        camera: state.create_scene_camera(frame_data.size_points),
-        hud_matrix: state.create_hud_camera(frame_data.size_pixels),
-        culling_mode: BackfaceCullingMode::CullClockwise,
-    };
+    use render::Command;
 
-    target.clear(color::BLUE);
+    let camera = state.create_scene_camera(frame_data.size_points);
+    let screen_matrix = state.create_hud_camera(frame_data.size_pixels);
+
+    render::handle_command(frame, resources, Command::Clear {
+        color: color::BLUE,
+    }).unwrap();
 
     if state.is_showing_star_field {
         // TODO: Render centered at eye position
-        resources.buffers.get("stars0").map(|buf| target.render_points(buf, state.stars0.size, color::WHITE).unwrap());
-        resources.buffers.get("stars1").map(|buf| target.render_points(buf, state.stars1.size, color::WHITE).unwrap());
-        resources.buffers.get("stars2").map(|buf| target.render_points(buf, state.stars2.size, color::WHITE).unwrap());
+
+        render::handle_command(frame, resources, Command::Points {
+            buffer_name: "stars0".to_string(),
+            size: state.stars0.size,
+            color: color::WHITE,
+            model: Matrix4::identity(),
+            camera: camera,
+        }).unwrap();
+
+        render::handle_command(frame, resources, Command::Points {
+            buffer_name: "stars1".to_string(),
+            size: state.stars1.size,
+            color: color::WHITE,
+            model: Matrix4::identity(),
+            camera: camera,
+        }).unwrap();
+
+        render::handle_command(frame, resources, Command::Points {
+            buffer_name: "stars2".to_string(),
+            size: state.stars2.size,
+            color: color::WHITE,
+            model: Matrix4::identity(),
+            camera: camera,
+        }).unwrap();
     }
 
     if state.is_wireframe {
-        resources.buffers.get("planet").map(|buf| target.render_lines(buf, 0.5, color::BLACK).unwrap());
+        render::handle_command(frame, resources, Command::Lines {
+            buffer_name: "planet".to_string(),
+            width: 0.5,
+            color: color::BLACK,
+            model: Matrix4::identity(),
+            camera: camera,
+        }).unwrap();
     } else {
-        resources.buffers.get("planet").map(|buf| target.render_solid(buf, state.light_dir, color::GREEN).unwrap());
+        render::handle_command(frame, resources, Command::Solid {
+            buffer_name: "planet".to_string(),
+            light_dir: state.light_dir,
+            color: color::GREEN,
+            model: Matrix4::identity(),
+            camera: camera,
+        }).unwrap();
     }
 
     if state.is_ui_enabled {
-        resources.fonts.get("blogger_sans").map(|font| {
-            let (window_width, _) = frame_data.size_points;
-            let (scale_x, scale_y) = frame_data.scale_factor();
+        let (frame_width, _) = frame_data.size_points;
+        let (scale_x, scale_y) = frame_data.scale_factor();
 
-            let text = format!("{:.2}", frame_data.frames_per_second());
-            let text_data = TextData::new(font, &text, 12.0 * scale_y);
-            let position = Point2::new((window_width as f32 - 30.0) * scale_x, 2.0 * scale_y);
-
-            target.render_hud_text(&text_data, position, color::BLACK).unwrap();
-        });
+        render::handle_command(frame, resources, Command::Text {
+            font_name: "blogger_sans".to_string(),
+            color: color::BLACK,
+            text: format!("{:.2}", frame_data.frames_per_second()),
+            size: 12.0 * scale_y,
+            position: Point2 { x: (frame_width as f32 - 30.0) * scale_x, y: 2.0 * scale_y },
+            screen_matrix: screen_matrix,
+        }).unwrap();
     }
 }
 
@@ -548,6 +579,8 @@ fn run_ui<F>(ui: &Ui, frame_data: FrameData, state: &State, send: F) where F: Fn
                 ui.text(im_str!("delta_time: {:?}", frame_data.delta_time));
                 ui.text(im_str!("frames_per_second: {:?}", frame_data.frames_per_second()));
                 ui.text(im_str!("size_points: {:?}", frame_data.size_points));
+                ui.text(im_str!("size_pixels: {:?}", frame_data.size_pixels));
+                ui.text(im_str!("scale_factor: {:?}", frame_data.scale_factor()));
 
                 ui.separator();
 

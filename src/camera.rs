@@ -1,5 +1,6 @@
 use cgmath::{Matrix4, Point3, Vector3, PerspectiveFov};
 
+#[derive(Copy, Clone, Debug)]
 pub struct Camera {
     pub target: Point3<f32>,
     pub position: Point3<f32>,
@@ -24,6 +25,7 @@ impl Camera {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct ComputedCamera {
     pub view: Matrix4<f32>,
     pub position: Point3<f32>,
