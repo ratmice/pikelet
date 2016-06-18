@@ -103,6 +103,7 @@ pub enum InputEvent {
 
 struct RenderData {
     frame_data: FrameData,
+    commands: Vec<render::Command>,
     state: State,
 }
 
@@ -328,8 +329,82 @@ impl Game {
     }
 
     fn create_render_data(&self) -> RenderData {
+        use render::Command::*;
+
+        let mut commands = vec![
+            Clear { color: color::BLUE },
+        ];
+
+        let camera = self.state.create_scene_camera(self.frame_data.size_points);
+        let screen_matrix = self.state.create_hud_camera(self.frame_data.size_pixels);
+
+        commands.push(Clear {
+            color: color::BLUE,
+        });
+
+        if self.state.is_showing_star_field {
+            // TODO: Render centered at eye position
+
+            commands.push(Points {
+                buffer_name: "stars0".to_string(),
+                size: self.state.stars0.size,
+                color: color::WHITE,
+                model: Matrix4::identity(),
+                camera: camera,
+            });
+
+            commands.push(Points {
+                buffer_name: "stars1".to_string(),
+                size: self.state.stars1.size,
+                color: color::WHITE,
+                model: Matrix4::identity(),
+                camera: camera,
+            });
+
+            commands.push(Points {
+                buffer_name: "stars2".to_string(),
+                size: self.state.stars2.size,
+                color: color::WHITE,
+                model: Matrix4::identity(),
+                camera: camera,
+            });
+        }
+
+        if self.state.is_wireframe {
+            commands.push(Lines {
+                buffer_name: "planet".to_string(),
+                width: 0.5,
+                color: color::BLACK,
+                model: Matrix4::identity(),
+                camera: camera,
+            });
+        } else {
+            commands.push(Solid {
+                buffer_name: "planet".to_string(),
+                light_dir: self.state.light_dir,
+                color: color::GREEN,
+                model: Matrix4::identity(),
+                camera: camera,
+            });
+        }
+
+        if self.state.is_ui_enabled {
+            let (frame_width, _) = self.frame_data.size_points;
+            let (scale_x, scale_y) = self.frame_data.scale_factor();
+
+            commands.push(Text {
+                font_name: "blogger_sans".to_string(),
+                color: color::BLACK,
+                text: format!("{:.2}", self.frame_data.frames_per_second()),
+                size: 12.0 * scale_y,
+                position: Point2 { x: (frame_width as f32 - 30.0) * scale_x, y: 2.0 * scale_y },
+                screen_matrix: screen_matrix,
+            });
+        }
+
         RenderData {
             frame_data: self.frame_data,
+            commands: commands,
             state: self.state.clone(),
         }
     }
@@ -484,77 +559,6 @@ fn init_resources(display: &glium::Display) -> Resources {
     resources
 }
 
-fn render_scene(frame: &mut Frame, frame_data: FrameData, state: &State, resources: &Resources) {
-    use render::Command;
-
-    let camera = state.create_scene_camera(frame_data.size_points);
-    let screen_matrix = state.create_hud_camera(frame_data.size_pixels);
-
-    render::handle_command(frame, resources, Command::Clear {
-        color: color::BLUE,
-    }).unwrap();
-
-    if state.is_showing_star_field {
-        // TODO: Render centered at eye position
-
-        render::handle_command(frame, resources, Command::Points {
-            buffer_name: "stars0".to_string(),
-            size: state.stars0.size,
-            color: color::WHITE,
-            model: Matrix4::identity(),
-            camera: camera,
-        }).unwrap();
-
-        render::handle_command(frame, resources, Command::Points {
-            buffer_name: "stars1".to_string(),
-            size: state.stars1.size,
-            color: color::WHITE,
-            model: Matrix4::identity(),
-            camera: camera,
-        }).unwrap();
-
-        render::handle_command(frame, resources, Command::Points {
-            buffer_name: "stars2".to_string(),
-            size: state.stars2.size,
-            color: color::WHITE,
-            model: Matrix4::identity(),
-            camera: camera,
-        }).unwrap();
-    }
-
-    if state.is_wireframe {
-        render::handle_command(frame, resources, Command::Lines {
-            buffer_name: "planet".to_string(),
-            width: 0.5,
-            color: color::BLACK,
-            model: Matrix4::identity(),
-            camera: camera,
-        }).unwrap();
-    } else {
-        render::handle_command(frame, resources, Command::Solid {
-            buffer_name: "planet".to_string(),
-            light_dir: state.light_dir,
-            color: color::GREEN,
-            model: Matrix4::identity(),
-            camera: camera,
-        }).unwrap();
-    }
-
-    if state.is_ui_enabled {
-        let (frame_width, _) = frame_data.size_points;
-        let (scale_x, scale_y) = frame_data.scale_factor();
-
-        render::handle_command(frame, resources, Command::Text {
-            font_name: "blogger_sans".to_string(),
-            color: color::BLACK,
-            text: format!("{:.2}", frame_data.frames_per_second()),
-            size: 12.0 * scale_y,
-            position: Point2 { x: (frame_width as f32 - 30.0) * scale_x, y: 2.0 * scale_y },
-            screen_matrix: screen_matrix,
-        }).unwrap();
-    }
-}
-
 fn run_ui<F>(ui: &Ui, frame_data: FrameData, state: &State, send: F) where F: Fn(InputEvent) {
     use InputEvent::*;
 
@@ -695,7 +699,7 @@ fn main() {
 
     'main: for time in times::in_seconds() {
         // Swap frames with update thread
-        let RenderData { state, frame_data } = {
+        let RenderData { frame_data, commands, state } = {
             let frame_data = create_frame_data(&display, time.delta() as f32);
             let update_event = UpdateEvent::FrameRequested(frame_data);
 
@@ -719,7 +723,9 @@ fn main() {
 
         // Render frame
         let mut frame = display.draw();
-        render_scene(&mut frame, frame_data, &state, &resources);
+        for command in commands {
+            render::handle_command(&mut frame, &resources, command).unwrap();
+        }
         render_ui(&mut frame, &mut ui_context, frame_data, &state, &update_tx);
         frame.finish().unwrap();
 
