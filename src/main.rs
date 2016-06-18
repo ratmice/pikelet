@@ -480,7 +480,7 @@ fn init_resources(display: &glium::Display) -> Resources {
 
     resources.handle_event(ResourceEvent::UploadFont {
         name: "blogger_sans".to_string(),
-        data: load_font(&assets.join("fonts/blogger/Blogger Sans.ttf")).unwrap(),
+        data: load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap(),
     });
 
     resources
