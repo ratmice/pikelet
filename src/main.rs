@@ -69,17 +69,13 @@ pub struct FrameData {
     size_pixels: (u32, u32),
     hidpi_factor: f32,
     delta_time: f32,
-    frames_per_second: f32,
 }
 
 impl FrameData {
-    fn new(width: u32, height: u32) -> FrameData {
-        FrameData {
-            size_points: (width, height),
-            size_pixels: (width, height),
-            hidpi_factor: 1.0,
-            delta_time: 0.0,
-            frames_per_second: 0.0,
+    fn frames_per_second(&self) -> f32 {
+        match self.delta_time {
+            0.0 => 0.0,
+            delta_time => 1.0 / delta_time,
         }
     }
 }
@@ -521,7 +517,7 @@ fn render_scene(frame: &mut Frame, frame_data: FrameData, state: &State, resourc
 
     if state.is_ui_enabled {
         let (window_width, _) = frame_data.size_points;
-        let fps_text = format!("{:.2}", frame_data.frames_per_second);
+        let fps_text = format!("{:.2}", frame_data.frames_per_second());
         let fps_location = Point2::new(window_width as f32 - 30.0, 2.0);
         target.render_hud_text(&fps_text, 12.0, fps_location, color::BLACK).unwrap();
     }
@@ -549,7 +545,7 @@ fn run_ui<F>(ui: &Ui, frame_data: FrameData, state: &State, send: F) where F: Fn
 
             ui.tree_node(im_str!("State")).build(|| {
                 ui.text(im_str!("delta_time: {:?}", frame_data.delta_time));
-                ui.text(im_str!("frames_per_second: {:?}", frame_data.frames_per_second));
+                ui.text(im_str!("frames_per_second: {:?}", frame_data.frames_per_second()));
                 ui.text(im_str!("size_points: {:?}", frame_data.size_points));
 
                 ui.separator();
@@ -601,13 +597,14 @@ fn main() {
         Input(InputEvent),
     }
 
-    fn create_frame_data(window: &glium::glutin::Window, time_delta: f32) -> FrameData {
+    fn create_frame_data(display: &glium::Display, delta_time: f32) -> FrameData {
+        let window = display.get_window().unwrap();
+
         FrameData {
             size_points: window.get_inner_size_points().unwrap(),
             size_pixels: window.get_inner_size_pixels().unwrap(),
             hidpi_factor: window.hidpi_factor(),
-            delta_time: time_delta as f32,
-            frames_per_second: 1.0 / time_delta as f32,
+            delta_time: delta_time as f32,
         }
     }
 
@@ -628,8 +625,8 @@ fn main() {
     let (resource_tx, resource_rx) = mpsc::channel();
     let (render_tx, render_rx) = mpsc::sync_channel(1);
 
-    let frame_data = FrameData::new(1000, 500);
-    let display = init_display("Voyager!", frame_data.size_points);
+    let display = init_display("Voyager!", (1000, 500));
+    let frame_data = create_frame_data(&display, 0.0);
     let mut resources = init_resources(&display);
     let mut ui_context = UiContext::new(&display);
 
@@ -666,9 +663,10 @@ fn main() {
     'main: for time in times::in_seconds() {
         // Swap frames with update thread
         let RenderData { state, frame_data } = {
-            let window = display.get_window().unwrap();
-            let frame_data = create_frame_data(&window, time.delta() as f32);
-            try_or!(update_tx.send(UpdateEvent::FrameRequested(frame_data)), break 'main);
+            let frame_data = create_frame_data(&display, time.delta() as f32);
+            let update_event = UpdateEvent::FrameRequested(frame_data);
+
+            try_or!(update_tx.send(update_event), break 'main);
             try_or!(render_rx.recv(), break 'main)
         };
         ui_context.set_is_enabled(state.is_ui_enabled);
@@ -677,6 +675,7 @@ fn main() {
         for event in display.poll_events() {
             ui_context.update(event.clone());
             let update_event = UpdateEvent::Input(InputEvent::from(event));
+
             try_or!(update_tx.send(update_event), break 'main);
         }
 
