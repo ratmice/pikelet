@@ -85,6 +85,7 @@ pub enum InputEvent {
     SetLimitingFps(bool),
     SetPlanetSubdivisions(usize),
     SetShowingStarField(bool),
+    SetStarFieldRadius(f32),
     SetUiCapturingMouse(bool),
     SetWireframe(bool),
     ToggleUi,
@@ -192,7 +193,7 @@ impl State {
             camera_zoom_factor: 10.0,
             camera_drag_factor: 10.0,
 
-            star_field_radius: 20.0,
+            star_field_radius: 10.0,
             stars0: StarField { size: 1.0, count: 100000 },
             stars1: StarField { size: 2.5, count: 10000 },
             stars2: StarField { size: 5.0, count: 1000 },
@@ -293,9 +294,9 @@ impl Game {
     }
 
     fn queue_regenete_stars_job(&self) {
-        self.queue_job(Job::Stars { index: 2, count: self.state.stars2.count, radius: self.state.star_field_radius });
-        self.queue_job(Job::Stars { index: 1, count: self.state.stars1.count, radius: self.state.star_field_radius });
-        self.queue_job(Job::Stars { index: 0, count: self.state.stars0.count, radius: self.state.star_field_radius });
+        self.queue_job(Job::Stars { index: 2, count: self.state.stars2.count });
+        self.queue_job(Job::Stars { index: 1, count: self.state.stars1.count });
+        self.queue_job(Job::Stars { index: 0, count: self.state.stars0.count });
     }
 
     fn handle_input(&mut self, event: InputEvent) -> Loop {
@@ -309,6 +310,7 @@ impl Game {
                 self.queue_regenete_planet_job();
             },
             SetShowingStarField(value) => self.state.is_showing_star_field = value,
+            SetStarFieldRadius(value) => self.state.star_field_radius = value,
             SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.state.is_wireframe = value,
             ToggleUi => self.state.is_ui_enabled = !self.state.is_ui_enabled,
@@ -343,7 +345,7 @@ impl Game {
                 buffer_name: "stars0".to_string(),
                 size: self.state.stars0.size,
                 color: color::WHITE,
-                model: Matrix4::identity(),
+                model: Matrix4::from_scale(self.state.star_field_radius),
                 camera: camera,
             });
 
@@ -351,7 +353,7 @@ impl Game {
                 buffer_name: "stars1".to_string(),
                 size: self.state.stars1.size,
                 color: color::WHITE,
-                model: Matrix4::identity(),
+                model: Matrix4::from_scale(self.state.star_field_radius),
                 camera: camera,
             });
 
@@ -359,7 +361,7 @@ impl Game {
                 buffer_name: "stars2".to_string(),
                 size: self.state.stars2.size,
                 color: color::WHITE,
-                model: Matrix4::identity(),
+                model: Matrix4::from_scale(self.state.star_field_radius),
                 camera: camera,
             });
         }
@@ -407,7 +409,7 @@ impl Game {
 #[derive(Debug)]
 enum Job {
     Planet { radius: f32, subdivs: usize },
-    Stars { index: usize, count: usize, radius: f32 },
+    Stars { index: usize, count: usize },
 }
 
 impl PartialEq for Job {
@@ -453,10 +455,10 @@ fn process_job(job: Job) -> ResourceEvent {
         (0..count).map(|_| rng.gen()).collect()
     }
 
-    fn create_star_vertices(stars: &[GeoPoint<f32>], radius: f32) -> Vec<Vertex> {
+    fn create_star_vertices(stars: &[GeoPoint<f32>]) -> Vec<Vertex> {
         let mut star_vertices = Vec::with_capacity(stars.len());
         stars.par_iter()
-            .map(|star| Vertex { position: array3(star.to_point(radius)) })
+            .map(|star| Vertex { position: array3(star.to_point(1.0)) })
             .collect_into(&mut star_vertices);
 
         star_vertices
@@ -473,9 +475,9 @@ fn process_job(job: Job) -> ResourceEvent {
                 indices: Indices::TrianglesList,
             }
         },
-        Job::Stars { index, count, radius } => {
+        Job::Stars { index, count } => {
             let stars = generate_stars(count);
-            let vertices = create_star_vertices(&stars, radius);
+            let vertices = create_star_vertices(&stars);
 
             ResourceEvent::UploadBuffer {
                 name: format!("stars{}", index),
@@ -568,6 +570,8 @@ fn run_ui<F>(ui: &Ui, frame_data: FrameData, state: &State, send: F) where F: Fn
                 .map(|v| send(SetLimitingFps(v)));
             ui::slider_int(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
                 .map(|v| send(SetPlanetSubdivisions(v as usize)));
+            ui::slider_float(ui, im_str!("Star field radius"), state.star_field_radius, 0.0, 20.0)
+                .map(|v| send(SetStarFieldRadius(v)));
 
             if ui.small_button(im_str!("Reset state")) {
                 send(ResetState);

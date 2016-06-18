@@ -122,6 +122,15 @@ pub fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool
     if value != initial_value { Some(value) } else { None }
 }
 
+pub fn slider_float(ui: &Ui, text: imgui::ImStr, initial_value: f32, min: f32, max: f32) -> Option<f32> {
+    use std::f32;
+
+    let mut value = initial_value;
+    ui.slider_float(text, &mut value, min, max).build();
+
+    if f32::abs(value - initial_value) > f32::EPSILON { Some(value) } else { None }
+}
+
 pub fn slider_int(ui: &Ui, text: imgui::ImStr, initial_value: i32, min: i32, max: i32) -> Option<i32> {
     let mut value = initial_value;
     ui.slider_int(text, &mut value, min, max).build();
