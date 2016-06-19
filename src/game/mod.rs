@@ -291,9 +291,10 @@ impl Game {
 
         command_list.clear(color::BLUE);
 
-        // TODO: Render centered at eye position
         if self.state.is_showing_star_field {
-            let star_field_matrix = Matrix4::from_scale(self.state.star_field_radius);
+            let star_field_matrix =
+                Matrix4::from_translation(camera.position.to_vec())
+                    * Matrix4::from_scale(self.state.star_field_radius);
 
             command_list.points("stars0", self.state.stars0.size, color::WHITE, star_field_matrix, camera);
             command_list.points("stars1", self.state.stars1.size, color::WHITE, star_field_matrix, camera);
