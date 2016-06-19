@@ -27,13 +27,10 @@ extern crate itertools;
 extern crate job_queue;
 
 use cgmath::Vector2;
-use glium::Frame;
-use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 use game::{InputEvent, State};
 use math::Size2;
-use render::CommandList;
 use ui::Context as UiContext;
 
 pub mod camera;
@@ -77,7 +74,8 @@ impl FrameData {
 
 pub struct RenderData {
     frame_data: FrameData,
-    commands: CommandList,
+    is_limiting_fps: bool,
+    is_ui_enabled: bool,
     state: State,
 }
 
@@ -97,16 +95,6 @@ fn create_frame_data(display: &glium::Display, delta_time: f32) -> FrameData {
         size_pixels: Size2::new(size_pixels.0, size_pixels.1),
         delta_time: delta_time,
     }
-}
-
-fn render_ui(target: &mut Frame, ui_context: &mut UiContext, frame_data: FrameData, state: &State, update_tx: &Sender<UpdateEvent>) {
-    ui_context.render(target, frame_data, |ui| {
-        game::run_ui(ui, frame_data, state, |event| {
-            // FIXME: could cause a panic on the slim chance that the update thread
-            //  closes during ui rendering.
-            update_tx.send(UpdateEvent::Input(event)).unwrap();
-        });
-    }).unwrap();
 }
 
 macro_rules! try_or {
@@ -140,20 +128,21 @@ fn main() {
 
     'main: for time in times::in_seconds() {
         // Swap frames with update thread
-        let RenderData { frame_data, commands, state } = {
+        let (render_data, command_list) = {
             let frame_data = create_frame_data(&display, time.delta() as f32);
             let update_event = UpdateEvent::FrameRequested(frame_data);
 
             try_or!(update_tx.send(update_event), break 'main);
             try_or!(render_rx.recv(), break 'main)
         };
-        ui_context.set_is_enabled(state.is_ui_enabled);
 
         // Get user input
         for event in display.poll_events() {
-            ui_context.update(event.clone());
-            let update_event = UpdateEvent::Input(InputEvent::from(event));
+            if render_data.is_ui_enabled {
+                ui_context.update(event.clone());
+            }
 
+            let update_event = UpdateEvent::Input(InputEvent::from(event));
             try_or!(update_tx.send(update_event), break 'main);
         }
 
@@ -165,12 +154,21 @@ fn main() {
         // Render frame
         let mut frame = display.draw();
 
-        resources.draw(&mut frame, commands).unwrap();
-        render_ui(&mut frame, &mut ui_context, frame_data, &state, &update_tx);
+        resources.draw(&mut frame, command_list).unwrap();
+
+        if render_data.is_ui_enabled {
+            ui_context.render(&mut frame, render_data.frame_data, |ui| {
+                game::run_ui(ui, &render_data, |event| {
+                    // FIXME: could cause a panic on the slim chance that the update thread
+                    // closes during ui rendering.
+                    update_tx.send(UpdateEvent::Input(event)).unwrap();
+                });
+            }).unwrap();
+        }
 
         frame.finish().unwrap();
 
-        if state.is_limiting_fps {
+        if render_data.is_limiting_fps {
             thread::sleep(Duration::from_millis(10));
         }
     }

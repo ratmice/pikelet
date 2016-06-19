@@ -74,9 +74,9 @@ pub struct StarField {
 #[derive(Clone)]
 pub struct State {
     is_dragging: bool,
-    pub is_limiting_fps: bool,
+    is_limiting_fps: bool,
     is_showing_star_field: bool,
-    pub is_ui_enabled: bool,
+    is_ui_enabled: bool,
     is_ui_capturing_mouse: bool,
     is_wireframe: bool,
     is_zooming: bool,
@@ -262,29 +262,29 @@ impl Game {
         Loop::Continue
     }
 
-    fn create_render_data(&self) -> RenderData {
-        let mut commands = CommandList::new();
+    fn create_render_data(&self) -> (RenderData, CommandList) {
+        let mut command_list = CommandList::new();
 
         let camera = self.state.create_scene_camera(self.frame_data.size_pixels);
         let screen_matrix = self.state.create_hud_camera(self.frame_data.size_pixels);
 
-        commands.clear(color::BLUE);
+        command_list.clear(color::BLUE);
 
         // TODO: Render centered at eye position
         if self.state.is_showing_star_field {
             let star_field_matrix = Matrix4::from_scale(self.state.star_field_radius);
 
-            commands.points("stars0", self.state.stars0.size, color::WHITE, star_field_matrix, camera);
-            commands.points("stars1", self.state.stars1.size, color::WHITE, star_field_matrix, camera);
-            commands.points("stars2", self.state.stars2.size, color::WHITE, star_field_matrix, camera);
+            command_list.points("stars0", self.state.stars0.size, color::WHITE, star_field_matrix, camera);
+            command_list.points("stars1", self.state.stars1.size, color::WHITE, star_field_matrix, camera);
+            command_list.points("stars2", self.state.stars2.size, color::WHITE, star_field_matrix, camera);
         }
 
         let planet_matrix = Matrix4::from_scale(self.state.planet_radius);
 
         if self.state.is_wireframe {
-            commands.lines("planet", 0.5, color::BLACK, planet_matrix, camera);
+            command_list.lines("planet", 0.5, color::BLACK, planet_matrix, camera);
         } else {
-            commands.solid("planet", self.state.light_dir, color::GREEN, planet_matrix, camera);
+            command_list.solid("planet", self.state.light_dir, color::GREEN, planet_matrix, camera);
         }
 
         if self.state.is_ui_enabled {
@@ -298,14 +298,17 @@ impl Game {
                 y: 2.0 * scale.y,
             };
 
-            commands.text("blogger_sans", color::BLACK, text, font_size, position, screen_matrix);
+            command_list.text("blogger_sans", color::BLACK, text, font_size, position, screen_matrix);
         }
 
-        RenderData {
+        let render_data = RenderData {
             frame_data: self.frame_data,
-            commands: commands,
+            is_limiting_fps: self.state.is_limiting_fps,
+            is_ui_enabled: self.state.is_ui_enabled,
             state: self.state.clone(),
-        }
+        };
+
+        (render_data, command_list)
     }
 }
 
@@ -437,24 +440,24 @@ pub fn init_resources(display: &glium::Display) -> Resources {
     resources
 }
 
-pub fn run_ui<F>(ui: &Ui, frame_data: FrameData, state: &State, send: F) where F: Fn(InputEvent) {
+pub fn run_ui<F>(ui: &Ui, render_data: &RenderData, send: F) where F: Fn(InputEvent) {
     use self::InputEvent::*;
 
     ui.window(im_str!("State"))
         .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
         .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
-            ui::checkbox(ui, im_str!("Wireframe"), state.is_wireframe)
+            ui::checkbox(ui, im_str!("Wireframe"), render_data.state.is_wireframe)
                 .map(|v| send(SetWireframe(v)));
-            ui::checkbox(ui, im_str!("Show star field"), state.is_showing_star_field)
+            ui::checkbox(ui, im_str!("Show star field"), render_data.state.is_showing_star_field)
                 .map(|v| send(SetShowingStarField(v)));
-            ui::checkbox(ui, im_str!("Limit FPS"), state.is_limiting_fps)
+            ui::checkbox(ui, im_str!("Limit FPS"), render_data.state.is_limiting_fps)
                 .map(|v| send(SetLimitingFps(v)));
-            ui::slider_int(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
+            ui::slider_int(ui, im_str!("Planet subdivisions"), render_data.state.planet_subdivs as i32, 1, 8)
                 .map(|v| send(SetPlanetSubdivisions(v as usize)));
-            ui::slider_float(ui, im_str!("Planet radius"), state.planet_radius, 0.0, 2.0)
+            ui::slider_float(ui, im_str!("Planet radius"), render_data.state.planet_radius, 0.0, 2.0)
                 .map(|v| send(SetPlanetRadius(v)));
-            ui::slider_float(ui, im_str!("Star field radius"), state.star_field_radius, 0.0, 20.0)
+            ui::slider_float(ui, im_str!("Star field radius"), render_data.state.star_field_radius, 0.0, 20.0)
                 .map(|v| send(SetStarFieldRadius(v)));
 
             if ui.small_button(im_str!("Reset state")) {
@@ -462,44 +465,46 @@ pub fn run_ui<F>(ui: &Ui, frame_data: FrameData, state: &State, send: F) where F
             }
 
             ui.tree_node(im_str!("State")).build(|| {
-                ui.text(im_str!("delta_time: {:?}", frame_data.delta_time));
-                ui.text(im_str!("frames_per_second: {:?}", frame_data.frames_per_second()));
-                ui.text(im_str!("size_points: {:?}", frame_data.size_points));
-                ui.text(im_str!("size_pixels: {:?}", frame_data.size_pixels));
-                ui.text(im_str!("framebuffer_scale: {:?}", frame_data.framebuffer_scale()));
+                ui.text(im_str!("delta_time: {:?}", render_data.frame_data.delta_time));
+                ui.text(im_str!("frames_per_second: {:?}", render_data.frame_data.frames_per_second()));
+                ui.text(im_str!("size_points: {:?}", render_data.frame_data.size_points));
+                ui.text(im_str!("size_pixels: {:?}", render_data.frame_data.size_pixels));
+                ui.text(im_str!("framebuffer_scale: {:?}", render_data.frame_data.framebuffer_scale()));
 
                 ui.separator();
 
-                ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
-                ui.text(im_str!("is_limiting_fps: {:?}", state.is_limiting_fps));
-                ui.text(im_str!("is_showing_star_field: {:?}", state.is_showing_star_field));
-                ui.text(im_str!("is_ui_enabled: {:?}", state.is_ui_enabled));
-                ui.text(im_str!("is_ui_capturing_mouse: {:?}", state.is_ui_capturing_mouse));
-                ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
-                ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
+                ui.text(im_str!("is_dragging: {:?}", render_data.state.is_dragging));
+                ui.text(im_str!("is_limiting_fps: {:?}", render_data.state.is_limiting_fps));
+                ui.text(im_str!("is_showing_star_field: {:?}", render_data.state.is_showing_star_field));
+                ui.text(im_str!("is_ui_enabled: {:?}", render_data.state.is_ui_enabled));
+                ui.text(im_str!("is_ui_capturing_mouse: {:?}", render_data.state.is_ui_capturing_mouse));
+                ui.text(im_str!("is_wireframe: {:?}", render_data.state.is_wireframe));
+                ui.text(im_str!("is_zooming: {:?}", render_data.state.is_zooming));
 
                 ui.separator();
 
-                ui.text(im_str!("light_dir: {:?}", state.light_dir));
+                ui.text(im_str!("light_dir: {:?}", render_data.state.light_dir));
 
                 ui.separator();
 
-                ui.text(im_str!("mouse_position: {:?}", state.mouse_position));
+                ui.text(im_str!("mouse_position: {:?}", render_data.state.mouse_position));
 
                 ui.separator();
 
-                ui.text(im_str!("camera_rotation: {:?}", state.camera_rotation));
-                ui.text(im_str!("camera_rotation_delta: {:?}", state.camera_rotation_delta));
-                ui.text(im_str!("camera_xz_radius: {:?}", state.camera_xz_radius));
+                ui.text(im_str!("camera_rotation: {:?}", render_data.state.camera_rotation));
+                ui.text(im_str!("camera_rotation_delta: {:?}", render_data.state.camera_rotation_delta));
+                ui.text(im_str!("camera_xz_radius: {:?}", render_data.state.camera_xz_radius));
             });
         });
 
-    if ui.want_capture_mouse() != state.is_ui_capturing_mouse {
+    if ui.want_capture_mouse() != render_data.state.is_ui_capturing_mouse {
         send(SetUiCapturingMouse(ui.want_capture_mouse()));
     }
 }
 
-pub fn spawn(frame_data: FrameData, resource_tx: Sender<ResourceEvent>, render_tx: SyncSender<RenderData>) -> Sender<UpdateEvent> {
+pub fn spawn(frame_data: FrameData,
+             resource_tx: Sender<ResourceEvent>,
+             render_tx: SyncSender<(RenderData, CommandList)>) -> Sender<UpdateEvent> {
     use job_queue;
     use std::sync::mpsc;
     use std::thread;
