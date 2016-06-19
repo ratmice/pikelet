@@ -103,9 +103,10 @@ impl Context {
         self.imgui.set_mouse_wheel(self.mouse_wheel / scale.1);
         self.mouse_wheel = 0.0;
 
+        let FrameData { size_pixels, size_points, .. } = frame_data;
         let ui = self.imgui.frame(
-            frame_data.size_points,
-            frame_data.size_pixels,
+            (size_points.width, size_points.height),
+            (size_pixels.width, size_pixels.height),
             frame_data.delta_time,
         );
 

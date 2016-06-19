@@ -28,7 +28,7 @@ extern crate job_queue;
 
 use cgmath::conv::*;
 use cgmath::prelude::*;
-use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
+use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector2, Vector3};
 use find_folder::Search as FolderSearch;
 use glium::Frame;
 use glium::glutin;
@@ -43,7 +43,7 @@ use camera::{Camera, ComputedCamera};
 use geom::Mesh;
 use geom::primitives;
 use geom::algorithms::{Subdivide, Dual};
-use math::GeoPoint;
+use math::{GeoPoint, Size2};
 use render::{DrawCommand, ResourceEvent, Resources, Vertex, Indices};
 use ui::Context as UiContext;
 
@@ -58,8 +58,8 @@ pub mod ui;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct FrameData {
-    size_points: (u32, u32),
-    size_pixels: (u32, u32),
+    size_points: Size2<u32>,
+    size_pixels: Size2<u32>,
     delta_time: f32,
 }
 
@@ -71,10 +71,16 @@ impl FrameData {
         }
     }
 
-    fn scale_factor(&self) -> (f32, f32) {
-        (
-            if self.size_points.0 == 0 { 0.0 } else { self.size_pixels.0 as f32 / self.size_points.0 as f32 },
-            if self.size_points.1 == 0 { 0.0 } else { self.size_pixels.1 as f32 / self.size_points.1 as f32 },
+    fn framebuffer_scale(&self) -> Vector2<f32> {
+        Vector2::new(
+            match self.size_points.width {
+                0 => 0.0,
+                width => self.size_pixels.width as f32 / width as f32,
+            },
+            match self.size_points.height {
+                0 => 0.0,
+                height => self.size_pixels.height as f32 / height as f32,
+            },
         )
     }
 }
@@ -215,25 +221,25 @@ impl State {
         }
     }
 
-    fn scene_camera_projection(&self, (frame_width, frame_height): (u32, u32)) -> PerspectiveFov<f32> {
+    fn scene_camera_projection(&self, size_pixels: Size2<u32>) -> PerspectiveFov<f32> {
         PerspectiveFov {
-            aspect: frame_width as f32 / frame_height as f32,
+            aspect: size_pixels.width as f32 / size_pixels.height as f32,
             fovy: Rad::full_turn() / 6.0,
             near: self.camera_near,
             far: self.camera_far,
         }
     }
 
-    fn create_scene_camera(&self, frame_dimensions: (u32, u32)) -> ComputedCamera {
+    fn create_scene_camera(&self, size_pixels: Size2<u32>) -> ComputedCamera {
         Camera {
             position: self.scene_camera_position(),
             target: Point3::origin(),
-            projection: self.scene_camera_projection(frame_dimensions),
+            projection: self.scene_camera_projection(size_pixels),
         }.compute()
     }
 
-    fn create_hud_camera(&self, (frame_width, frame_height): (u32, u32)) -> Matrix4<f32> {
-        cgmath::ortho(0.0, frame_width as f32, frame_height as f32, 0.0, -1.0, 1.0)
+    fn create_hud_camera(&self, size_pixels: Size2<u32>) -> Matrix4<f32> {
+        cgmath::ortho(0.0, size_pixels.width as f32, size_pixels.height as f32, 0.0, -1.0, 1.0)
     }
 }
 
@@ -258,8 +264,8 @@ impl Game {
 
         if !self.state.is_ui_capturing_mouse {
             if self.state.is_dragging {
-                let (window_width, _) = self.frame_data.size_points;
-                let rotations_per_second = (mouse_delta.x as f32 / window_width as f32) * self.state.camera_drag_factor;
+                let size_points = self.frame_data.size_points;
+                let rotations_per_second = (mouse_delta.x as f32 / size_points.width as f32) * self.state.camera_drag_factor;
                 self.state.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.frame_data.delta_time;
             }
 
@@ -331,7 +337,7 @@ impl Game {
 
         let mut commands = Vec::new();
 
-        let camera = self.state.create_scene_camera(self.frame_data.size_points);
+        let camera = self.state.create_scene_camera(self.frame_data.size_pixels);
         let screen_matrix = self.state.create_hud_camera(self.frame_data.size_pixels);
 
         commands.push(Clear {
@@ -385,15 +391,15 @@ impl Game {
         }
 
         if self.state.is_ui_enabled {
-            let (frame_width, _) = self.frame_data.size_points;
-            let (scale_x, scale_y) = self.frame_data.scale_factor();
+            let size_points = self.frame_data.size_points;
+            let scale = self.frame_data.framebuffer_scale();
 
             commands.push(Text {
                 font_name: "blogger_sans".to_string(),
                 color: color::BLACK,
                 text: format!("{:.2}", self.frame_data.frames_per_second()),
-                size: 12.0 * scale_y,
-                position: Point2 { x: (frame_width as f32 - 30.0) * scale_x, y: 2.0 * scale_y },
+                size: 12.0 * scale.y,
+                position: Point2 { x: (size_points.width as f32 - 30.0) * scale.x, y: 2.0 * scale.y },
                 screen_matrix: screen_matrix,
             });
         }
@@ -582,7 +588,7 @@ fn run_ui<F>(ui: &Ui, frame_data: FrameData, state: &State, send: F) where F: Fn
                 ui.text(im_str!("frames_per_second: {:?}", frame_data.frames_per_second()));
                 ui.text(im_str!("size_points: {:?}", frame_data.size_points));
                 ui.text(im_str!("size_pixels: {:?}", frame_data.size_pixels));
-                ui.text(im_str!("scale_factor: {:?}", frame_data.scale_factor()));
+                ui.text(im_str!("framebuffer_scale: {:?}", frame_data.framebuffer_scale()));
 
                 ui.separator();
 
@@ -635,10 +641,12 @@ fn main() {
 
     fn create_frame_data(display: &glium::Display, delta_time: f32) -> FrameData {
         let window = display.get_window().unwrap();
+        let size_points = window.get_inner_size_points().unwrap();
+        let size_pixels = window.get_inner_size_pixels().unwrap();
 
         FrameData {
-            size_points: window.get_inner_size_points().unwrap(),
-            size_pixels: window.get_inner_size_pixels().unwrap(),
+            size_points: Size2::new(size_points.0, size_points.1),
+            size_pixels: Size2::new(size_pixels.0, size_pixels.1),
             delta_time: delta_time,
         }
     }

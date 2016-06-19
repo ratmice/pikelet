@@ -17,6 +17,21 @@ pub fn set_radius(point: Point3<f32>, radius: f32) -> Point3<f32> {
     Point3::from_vec(point.to_vec().normalize_to(radius))
 }
 
+#[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq)]
+pub struct Size2<T> {
+    pub width: T,
+    pub height: T,
+}
+
+impl<T> Size2<T> {
+    pub fn new(width: T, height: T) -> Size2<T> {
+        Size2 {
+            width: width,
+            height: height,
+        }
+    }
+}
+
 /// A location on a unit sphere, described using latitude and longitude.
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
 pub struct LatLong<A: Angle> {
