@@ -66,13 +66,13 @@ impl From<glutin::Event> for InputEvent {
 }
 
 #[derive(Clone, Debug)]
-pub struct StarField {
+struct StarField {
     count: usize,
     size: f32,
 }
 
 #[derive(Clone)]
-pub struct State {
+struct State {
     is_dragging: bool,
     is_limiting_fps: bool,
     is_showing_star_field: bool,
@@ -262,7 +262,28 @@ impl Game {
         Loop::Continue
     }
 
-    fn create_render_data(&self) -> (RenderData, CommandList) {
+    fn create_ui_state(&self) -> UiState {
+        UiState {
+            is_wireframe: self.state.is_wireframe,
+            is_showing_star_field: self.state.is_showing_star_field,
+            is_limiting_fps: self.state.is_limiting_fps,
+            is_ui_capturing_mouse: self.state.is_ui_capturing_mouse,
+            planet_subdivs: self.state.planet_subdivs,
+            planet_radius: self.state.planet_radius,
+            star_field_radius: self.state.star_field_radius,
+        }
+    }
+
+    fn create_render_data(&self) -> RenderData {
+        RenderData {
+            metrics: self.frame_metrics,
+            is_limiting_fps: self.state.is_limiting_fps,
+            is_ui_enabled: self.state.is_ui_enabled,
+            ui_state: self.create_ui_state(),
+        }
+    }
+
+    fn create_command_list(&self) -> CommandList {
         let mut command_list = CommandList::new();
 
         let camera = self.state.create_scene_camera(self.frame_metrics.size_pixels);
@@ -301,14 +322,7 @@ impl Game {
             command_list.text("blogger_sans", color::BLACK, text, font_size, position, screen_matrix);
         }
 
-        let render_data = RenderData {
-            metrics: self.frame_metrics,
-            is_limiting_fps: self.state.is_limiting_fps,
-            is_ui_enabled: self.state.is_ui_enabled,
-            state: self.state.clone(),
-        };
-
-        (render_data, command_list)
+        command_list
     }
 }
 
@@ -440,12 +454,22 @@ pub fn init_resources(display: &glium::Display) -> Resources {
     resources
 }
 
-pub fn run_ui<F>(ui: &Ui, metrics: FrameMetrics, state: &State, send: F) where F: Fn(InputEvent) {
+pub struct UiState {
+    is_wireframe: bool,
+    is_showing_star_field: bool,
+    is_limiting_fps: bool,
+    is_ui_capturing_mouse: bool,
+    planet_subdivs: usize,
+    planet_radius: f32,
+    star_field_radius: f32,
+}
+
+pub fn run_ui<F>(ui: &Ui, state: &UiState, send: F) where F: Fn(InputEvent) {
     use self::InputEvent::*;
 
     ui.window(im_str!("State"))
         .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
-        .size((250.0, 350.0), imgui::ImGuiSetCond_FirstUseEver)
+        .size((300.0, 250.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
             ui::checkbox(ui, im_str!("Wireframe"), state.is_wireframe)
                 .map(|v| send(SetWireframe(v)));
@@ -463,38 +487,6 @@ pub fn run_ui<F>(ui: &Ui, metrics: FrameMetrics, state: &State, send: F) where F
             if ui.small_button(im_str!("Reset state")) {
                 send(ResetState);
             }
-
-            ui.tree_node(im_str!("State")).build(|| {
-                ui.text(im_str!("delta_time: {:?}", metrics.delta_time));
-                ui.text(im_str!("frames_per_second: {:?}", metrics.frames_per_second()));
-                ui.text(im_str!("size_points: {:?}", metrics.size_points));
-                ui.text(im_str!("size_pixels: {:?}", metrics.size_pixels));
-                ui.text(im_str!("framebuffer_scale: {:?}", metrics.framebuffer_scale()));
-
-                ui.separator();
-
-                ui.text(im_str!("is_dragging: {:?}", state.is_dragging));
-                ui.text(im_str!("is_limiting_fps: {:?}", state.is_limiting_fps));
-                ui.text(im_str!("is_showing_star_field: {:?}", state.is_showing_star_field));
-                ui.text(im_str!("is_ui_enabled: {:?}", state.is_ui_enabled));
-                ui.text(im_str!("is_ui_capturing_mouse: {:?}", state.is_ui_capturing_mouse));
-                ui.text(im_str!("is_wireframe: {:?}", state.is_wireframe));
-                ui.text(im_str!("is_zooming: {:?}", state.is_zooming));
-
-                ui.separator();
-
-                ui.text(im_str!("light_dir: {:?}", state.light_dir));
-
-                ui.separator();
-
-                ui.text(im_str!("mouse_position: {:?}", state.mouse_position));
-
-                ui.separator();
-
-                ui.text(im_str!("camera_rotation: {:?}", state.camera_rotation));
-                ui.text(im_str!("camera_rotation_delta: {:?}", state.camera_rotation_delta));
-                ui.text(im_str!("camera_xz_radius: {:?}", state.camera_xz_radius));
-            });
         });
 
     if ui.want_capture_mouse() != state.is_ui_capturing_mouse {
@@ -527,7 +519,9 @@ pub fn spawn(frame_data: FrameMetrics,
                     // We send the data for the last frame so that the renderer
                     // can get started doing it's job in parallel!
                     let render_data = game.create_render_data();
-                    render_tx.send(render_data).expect("Failed to send render data");
+                    let command_list = game.create_command_list();
+                    render_tx.send((render_data, command_list))
+                        .expect("Failed to send render data");
 
                     game.handle_frame_request(frame_data)
                 },

@@ -29,7 +29,7 @@ extern crate job_queue;
 use cgmath::Vector2;
 use std::time::Duration;
 
-use game::{InputEvent, State};
+use game::{InputEvent, UiState};
 use math::Size2;
 use ui::Context as UiContext;
 
@@ -76,7 +76,7 @@ pub struct RenderData {
     metrics: FrameMetrics,
     is_limiting_fps: bool,
     is_ui_enabled: bool,
-    state: State,
+    ui_state: UiState,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -158,7 +158,7 @@ fn main() {
 
         if render_data.is_ui_enabled {
             ui_context.render(&mut frame, render_data.metrics, |ui| {
-                game::run_ui(ui, render_data.metrics, &render_data.state, |event| {
+                game::run_ui(ui, &render_data.ui_state, |event| {
                     // FIXME: could cause a panic on the slim chance that the update thread
                     // closes during ui rendering.
                     update_tx.send(UpdateEvent::Input(event)).unwrap();
