@@ -34,7 +34,6 @@ use glium::Frame;
 use glium::glutin;
 use imgui::Ui;
 use rand::Rng;
-use rayon::prelude::*;
 use std::mem;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
@@ -456,18 +455,12 @@ fn process_job(job: Job) -> ResourceEvent {
         vertices
     }
 
-    fn generate_stars(count: usize) -> Vec<GeoPoint<f32>> {
+    fn create_star_vertices(count: usize) -> Vec<Vertex> {
         let mut rng = rand::weak_rng();
-        (0..count).map(|_| rng.gen()).collect()
-    }
 
-    fn create_star_vertices(stars: &[GeoPoint<f32>]) -> Vec<Vertex> {
-        let mut star_vertices = Vec::with_capacity(stars.len());
-        stars.par_iter()
+        (0..count).map(|_| rng.gen::<GeoPoint<f32>>())
             .map(|star| Vertex { position: array3(star.to_point(1.0)) })
-            .collect_into(&mut star_vertices);
-
-        star_vertices
+            .collect()
     }
 
     match job {
@@ -482,12 +475,9 @@ fn process_job(job: Job) -> ResourceEvent {
             }
         },
         Job::Stars { index, count } => {
-            let stars = generate_stars(count);
-            let vertices = create_star_vertices(&stars);
-
             ResourceEvent::UploadBuffer {
                 name: format!("stars{}", index),
-                vertices: vertices,
+                vertices: create_star_vertices(count),
                 indices: Indices::Points,
             }
         },
