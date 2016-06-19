@@ -15,7 +15,7 @@ use geom::Mesh;
 use geom::primitives;
 use geom::algorithms::{Subdivide, Dual};
 use math::{self, GeoPoint, Size2};
-use render::{ResourceEvent, Resources, Vertex, Indices};
+use render::{CommandList, ResourceEvent, Resources, Vertex, Indices};
 use ui;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -263,75 +263,42 @@ impl Game {
     }
 
     fn create_render_data(&self) -> RenderData {
-        use render::DrawCommand::*;
-
-        let mut commands = Vec::new();
+        let mut commands = CommandList::new();
 
         let camera = self.state.create_scene_camera(self.frame_data.size_pixels);
         let screen_matrix = self.state.create_hud_camera(self.frame_data.size_pixels);
 
-        commands.push(Clear {
-            color: color::BLUE,
-        });
+        commands.clear(color::BLUE);
 
+        // TODO: Render centered at eye position
         if self.state.is_showing_star_field {
-            // TODO: Render centered at eye position
+            let star_field_matrix = Matrix4::from_scale(self.state.star_field_radius);
 
-            commands.push(Points {
-                buffer_name: "stars0".to_string(),
-                size: self.state.stars0.size,
-                color: color::WHITE,
-                model: Matrix4::from_scale(self.state.star_field_radius),
-                camera: camera,
-            });
-
-            commands.push(Points {
-                buffer_name: "stars1".to_string(),
-                size: self.state.stars1.size,
-                color: color::WHITE,
-                model: Matrix4::from_scale(self.state.star_field_radius),
-                camera: camera,
-            });
-
-            commands.push(Points {
-                buffer_name: "stars2".to_string(),
-                size: self.state.stars2.size,
-                color: color::WHITE,
-                model: Matrix4::from_scale(self.state.star_field_radius),
-                camera: camera,
-            });
+            commands.points("stars0", self.state.stars0.size, color::WHITE, star_field_matrix, camera);
+            commands.points("stars1", self.state.stars1.size, color::WHITE, star_field_matrix, camera);
+            commands.points("stars2", self.state.stars2.size, color::WHITE, star_field_matrix, camera);
         }
 
+        let planet_matrix = Matrix4::from_scale(self.state.planet_radius);
+
         if self.state.is_wireframe {
-            commands.push(Lines {
-                buffer_name: "planet".to_string(),
-                width: 0.5,
-                color: color::BLACK,
-                model: Matrix4::from_scale(self.state.planet_radius),
-                camera: camera,
-            });
+            commands.lines("planet", 0.5, color::BLACK, planet_matrix, camera);
         } else {
-            commands.push(Solid {
-                buffer_name: "planet".to_string(),
-                light_dir: self.state.light_dir,
-                color: color::GREEN,
-                model: Matrix4::from_scale(self.state.planet_radius),
-                camera: camera,
-            });
+            commands.solid("planet", self.state.light_dir, color::GREEN, planet_matrix, camera);
         }
 
         if self.state.is_ui_enabled {
             let size_points = self.frame_data.size_points;
             let scale = self.frame_data.framebuffer_scale();
 
-            commands.push(Text {
-                font_name: "blogger_sans".to_string(),
-                color: color::BLACK,
-                text: format!("{:.2}", self.frame_data.frames_per_second()),
-                size: 12.0 * scale.y,
-                position: Point2 { x: (size_points.width as f32 - 30.0) * scale.x, y: 2.0 * scale.y },
-                screen_matrix: screen_matrix,
-            });
+            let text = format!("{:.2}", self.frame_data.frames_per_second());
+            let font_size = 12.0 * scale.y;
+            let position = Point2 {
+                x: (size_points.width as f32 - 30.0) * scale.x,
+                y: 2.0 * scale.y,
+            };
+
+            commands.text("blogger_sans", color::BLACK, text, font_size, position, screen_matrix);
         }
 
         RenderData {

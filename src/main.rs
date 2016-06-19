@@ -33,7 +33,7 @@ use std::time::Duration;
 
 use game::{InputEvent, State};
 use math::Size2;
-use render::DrawCommand;
+use render::CommandList;
 use ui::Context as UiContext;
 
 pub mod camera;
@@ -77,7 +77,7 @@ impl FrameData {
 
 pub struct RenderData {
     frame_data: FrameData,
-    commands: Vec<DrawCommand>,
+    commands: CommandList,
     state: State,
 }
 
@@ -164,10 +164,10 @@ fn main() {
 
         // Render frame
         let mut frame = display.draw();
-        for command in commands {
-            resources.handle_draw_command(&mut frame, command).unwrap();
-        }
+
+        resources.draw(&mut frame, commands).unwrap();
         render_ui(&mut frame, &mut ui_context, frame_data, &state, &update_tx);
+
         frame.finish().unwrap();
 
         if state.is_limiting_fps {
