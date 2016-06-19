@@ -44,13 +44,13 @@ mod render;
 pub mod ui;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct FrameData {
+pub struct FrameMetrics {
     size_points: Size2<u32>,
     size_pixels: Size2<u32>,
     delta_time: f32,
 }
 
-impl FrameData {
+impl FrameMetrics {
     fn frames_per_second(&self) -> f32 {
         match self.delta_time {
             0.0 => 0.0,
@@ -73,7 +73,7 @@ impl FrameData {
 }
 
 pub struct RenderData {
-    frame_data: FrameData,
+    metrics: FrameMetrics,
     is_limiting_fps: bool,
     is_ui_enabled: bool,
     state: State,
@@ -81,16 +81,16 @@ pub struct RenderData {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum UpdateEvent {
-    FrameRequested(FrameData),
+    FrameRequested(FrameMetrics),
     Input(InputEvent),
 }
 
-fn create_frame_data(display: &glium::Display, delta_time: f32) -> FrameData {
+fn create_frame_metrics(display: &glium::Display, delta_time: f32) -> FrameMetrics {
     let window = display.get_window().unwrap();
     let size_points = window.get_inner_size_points().unwrap();
     let size_pixels = window.get_inner_size_pixels().unwrap();
 
-    FrameData {
+    FrameMetrics {
         size_points: Size2::new(size_points.0, size_points.1),
         size_pixels: Size2::new(size_pixels.0, size_pixels.1),
         delta_time: delta_time,
@@ -117,20 +117,20 @@ fn main() {
             .build_glium()
             .unwrap();
 
-    let frame_data = create_frame_data(&display, 0.0);
+    let metrics = create_frame_metrics(&display, 0.0);
     let mut resources = game::init_resources(&display);
     let mut ui_context = UiContext::new(&display);
 
     let (resource_tx, resource_rx) = mpsc::channel();
     let (render_tx, render_rx) = mpsc::sync_channel(1);
 
-    let update_tx = game::spawn(frame_data, resource_tx, render_tx);
+    let update_tx = game::spawn(metrics, resource_tx, render_tx);
 
     'main: for time in times::in_seconds() {
         // Swap frames with update thread
         let (render_data, command_list) = {
-            let frame_data = create_frame_data(&display, time.delta() as f32);
-            let update_event = UpdateEvent::FrameRequested(frame_data);
+            let metrics = create_frame_metrics(&display, time.delta() as f32);
+            let update_event = UpdateEvent::FrameRequested(metrics);
 
             try_or!(update_tx.send(update_event), break 'main);
             try_or!(render_rx.recv(), break 'main)
@@ -157,8 +157,8 @@ fn main() {
         resources.draw(&mut frame, command_list).unwrap();
 
         if render_data.is_ui_enabled {
-            ui_context.render(&mut frame, render_data.frame_data, |ui| {
-                game::run_ui(ui, &render_data, |event| {
+            ui_context.render(&mut frame, render_data.metrics, |ui| {
+                game::run_ui(ui, render_data.metrics, &render_data.state, |event| {
                     // FIXME: could cause a panic on the slim chance that the update thread
                     // closes during ui rendering.
                     update_tx.send(UpdateEvent::Input(event)).unwrap();

@@ -4,7 +4,7 @@ use glium::Frame;
 use imgui::{self, ImGui, ImGuiKey, Ui};
 use imgui::glium_renderer::{Renderer, RendererResult};
 
-use FrameData;
+use FrameMetrics;
 
 pub struct Context {
     imgui: ImGui,
@@ -88,18 +88,18 @@ impl Context {
         }
     }
 
-    pub fn render<F: FnMut(&Ui)>(&mut self, target: &mut Frame, frame_data: FrameData, mut run_ui: F) -> RendererResult<()> {
+    pub fn render<F: FnMut(&Ui)>(&mut self, target: &mut Frame, metrics: FrameMetrics, mut run_ui: F) -> RendererResult<()> {
         let scale = self.imgui.display_framebuffer_scale();
         self.imgui.set_mouse_pos(self.mouse_pos.0 as f32 / scale.0, self.mouse_pos.1 as f32 / scale.1);
         self.imgui.set_mouse_down(&[self.mouse_pressed.0, self.mouse_pressed.1, self.mouse_pressed.2, false, false]);
         self.imgui.set_mouse_wheel(self.mouse_wheel / scale.1);
         self.mouse_wheel = 0.0;
 
-        let FrameData { size_pixels, size_points, .. } = frame_data;
+        let FrameMetrics { size_pixels, size_points, .. } = metrics;
         let ui = self.imgui.frame(
             (size_points.width, size_points.height),
             (size_pixels.width, size_pixels.height),
-            frame_data.delta_time,
+            metrics.delta_time,
         );
 
         run_ui(&ui);
