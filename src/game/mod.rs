@@ -28,6 +28,7 @@ enum Loop {
 pub enum InputEvent {
     Close,
     SetLimitingFps(bool),
+    SetPlanetRadius(f32),
     SetPlanetSubdivisions(usize),
     SetShowingStarField(bool),
     SetStarFieldRadius(f32),
@@ -191,7 +192,6 @@ impl Game {
 
     fn queue_regenete_planet_job(&self) {
         self.queue_job(Job::Planet {
-            radius: self.state.planet_radius,
             subdivs: self.state.planet_subdivs,
         });
     }
@@ -240,6 +240,7 @@ impl Game {
         match event {
             Close => return Loop::Break,
             SetLimitingFps(value) => self.state.is_limiting_fps = value,
+            SetPlanetRadius(value) => self.state.planet_radius = value,
             SetPlanetSubdivisions(planet_subdivs) => {
                 self.state.planet_subdivs = planet_subdivs;
                 self.queue_regenete_planet_job();
@@ -306,7 +307,7 @@ impl Game {
                 buffer_name: "planet".to_string(),
                 width: 0.5,
                 color: color::BLACK,
-                model: Matrix4::identity(),
+                model: Matrix4::from_scale(self.state.planet_radius),
                 camera: camera,
             });
         } else {
@@ -314,7 +315,7 @@ impl Game {
                 buffer_name: "planet".to_string(),
                 light_dir: self.state.light_dir,
                 color: color::GREEN,
-                model: Matrix4::identity(),
+                model: Matrix4::from_scale(self.state.planet_radius),
                 camera: camera,
             });
         }
@@ -343,7 +344,7 @@ impl Game {
 
 #[derive(Debug)]
 enum Job {
-    Planet { radius: f32, subdivs: usize },
+    Planet { subdivs: usize },
     Stars { index: usize, count: usize },
 }
 
@@ -358,9 +359,9 @@ impl PartialEq for Job {
 }
 
 fn process_job(job: Job) -> ResourceEvent {
-    fn generate_planet_mesh(radius: f32, subdivs: usize) -> Mesh {
-        primitives::icosahedron(radius)
-            .subdivide(subdivs, &|a, b| math::midpoint_arc(radius, a, b))
+    fn generate_planet_mesh(subdivs: usize) -> Mesh {
+        primitives::icosahedron(1.0)
+            .subdivide(subdivs, &|a, b| math::midpoint_arc(1.0, a, b))
             .generate_dual()
     }
 
@@ -394,8 +395,8 @@ fn process_job(job: Job) -> ResourceEvent {
     }
 
     match job {
-        Job::Planet { radius, subdivs } => {
-            let mesh = generate_planet_mesh(radius, subdivs);
+        Job::Planet { subdivs } => {
+            let mesh = generate_planet_mesh(subdivs);
             let vertices = create_vertices(&mesh);
 
             ResourceEvent::UploadBuffer {
@@ -484,6 +485,8 @@ pub fn run_ui<F>(ui: &Ui, frame_data: FrameData, state: &State, send: F) where F
                 .map(|v| send(SetLimitingFps(v)));
             ui::slider_int(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
                 .map(|v| send(SetPlanetSubdivisions(v as usize)));
+            ui::slider_float(ui, im_str!("Planet radius"), state.planet_radius, 0.0, 2.0)
+                .map(|v| send(SetPlanetRadius(v)));
             ui::slider_float(ui, im_str!("Star field radius"), state.star_field_radius, 0.0, 20.0)
                 .map(|v| send(SetStarFieldRadius(v)));
 
@@ -521,11 +524,6 @@ pub fn run_ui<F>(ui: &Ui, frame_data: FrameData, state: &State, send: F) where F
                 ui.text(im_str!("camera_rotation: {:?}", state.camera_rotation));
                 ui.text(im_str!("camera_rotation_delta: {:?}", state.camera_rotation_delta));
                 ui.text(im_str!("camera_xz_radius: {:?}", state.camera_xz_radius));
-
-                ui.separator();
-
-                ui.text(im_str!("planet_radius: {:?}", state.planet_radius));
-                ui.text(im_str!("planet_subdivs: {:?}", state.planet_subdivs));
             });
         });
 
