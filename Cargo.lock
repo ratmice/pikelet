@@ -7,7 +7,7 @@ dependencies = [
  "expectest 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "find_folder 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "imgui 0.0.9-pre (git+https://github.com/bjz/imgui-rs.git?branch=hidpi)",
+ "imgui 0.0.9-pre (git+https://github.com/Gekkio/imgui-rs.git)",
  "itertools 0.4.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "job_queue 0.0.1",
  "maplit 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -344,18 +344,18 @@ dependencies = [
 [[package]]
 name = "imgui"
 version = "0.0.9-pre"
-source = "git+https://github.com/bjz/imgui-rs.git?branch=hidpi#3548542ca5bef727df32c6022bf8ce374da76658"
+source = "git+https://github.com/Gekkio/imgui-rs.git#31c2d9f5b7b9b2a81c672294fed79280b63602d7"
 dependencies = [
  "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "imgui-sys 0.0.9-pre (git+https://github.com/bjz/imgui-rs.git?branch=hidpi)",
+ "imgui-sys 0.0.9-pre (git+https://github.com/Gekkio/imgui-rs.git)",
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "imgui-sys"
 version = "0.0.9-pre"
-source = "git+https://github.com/bjz/imgui-rs.git?branch=hidpi#3548542ca5bef727df32c6022bf8ce374da76658"
+source = "git+https://github.com/Gekkio/imgui-rs.git#31c2d9f5b7b9b2a81c672294fed79280b63602d7"
 dependencies = [
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
