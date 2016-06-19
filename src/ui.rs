@@ -37,6 +37,12 @@ impl Context {
         imgui.set_imgui_key(ImGuiKey::Enter, 11);
         imgui.set_imgui_key(ImGuiKey::Escape, 12);
 
+        {
+            let style = imgui.style_mut();
+            style.anti_aliased_lines = false;
+            style.anti_aliased_shapes = false;
+        }
+
         Context {
             imgui: imgui,
             renderer: renderer,
