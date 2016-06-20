@@ -120,10 +120,8 @@ fn main() {
     let mut resources = game::init_resources(&display);
     let mut ui_context = UiContext::new(&display);
 
-    let (resource_tx, resource_rx) = mpsc::channel();
     let (render_tx, render_rx) = mpsc::sync_channel(1);
-
-    let update_tx = game::spawn(metrics, resource_tx, render_tx);
+    let (update_tx, resource_rx) = game::spawn(metrics, render_tx);
 
     'main: for time in times::in_seconds() {
         // Swap frames with update thread

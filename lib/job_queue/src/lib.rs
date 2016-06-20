@@ -3,7 +3,7 @@
 extern crate expectest;
 
 use std::collections::VecDeque;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration;
 
 struct JobQueue<Job> {
@@ -39,15 +39,17 @@ impl<Job: PartialEq> JobQueue<Job> {
     }
 }
 
-pub fn spawn<Job, F>(mut f: F) -> Sender<Job> where
+pub fn spawn<T, Job, F>(mut f: F) -> (Sender<Job>, Receiver<T>) where
+    T: Send + 'static,
     Job: Send + PartialEq + 'static,
-    F: FnMut(Job) + Send + 'static,
+    F: FnMut(Job) -> T + Send + 'static,
 {
     use std::sync::{Arc, Mutex};
     use std::sync::mpsc;
     use std::thread;
 
     let (job_tx, job_rx) = mpsc::channel();
+    let (result_tx, result_rx) = mpsc::channel();
     let queue = Arc::new(Mutex::new(JobQueue::new()));
 
     {
@@ -69,14 +71,16 @@ pub fn spawn<Job, F>(mut f: F) -> Sender<Job> where
                 queue.pop_front()
             };
 
-            if let Some(job) = job { f(job) };
+            if let Some(job) = job {
+                if result_tx.send(f(job)).is_err() { break };
+            };
 
             // Better way? The other thread could be something like an OTP gen_server...
             thread::sleep(Duration::from_millis(10));
         }
     });
 
-    job_tx
+    (job_tx, result_rx)
 }
 
 #[cfg(test)]
@@ -141,16 +145,14 @@ mod test {
 
         let (tx, rx) = mpsc::channel();
 
-        let job_tx = super::spawn(move |job| {
-            tx.send(job).unwrap();
-        });
+        let (job_tx, result_rx) = super::spawn(|job| job);
 
         job_tx.send(job0).unwrap();
         job_tx.send(job1).unwrap();
         job_tx.send(job2).unwrap();
 
-        expect!(rx.recv()).to(be_ok().value(job0));
-        expect!(rx.recv()).to(be_ok().value(job1));
-        expect!(rx.recv()).to(be_ok().value(job2));
+        expect!(result_rx.recv()).to(be_ok().value(job0));
+        expect!(result_rx.recv()).to(be_ok().value(job1));
+        expect!(result_rx.recv()).to(be_ok().value(job2));
     }
 }

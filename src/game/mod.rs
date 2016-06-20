@@ -6,7 +6,7 @@ use find_folder::Search as FolderSearch;
 use glium::{self, glutin};
 use imgui::{self, Ui};
 use rand::{self, Rng};
-use std::sync::mpsc::{Sender, SyncSender};
+use std::sync::mpsc::{Receiver, Sender, SyncSender};
 
 use {FrameMetrics, RenderData, UpdateEvent};
 use camera::{Camera, ComputedCamera};
@@ -496,19 +496,16 @@ pub fn run_ui<F>(ui: &Ui, state: &UiState, send: F) where F: Fn(InputEvent) {
 }
 
 pub fn spawn(frame_data: FrameMetrics,
-             resource_tx: Sender<ResourceEvent>,
-             render_tx: SyncSender<(RenderData<UiState>, CommandList)>) -> Sender<UpdateEvent<InputEvent>> {
+             render_tx: SyncSender<(RenderData<UiState>, CommandList)>,
+             ) -> (Sender<UpdateEvent<InputEvent>>, Receiver<ResourceEvent>) {
     use job_queue;
     use std::sync::mpsc;
     use std::thread;
 
     let (update_tx, update_rx) = mpsc::channel();
+    let (job_tx, resource_rx) = job_queue::spawn(process_job);
 
     thread::spawn(move || {
-        let job_tx = job_queue::spawn(move |job| {
-            resource_tx.send(process_job(job)).unwrap();
-        });
-
         let mut game = Game::new(frame_data, job_tx);
 
         game.queue_regenete_stars_jobs();
@@ -535,5 +532,5 @@ pub fn spawn(frame_data: FrameMetrics,
         }
     });
 
-    update_tx
+    (update_tx, resource_rx)
 }
