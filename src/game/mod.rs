@@ -274,7 +274,7 @@ impl Game {
         }
     }
 
-    fn create_render_data(&self) -> RenderData {
+    fn create_render_data(&self) -> RenderData<UiState> {
         RenderData {
             metrics: self.frame_metrics,
             is_limiting_fps: self.state.is_limiting_fps,
@@ -497,7 +497,7 @@ pub fn run_ui<F>(ui: &Ui, state: &UiState, send: F) where F: Fn(InputEvent) {
 
 pub fn spawn(frame_data: FrameMetrics,
              resource_tx: Sender<ResourceEvent>,
-             render_tx: SyncSender<(RenderData, CommandList)>) -> Sender<UpdateEvent> {
+             render_tx: SyncSender<(RenderData<UiState>, CommandList)>) -> Sender<UpdateEvent<InputEvent>> {
     use job_queue;
     use std::sync::mpsc;
     use std::thread;

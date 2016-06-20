@@ -29,7 +29,6 @@ extern crate job_queue;
 use cgmath::Vector2;
 use std::time::Duration;
 
-use game::{InputEvent, UiState};
 use math::Size2;
 use ui::Context as UiContext;
 
@@ -72,7 +71,7 @@ impl FrameMetrics {
     }
 }
 
-pub struct RenderData {
+pub struct RenderData<UiState> {
     metrics: FrameMetrics,
     is_limiting_fps: bool,
     is_ui_enabled: bool,
@@ -80,7 +79,7 @@ pub struct RenderData {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum UpdateEvent {
+pub enum UpdateEvent<InputEvent> {
     FrameRequested(FrameMetrics),
     Input(InputEvent),
 }
@@ -142,7 +141,7 @@ fn main() {
                 ui_context.update(event.clone());
             }
 
-            let update_event = UpdateEvent::Input(InputEvent::from(event));
+            let update_event = UpdateEvent::Input(event.into());
             try_or!(update_tx.send(update_event), break 'main);
         }
 
