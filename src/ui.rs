@@ -88,7 +88,7 @@ impl Context {
         }
     }
 
-    pub fn render<F: FnMut(&Ui)>(&mut self, target: &mut Frame, metrics: FrameMetrics, mut run_ui: F) -> RendererResult<()> {
+    pub fn render<F: FnOnce(&Ui)>(&mut self, target: &mut Frame, metrics: FrameMetrics, run_ui: F) -> RendererResult<()> {
         let scale = self.imgui.display_framebuffer_scale();
         self.imgui.set_mouse_pos(self.mouse_pos.0 as f32 / scale.0, self.mouse_pos.1 as f32 / scale.1);
         self.imgui.set_mouse_down(&[self.mouse_pressed.0, self.mouse_pressed.1, self.mouse_pressed.2, false, false]);

@@ -74,8 +74,7 @@ impl FrameMetrics {
 pub struct RenderData<UiState> {
     metrics: FrameMetrics,
     is_limiting_fps: bool,
-    is_ui_enabled: bool,
-    ui_state: UiState,
+    ui_state: Option<UiState>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -135,7 +134,7 @@ fn main() {
 
         // Get user input
         for event in display.poll_events() {
-            if render_data.is_ui_enabled {
+            if render_data.ui_state.is_some() {
                 ui_context.update(event.clone());
             }
 
@@ -153,9 +152,9 @@ fn main() {
 
         resources.draw(&mut frame, command_list).unwrap();
 
-        if render_data.is_ui_enabled {
+        if let Some(ui_state) = render_data.ui_state {
             ui_context.render(&mut frame, render_data.metrics, |ui| {
-                game::run_ui(ui, &render_data.ui_state, |event| {
+                game::run_ui(ui, ui_state, |event| {
                     // FIXME: could cause a panic on the slim chance that the update thread
                     // closes during ui rendering.
                     update_tx.send(UpdateEvent::Input(event)).unwrap();
