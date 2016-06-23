@@ -278,14 +278,6 @@ impl Game {
         }
     }
 
-    fn create_render_data(&self) -> RenderData<UiState> {
-        RenderData {
-            metrics: self.frame_metrics,
-            is_limiting_fps: self.state.is_limiting_fps,
-            ui_state: self.create_ui_state(),
-        }
-    }
-
     fn create_command_list(&self) -> CommandList {
         let mut command_list = CommandList::new();
 
@@ -327,6 +319,15 @@ impl Game {
         }
 
         command_list
+    }
+
+    fn create_render_data(&self) -> RenderData<UiState> {
+        RenderData {
+            metrics: self.frame_metrics,
+            is_limiting_fps: self.state.is_limiting_fps,
+            command_list: self.create_command_list(),
+            ui_state: self.create_ui_state(),
+        }
     }
 }
 
@@ -499,8 +500,8 @@ pub fn run_ui<F>(ui: &Ui, state: UiState, send: F) where F: Fn(InputEvent) {
 }
 
 pub fn spawn(frame_data: FrameMetrics,
-             render_tx: SyncSender<(RenderData<UiState>, CommandList)>,
-             ) -> (Sender<UpdateEvent<InputEvent>>, Receiver<ResourceEvent>) {
+             render_tx: SyncSender<RenderData<UiState>>)
+             -> (Sender<UpdateEvent<InputEvent>>, Receiver<ResourceEvent>) {
     use job_queue;
     use std::sync::mpsc;
     use std::thread;
@@ -519,9 +520,7 @@ pub fn spawn(frame_data: FrameMetrics,
                 UpdateEvent::FrameRequested(frame_data) => {
                     // We send the data for the last frame so that the renderer
                     // can get started doing it's job in parallel!
-                    let render_data = game.create_render_data();
-                    let command_list = game.create_command_list();
-                    render_tx.send((render_data, command_list))
+                    render_tx.send(game.create_render_data())
                         .expect("Failed to send render data");
 
                     game.handle_frame_request(frame_data)

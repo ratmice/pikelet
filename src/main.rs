@@ -30,6 +30,7 @@ use cgmath::Vector2;
 use std::time::Duration;
 
 use math::Size2;
+use render::CommandList;
 use ui::Context as UiContext;
 
 pub mod camera;
@@ -74,6 +75,7 @@ impl FrameMetrics {
 pub struct RenderData<UiState> {
     metrics: FrameMetrics,
     is_limiting_fps: bool,
+    command_list: CommandList,
     ui_state: Option<UiState>,
 }
 
@@ -124,7 +126,7 @@ fn main() {
 
     'main: for time in times::in_seconds() {
         // Swap frames with update thread
-        let (render_data, command_list) = {
+        let render_data = {
             let metrics = create_frame_metrics(&display, time.delta() as f32);
             let update_event = UpdateEvent::FrameRequested(metrics);
 
@@ -150,7 +152,7 @@ fn main() {
         // Render frame
         let mut frame = display.draw();
 
-        resources.draw(&mut frame, command_list).unwrap();
+        resources.draw(&mut frame, render_data.command_list).unwrap();
 
         if let Some(ui_state) = render_data.ui_state {
             ui_context.render(&mut frame, render_data.metrics, |ui| {
