@@ -262,19 +262,15 @@ impl Game {
         Loop::Continue
     }
 
-    fn create_ui_state(&self) -> Option<UiState> {
-        if self.state.is_ui_enabled {
-            Some(UiState {
-                is_wireframe: self.state.is_wireframe,
-                is_showing_star_field: self.state.is_showing_star_field,
-                is_limiting_fps: self.state.is_limiting_fps,
-                is_ui_capturing_mouse: self.state.is_ui_capturing_mouse,
-                planet_subdivs: self.state.planet_subdivs,
-                planet_radius: self.state.planet_radius,
-                star_field_radius: self.state.star_field_radius,
-            })
-        } else {
-            None
+    fn create_ui_state(&self) -> UiState {
+        UiState {
+            is_wireframe: self.state.is_wireframe,
+            is_showing_star_field: self.state.is_showing_star_field,
+            is_limiting_fps: self.state.is_limiting_fps,
+            is_ui_capturing_mouse: self.state.is_ui_capturing_mouse,
+            planet_subdivs: self.state.planet_subdivs,
+            planet_radius: self.state.planet_radius,
+            star_field_radius: self.state.star_field_radius,
         }
     }
 
@@ -326,7 +322,7 @@ impl Game {
             metrics: self.frame_metrics,
             is_limiting_fps: self.state.is_limiting_fps,
             command_list: self.create_command_list(),
-            ui_state: self.create_ui_state(),
+            ui_state: if self.state.is_ui_enabled { Some(self.create_ui_state()) } else { None },
         }
     }
 }
