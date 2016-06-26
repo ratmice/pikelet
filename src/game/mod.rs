@@ -262,8 +262,8 @@ impl Game {
         Loop::Continue
     }
 
-    fn create_ui_state(&self) -> UiState {
-        UiState {
+    fn create_ui_data(&self) -> UiData {
+        UiData {
             is_wireframe: self.state.is_wireframe,
             is_showing_star_field: self.state.is_showing_star_field,
             is_limiting_fps: self.state.is_limiting_fps,
@@ -317,12 +317,12 @@ impl Game {
         command_list
     }
 
-    fn create_render_data(&self) -> RenderData<UiState> {
+    fn create_render_data(&self) -> RenderData<UiData> {
         RenderData {
             metrics: self.frame_metrics,
             is_limiting_fps: self.state.is_limiting_fps,
             command_list: self.create_command_list(),
-            ui_state: if self.state.is_ui_enabled { Some(self.create_ui_state()) } else { None },
+            ui_data: if self.state.is_ui_enabled { Some(self.create_ui_data()) } else { None },
         }
     }
 }
@@ -455,7 +455,7 @@ pub fn init_resources(display: &glium::Display) -> Resources {
     resources
 }
 
-pub struct UiState {
+pub struct UiData {
     is_wireframe: bool,
     is_showing_star_field: bool,
     is_limiting_fps: bool,
@@ -465,7 +465,7 @@ pub struct UiState {
     star_field_radius: f32,
 }
 
-pub fn run_ui<F>(ui: &Ui, state: UiState, send: F) where F: Fn(InputEvent) {
+pub fn run_ui<F>(ui: &Ui, state: UiData, send: F) where F: Fn(InputEvent) {
     use self::InputEvent::*;
 
     ui.window(im_str!("State"))
@@ -496,7 +496,7 @@ pub fn run_ui<F>(ui: &Ui, state: UiState, send: F) where F: Fn(InputEvent) {
 }
 
 pub fn spawn(frame_data: FrameMetrics,
-             render_tx: SyncSender<RenderData<UiState>>)
+             render_tx: SyncSender<RenderData<UiData>>)
              -> (Sender<UpdateEvent<InputEvent>>, Receiver<ResourceEvent>) {
     use job_queue;
     use std::sync::mpsc;
