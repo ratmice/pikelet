@@ -1,22 +1,21 @@
 use cgmath;
-use cgmath::conv::*;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
 use glium::{self, glutin};
 use imgui::{self, Ui};
-use rand::{self, Rng};
 use std::sync::mpsc::{Receiver, Sender, SyncSender};
 
 use {FrameMetrics, RenderData, UpdateEvent};
 use camera::{Camera, ComputedCamera};
 use color;
-use geom::Mesh;
-use geom::primitives;
-use geom::algorithms::{Subdivide, Dual};
-use math::{self, GeoPoint, Size2};
-use render::{CommandList, ResourceEvent, Resources, Vertex, Indices};
+use math::Size2;
+use render::{CommandList, ResourceEvent, Resources};
 use ui;
+
+use self::job::Job;
+
+mod job;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 enum Loop {
@@ -327,79 +326,6 @@ impl Game {
     }
 }
 
-#[derive(Debug)]
-enum Job {
-    Planet { subdivs: usize },
-    Stars { index: usize, count: usize },
-}
-
-impl PartialEq for Job {
-    fn eq(&self, other: &Job) -> bool {
-        match (self, other) {
-            (&Job::Planet { .. }, &Job::Planet { .. }) => true,
-            (&Job::Stars { index: i, .. }, &Job::Stars { index: j, .. }) => i == j,
-            (&_, &_) => false,
-        }
-    }
-}
-
-fn process_job(job: Job) -> ResourceEvent {
-    fn generate_planet_mesh(subdivs: usize) -> Mesh {
-        primitives::icosahedron(1.0)
-            .subdivide(subdivs, &|a, b| math::midpoint_arc(1.0, a, b))
-            .generate_dual()
-    }
-
-    fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
-        const VERTICES_PER_FACE: usize = 3;
-
-        let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);
-        for face in &mesh.faces {
-            let e0 = face.root;
-            let e1 = mesh.edges[e0].next;
-            let e2 = mesh.edges[e1].next;
-
-            let p0 = mesh.edges[e0].position;
-            let p1 = mesh.edges[e1].position;
-            let p2 = mesh.edges[e2].position;
-
-            vertices.push(Vertex { position: mesh.positions[p0].into() });
-            vertices.push(Vertex { position: mesh.positions[p1].into() });
-            vertices.push(Vertex { position: mesh.positions[p2].into() });
-        }
-
-        vertices
-    }
-
-    fn create_star_vertices(count: usize) -> Vec<Vertex> {
-        let mut rng = rand::weak_rng();
-
-        (0..count).map(|_| rng.gen::<GeoPoint<f32>>())
-            .map(|star| Vertex { position: array3(star.to_point(1.0)) })
-            .collect()
-    }
-
-    match job {
-        Job::Planet { subdivs } => {
-            let mesh = generate_planet_mesh(subdivs);
-            let vertices = create_vertices(&mesh);
-
-            ResourceEvent::UploadBuffer {
-                name: "planet".to_string(),
-                vertices: vertices,
-                indices: Indices::TrianglesList,
-            }
-        },
-        Job::Stars { index, count } => {
-            ResourceEvent::UploadBuffer {
-                name: format!("stars{}", index),
-                vertices: create_star_vertices(count),
-                indices: Indices::Points,
-            }
-        },
-    }
-}
-
 pub fn init_resources(display: &glium::Display) -> Resources {
     use std::fs::File;
     use std::io;
@@ -503,7 +429,7 @@ pub fn spawn(frame_data: FrameMetrics,
     use std::thread;
 
     let (update_tx, update_rx) = mpsc::channel();
-    let (job_tx, resource_rx) = job_queue::spawn(process_job);
+    let (job_tx, resource_rx) = job_queue::spawn(Job::process);
 
     thread::spawn(move || {
         let mut game = Game::new(frame_data, job_tx);
