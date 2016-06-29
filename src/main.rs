@@ -45,9 +45,9 @@ pub mod ui;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct FrameMetrics {
-    size_points: Size2<u32>,
-    size_pixels: Size2<u32>,
-    delta_time: f32,
+    pub size_points: Size2<u32>,
+    pub size_pixels: Size2<u32>,
+    pub delta_time: f32,
 }
 
 impl FrameMetrics {
@@ -69,6 +69,10 @@ impl FrameMetrics {
                 height => self.size_pixels.height as f32 / height as f32,
             },
         )
+    }
+
+    fn aspect_ratio(&self) -> f32 {
+        self.size_pixels.width as f32 / self.size_pixels.height as f32
     }
 }
 

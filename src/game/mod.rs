@@ -9,7 +9,7 @@ use std::sync::mpsc::{Receiver, Sender, SyncSender};
 use {FrameMetrics, RenderData, UpdateEvent};
 use camera::{Camera, ComputedCamera};
 use color;
-use math::Size2;
+use math::{GeoPoint, Size2};
 use render::{CommandList, ResourceEvent, Resources};
 use ui;
 
@@ -80,6 +80,7 @@ struct State {
     is_wireframe: bool,
     is_zooming: bool,
 
+    frame_metrics: FrameMetrics,
     mouse_position: Point2<i32>,
 
     light_dir: Vector3<f32>,
@@ -103,7 +104,7 @@ struct State {
 }
 
 impl State {
-    fn new() -> State {
+    fn new(frame_metrics: FrameMetrics) -> State {
         State {
             is_dragging: false,
             is_limiting_fps: true,
@@ -115,6 +116,7 @@ impl State {
 
             light_dir: Vector3::new(0.0, 1.0, 0.2),
 
+            frame_metrics: frame_metrics,
             mouse_position: Point2::origin(),
 
             camera_rotation: Rad::new(0.0),
@@ -137,7 +139,7 @@ impl State {
     }
 
     fn reset(&mut self) {
-        *self = State::new();
+        *self = State::new(self.frame_metrics);
     }
 
     fn scene_camera_position(&self) -> Point3<f32> {
@@ -148,30 +150,30 @@ impl State {
         }
     }
 
-    fn scene_camera_projection(&self, size_pixels: Size2<u32>) -> PerspectiveFov<f32> {
+    fn scene_camera_projection(&self) -> PerspectiveFov<f32> {
         PerspectiveFov {
-            aspect: size_pixels.width as f32 / size_pixels.height as f32,
+            aspect: self.frame_metrics.aspect_ratio(),
             fovy: Rad::full_turn() / 6.0,
             near: self.camera_near,
             far: self.camera_far,
         }
     }
 
-    fn create_scene_camera(&self, size_pixels: Size2<u32>) -> ComputedCamera {
+    fn create_scene_camera(&self) -> ComputedCamera {
         Camera {
             position: self.scene_camera_position(),
             target: Point3::origin(),
-            projection: self.scene_camera_projection(size_pixels),
+            projection: self.scene_camera_projection(),
         }.compute()
     }
 
-    fn create_hud_camera(&self, size_pixels: Size2<u32>) -> Matrix4<f32> {
-        cgmath::ortho(0.0, size_pixels.width as f32, size_pixels.height as f32, 0.0, -1.0, 1.0)
+    fn create_hud_camera(&self) -> Matrix4<f32> {
+        let Size2 { width, height } = self.frame_metrics.size_pixels;
+        cgmath::ortho(0.0, width as f32, height as f32, 0.0, -1.0, 1.0)
     }
 }
 
 struct Game {
-    frame_metrics: FrameMetrics,
     state: State,
     job_tx: Sender<Job>,
 }
@@ -179,8 +181,7 @@ struct Game {
 impl Game {
     fn new(frame_metrics: FrameMetrics, job_tx: Sender<Job>) -> Game {
         Game {
-            frame_metrics: frame_metrics,
-            state: State::new(),
+            state: State::new(frame_metrics),
             job_tx: job_tx,
         }
     }
@@ -209,21 +210,20 @@ impl Game {
 
         if !self.state.is_ui_capturing_mouse {
             if self.state.is_dragging {
-                let size_points = self.frame_metrics.size_points;
+                let size_points = self.state.frame_metrics.size_points;
                 let rotations_per_second = (mouse_delta.x as f32 / size_points.width as f32) * self.state.camera_drag_factor;
-                self.state.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.frame_metrics.delta_time;
+                self.state.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.state.frame_metrics.delta_time;
             }
 
             if self.state.is_zooming {
-                let zoom_delta = mouse_delta.x as f32 * self.frame_metrics.delta_time;
+                let zoom_delta = mouse_delta.x as f32 * self.state.frame_metrics.delta_time;
                 self.state.camera_xz_radius -= zoom_delta * self.state.camera_zoom_factor;
             }
         }
     }
 
     fn handle_frame_request(&mut self, frame_metrics: FrameMetrics) -> Loop {
-        self.frame_metrics = frame_metrics;
-
+        self.state.frame_metrics = frame_metrics;
         self.state.camera_rotation -= self.state.camera_rotation_delta;
 
         if self.state.is_dragging {
@@ -276,8 +276,8 @@ impl Game {
     fn create_command_list(&self) -> CommandList {
         let mut command_list = CommandList::new();
 
-        let camera = self.state.create_scene_camera(self.frame_metrics.size_pixels);
-        let screen_matrix = self.state.create_hud_camera(self.frame_metrics.size_pixels);
+        let camera = self.state.create_scene_camera();
+        let screen_matrix = self.state.create_hud_camera();
 
         command_list.clear(color::BLUE);
 
@@ -300,10 +300,10 @@ impl Game {
         }
 
         if self.state.is_ui_enabled {
-            let size_points = self.frame_metrics.size_points;
-            let scale = self.frame_metrics.framebuffer_scale();
+            let size_points = self.state.frame_metrics.size_points;
+            let scale = self.state.frame_metrics.framebuffer_scale();
 
-            let text = format!("{:.2}", self.frame_metrics.frames_per_second());
+            let text = format!("{:.2}", self.state.frame_metrics.frames_per_second());
             let font_size = 12.0 * scale.y;
             let position = Point2 {
                 x: (size_points.width as f32 - 30.0) * scale.x,
@@ -318,7 +318,7 @@ impl Game {
 
     fn create_render_data(&self) -> RenderData<UiData> {
         RenderData {
-            metrics: self.frame_metrics,
+            metrics: self.state.frame_metrics,
             is_limiting_fps: self.state.is_limiting_fps,
             command_list: self.create_command_list(),
             ui_data: if self.state.is_ui_enabled { Some(self.create_ui_data()) } else { None },
