@@ -1,1 +1,0 @@
-From [Fontfabric](http://www.fontfabric.com/blogger-sans/).

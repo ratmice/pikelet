@@ -10,7 +10,6 @@ pub use self::mesh::Mesh;
 pub mod mesh;
 pub mod algorithms;
 pub mod primitives;
-pub mod star_field;
 
 pub type EdgeIndex = usize;
 pub type PositionIndex = usize;
