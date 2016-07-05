@@ -11,169 +11,149 @@ pub mod cell {
     pub type Level = usize;
     pub type Path = usize;
 
-    #[derive(Clone, Debug)]
+    pub const ID_MASK: usize = 0x03;
+    pub const EVEN_BITS: usize = 0xAAAAAAAAAAAAAAAA;
+    pub const ODD_BITS: usize  = 0x5555555555555555;
+
+    pub const CENTER: usize = 0b10;
+
+    pub const TOP: usize = 0b00;
+    pub const TOP_LEFT: usize = 0b01;
+    pub const TOP_RIGHT: usize = 0b11;
+
+    pub const BOTTOM: usize = 0b00;
+    pub const BOTTOM_LEFT: usize = 0b01;
+    pub const BOTTOM_RIGHT: usize = 0b11;
+
+    #[derive(Clone, Debug, Copy, PartialEq)]
     pub enum Orientation {
         Up,
         Down
     }
 
-    #[derive(Clone, Debug)]
-    pub enum Id {
-        Top,
-        Center,
-        TopLeft,
-        TopRight,
-        Bottom,
-        BottomLeft,
-        BottomRight
-    }
-
-    impl Id {
-        #[cfg_attr(feature = "clippy", allow(match_same_arms))]
-        pub fn to_bits(id: Id) -> u32 {
-            match id {
-                Id::Top         => 0b00,
-                Id::Center      => 0b10,
-                Id::TopLeft     => 0b01,
-                Id::TopRight    => 0b11,
-                Id::Bottom      => 0b00,
-                Id::BottomLeft  => 0b01,
-                Id::BottomRight => 0b11,
-            }
-        }
-
-        pub fn from_bits(orientation: Orientation, bits: u32) -> Id {
-            match orientation {
-                Orientation::Up => match bits {
-                    0b00 => Id::Top,
-                    0b10 => Id::Center,
-                    0b01 => Id::BottomLeft,
-                    0b11 => Id::BottomRight,
-                    _ => panic!("Not a valid CellId value."),
-                },
-                Orientation::Down => match bits {
-                    0b00 => Id::Bottom,
-                    0b10 => Id::Center,
-                    0b01 => Id::TopLeft,
-                    0b11 => Id::TopRight,
-                    _ => panic!("Not a valid CellId value."),
-                }
-            }
-        }
-    }
-
-    #[derive(Clone, Debug)]
-    pub struct Location {
-        level: Level,
-        path: Path,
-    }
-
-    #[derive(Debug)]
-    pub struct Data {
-        orientation: Orientation,
-        location: Location,
-    }
-
-    impl Data {
-        pub fn new(orientation: Orientation, location: Location) -> Data {
-            Data {
-                orientation: orientation,
-                location: location
-            }
-        }
-
-        pub fn default() -> Data {
-            Data::new(
-                Orientation::Up,
-                Location {
-                    level: 0,
-                    path: 0,
-                }
-            )
+    pub fn orientation_for_path(subdivision_level: Level, tree_orientation: Orientation, path: Path) -> Orientation {
+        let node_id = path & ID_MASK;
+        let parent_orientation = if subdivision_level == 1 {
+            tree_orientation
+        } else {
+            let parent_path = path >> 2;
+            let parent_level = subdivision_level - 1;
+            orientation_for_path(parent_level, tree_orientation, parent_path)
+        };
+        match node_id {
+            CENTER => match parent_orientation {
+                Orientation::Up => Orientation::Down,
+                Orientation::Down => Orientation::Up
+            },
+            _ => parent_orientation
         }
     }
 }
 
-pub struct QuadTree {
-    levels: cell::Level,
-    orientation: cell::Orientation,
-    nodes: Vec<cell::Data>,
+// so many ??? regarding memory fragmenation
+pub enum NodeData {
+    Empty,
+    Index(usize),
+    Released(usize)
 }
 
-impl QuadTree {
-    pub fn with_orientation(orientation: cell::Orientation, levels: cell::Level) -> QuadTree {
-        let cell_count = 4 ^ levels;
+pub struct Node {
+    pub path: cell::Path,
+    // It may be that we don't have to store this for every node.
+    // Since we keep the tree orientation in the QuadTree struct,
+    // we'll more or less always have a way to determine cell
+    // orientation via it's path. I was just assuming for the moment
+    // that a bit of pre-calculation could make life easier down
+    // the road.
+    pub orientation: cell::Orientation,
+    pub data: NodeData
+}
+
+impl Node {
+    pub fn new(path: cell::Path, orientation: cell::Orientation) -> Node {
+        Node {
+            path: path,
+            orientation: orientation,
+            data: NodeData::Empty
+        }
+    }
+}
+
+pub struct QuadTree<T> {
+    pub subdivision_level: cell::Level,
+    pub orientation: cell::Orientation,
+    pub nodes: Vec<Node>,
+    data: Vec<T>
+}
+
+impl<T> QuadTree<T> {
+    pub fn with_orientation(orientation: cell::Orientation, subdivision_level: cell::Level) -> QuadTree<T> {
+        let cell_count = 4 ^ subdivision_level;
 
         let mut tree = QuadTree {
-            levels: levels,
+            subdivision_level: subdivision_level,
             orientation: orientation,
             nodes: Vec::with_capacity(cell_count),
+            data: Vec::new()
         };
 
-        for i in 0..cell_count {
-            // `i` here is essentially the full path to the current cell at the fully
-            // subdivided level. This means that we can determine the correct attributes
-            // in terms of path and orientation by analyzing this number in relation to
-            // the overall orientation of the quadtree.
-            tree.nodes.push(cell::Data::default());
+        for path in 0..cell_count {
+            let cell_orientation = cell::orientation_for_path(subdivision_level, orientation, path);
+            tree.nodes.push(Node::new(path, cell_orientation));
         }
 
         tree
     }
-
-    pub fn location_for(id: cell::Id, orientation: cell::Orientation, level: cell::Level) -> cell::Location {
-        unimplemented!()
-    }
 }
 
-pub struct Icosahedron {
-    nodes: Vec<QuadTree>,
+pub struct Icosahedron<T> {
+    nodes: Vec<QuadTree<T>>,
 }
 
-impl Icosahedron {
-    pub fn with_subdivisions(levels: usize) -> Icosahedron {
+impl<T> Icosahedron<T> {
+    pub fn with_subdivisions(subdivision_level: usize) -> Icosahedron<T> {
         Icosahedron {
             nodes: vec! [
                 // 0
-                QuadTree::with_orientation(cell::Orientation::Up, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
                 // 1
-                QuadTree::with_orientation(cell::Orientation::Up, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
                 // 2
-                QuadTree::with_orientation(cell::Orientation::Up, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
                 // 3
-                QuadTree::with_orientation(cell::Orientation::Up, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
                 // 4
-                QuadTree::with_orientation(cell::Orientation::Up, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
                 // 5
-                QuadTree::with_orientation(cell::Orientation::Down, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
                 // 6
-                QuadTree::with_orientation(cell::Orientation::Down, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
                 // 7
-                QuadTree::with_orientation(cell::Orientation::Down, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
                 // 8
-                QuadTree::with_orientation(cell::Orientation::Down, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
                 // 9
-                QuadTree::with_orientation(cell::Orientation::Down, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
                 // 10
-                QuadTree::with_orientation(cell::Orientation::Up, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
                 // 11
-                QuadTree::with_orientation(cell::Orientation::Up, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
                 // 12
-                QuadTree::with_orientation(cell::Orientation::Up, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
                 // 13
-                QuadTree::with_orientation(cell::Orientation::Up, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
                 // 14
-                QuadTree::with_orientation(cell::Orientation::Up, levels),
+                QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
                 // 15
-                QuadTree::with_orientation(cell::Orientation::Down, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
                 // 16
-                QuadTree::with_orientation(cell::Orientation::Down, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
                 // 17
-                QuadTree::with_orientation(cell::Orientation::Down, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
                 // 18
-                QuadTree::with_orientation(cell::Orientation::Down, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
                 // 19
-                QuadTree::with_orientation(cell::Orientation::Down, levels),
+                QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
             ]
         }
     }
@@ -185,9 +165,51 @@ impl Icosahedron {
 
 #[cfg(test)]
 mod tests {
+    use super::QuadTree;
+    use super::cell;
+
+    struct TestData;
+
+    type TestTree = QuadTree<TestData>;
+
+    fn tipup_quadtree(subdivision_level: cell::Level) -> TestTree {
+        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level)
+    }
+
+    fn tipdown_quadtree(subdivision_level: cell::Level) -> TestTree {
+        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level)
+    }
+
+    fn assert_orientations(start: cell::Index, tree: &TestTree) {
+        for offset in 0..3 {
+            let index = start + offset;
+            let cell_orientation = &tree.nodes[index].orientation;
+            let expected_orientation = if offset == 2 {
+                if tree.orientation == cell::Orientation::Up {
+                    cell::Orientation::Down
+                } else {
+                    cell::Orientation::Up
+                }
+            } else {
+                tree.orientation
+            };
+            println!("Path: {}, Expected: {:?}, Actual: {:?}", index, expected_orientation, cell_orientation);
+            assert_eq!(expected_orientation, *cell_orientation);
+        }
+    }
 
     #[test]
-    fn zcurve_fundamentals_are_understood() {
-        unimplemented!()
+    fn quadtree_fundamentals() {
+        let subdivision_level = 1;
+        let qt_up = tipup_quadtree(subdivision_level);
+        assert_orientations(0, &qt_up);
+        let qt_down = tipdown_quadtree(subdivision_level);
+        assert_orientations(0, &qt_down);
     }
+
+    #[test]
+    fn icosahedron_fundamentals() {
+        unimplemented!();
+    }
+
 }
