@@ -205,6 +205,15 @@ mod tests {
         assert_orientations(0, &qt_up);
         let qt_down = tipdown_quadtree(subdivision_level);
         assert_orientations(0, &qt_down);
+
+        let subdivision_level = 3;
+        let qt_up = tipup_quadtree(subdivision_level);
+        let mut root_index = 0;
+        let node_count = subdivision_level ^ 4;
+        while root_index < node_count {
+            assert_orientations(root_index, &qt_up);
+            root_index = root_index + 4;
+        }
     }
 
     #[test]
