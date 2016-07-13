@@ -184,28 +184,34 @@ mod tests {
         for offset in 0..3 {
             let index = start + offset;
             let cell_orientation = &tree.nodes[index].orientation;
-            let expected_orientation = if offset == 2 {
-                if tree.orientation == cell::Orientation::Up {
-                    cell::Orientation::Down
-                } else {
-                    cell::Orientation::Up
-                }
-            } else {
-                tree.orientation
-            };
+            let expected_orientation =
+                match tree.orientation {
+                    orientation if offset != 2 => orientation,
+                    cell::Orientation::Up => cell::Orientation::Down,
+                    cell::Orientation::Down => cell::Orientation::Up,
+                };
+
             println!("Path: {}, Expected: {:?}, Actual: {:?}", index, expected_orientation, cell_orientation);
             assert_eq!(expected_orientation, *cell_orientation);
         }
     }
 
     #[test]
-    fn quadtree_fundamentals() {
+    fn shallow_tipup_quadtree_fundamentals() {
         let subdivision_level = 1;
         let qt_up = tipup_quadtree(subdivision_level);
         assert_orientations(0, &qt_up);
+    }
+
+    #[test]
+    fn shallow_tipdown_quadtree_fundamentals() {
+        let subdivision_level = 1;
         let qt_down = tipdown_quadtree(subdivision_level);
         assert_orientations(0, &qt_down);
+    }
 
+    #[test]
+    fn deep_tipup_quadtree_fundamentals() {
         let subdivision_level = 3;
         let qt_up = tipup_quadtree(subdivision_level);
         let mut root_index = 0;
