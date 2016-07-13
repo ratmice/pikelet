@@ -218,7 +218,7 @@ mod tests {
         let node_count = subdivision_level ^ 4;
         while root_index < node_count {
             assert_orientations(root_index, &qt_up);
-            root_index = root_index + 4;
+            root_index += 4;
         }
     }
 

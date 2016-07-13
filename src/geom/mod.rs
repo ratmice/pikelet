@@ -115,32 +115,32 @@ mod tests {
     use super::algorithms::*;
 
     fn assert_congruent_adjacenct_positions(e0: &Edge, e1: &Edge, mesh: &Mesh) {
-        let e0p0 = e0.position.clone();
-        let e0p1 = mesh.edges[e0.next].position.clone();
+        let e0p0 = e0.position;
+        let e0p1 = mesh.edges[e0.next].position;
 
-        let e1p0 = e1.position.clone();
-        let e1p1 = mesh.edges[e1.next].position.clone();
+        let e1p0 = e1.position;
+        let e1p1 = mesh.edges[e1.next].position;
 
         assert_eq!(e0p0, e1p1);
         assert_eq!(e0p1, e1p0);
     }
 
     fn assert_congruent_adjacency(index: &EdgeIndex, edge: &Edge, mesh: &Mesh) {
-        let adjacent_index = edge.adjacent.unwrap().clone();
-        let ref adjacent_edge = mesh.edges[adjacent_index];
+        let adjacent_index = edge.adjacent.unwrap();
+        let adjacent_edge = &mesh.edges[adjacent_index];
         assert!(adjacent_edge.adjacent.is_some());
 
-        let expected_index = adjacent_edge.adjacent.unwrap().clone();
+        let expected_index = adjacent_edge.adjacent.unwrap();
         assert_eq!(*index, expected_index);
 
-        assert_congruent_adjacenct_positions(&edge, &adjacent_edge, &mesh);
+        assert_congruent_adjacenct_positions(edge, adjacent_edge, mesh);
     }
 
     // used to test meshes that should have no boundary edges
     fn assert_congruent_nonboundary_mesh(mesh: &Mesh) {
         for (index, edge) in mesh.edges.iter().enumerate() {
             assert!(edge.adjacent.is_some());
-            assert_congruent_adjacency(&index, &edge, &mesh);
+            assert_congruent_adjacency(&index, edge, mesh);
         }
     }
 
@@ -150,7 +150,7 @@ mod tests {
             if edge.adjacent.is_none() {
                 continue
             }
-            assert_congruent_adjacency(&index, &edge, &mesh);
+            assert_congruent_adjacency(&index, edge, mesh);
         }
     }
 
@@ -160,7 +160,7 @@ mod tests {
             let ei0 = face.root;
             let mut ei_n = ei0;
             loop {
-                let ref edge = mesh.edges[ei_n];
+                let edge = &mesh.edges[ei_n];
                 assert_eq!(edge.face, fi);
 
                 ei_n = edge.next;
