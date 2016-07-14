@@ -9,7 +9,7 @@ use std::sync::mpsc::{Receiver, Sender, SyncSender};
 use {FrameMetrics, RenderData, UpdateEvent};
 use camera::{Camera, ComputedCamera};
 use color;
-use math::{GeoPoint, Size2};
+use math::Size2;
 use render::{CommandList, ResourceEvent, Resources};
 use ui;
 
