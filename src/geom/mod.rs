@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn icosahedron() {
-        let planet_radius: f32 = 1.0;
+        let planet_radius = 1.0;
         let icosahedron = primitives::icosahedron(planet_radius);
         assert_congruent_nonboundary_mesh(&icosahedron);
         assert_face_associations(&icosahedron);
@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn tetrahedron() {
-        let scale: f32 = 1.0;
+        let scale = 1.0;
         let mesh = primitives::tetrahedron(scale);
         assert_congruent_nonboundary_mesh(&mesh);
         assert_face_associations(&mesh);
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn plane() {
-        let scale: f32 = 1.0;
+        let scale = 1.0;
         let plane = primitives::plane(scale);
         assert_congruent_mesh(&plane);
         assert_face_associations(&plane);
@@ -201,7 +201,7 @@ mod tests {
 
     #[test]
     fn triangle() {
-        let scale: f32 = 1.0;
+        let scale = 1.0;
         let mesh = primitives::triangle(scale);
         assert_congruent_mesh(&mesh);
         assert_face_associations(&mesh);
@@ -209,8 +209,8 @@ mod tests {
 
     #[test]
     fn subdivided_icosahedron() {
-        let subdivisions: usize = 3;
-        let planet_radius: f32 = 1.0;
+        let subdivisions = 3;
+        let planet_radius = 1.0;
 
         let icosahedron = primitives::icosahedron(planet_radius);
         let mesh = icosahedron.subdivide(subdivisions, &|a, b| {
@@ -222,8 +222,8 @@ mod tests {
 
     #[test]
     fn subdivided_tetrahedron() {
-        let subdivisions: usize = 3;
-        let scale: f32 = 1.0;
+        let subdivisions = 3;
+        let scale = 1.0;
 
         let tetrahedron = primitives::tetrahedron(scale);
         let mesh = tetrahedron.subdivide(subdivisions, &Point3::midpoint);
@@ -233,8 +233,8 @@ mod tests {
 
     #[test]
     fn subdivided_triangle() {
-        let subdivisions: usize = 3;
-        let scale: f32 = 1.0;
+        let subdivisions = 3;
+        let scale = 1.0;
 
         let tri = primitives::triangle(scale);
         let mesh = tri.subdivide(subdivisions, &Point3::midpoint);
@@ -244,8 +244,8 @@ mod tests {
 
     #[test]
     fn subdivided_plane() {
-        let subdivisions: usize = 3;
-        let scale: f32 = 1.0;
+        let subdivisions = 3;
+        let scale = 1.0;
 
         let plane = primitives::plane(scale);
         let mesh = plane.subdivide(subdivisions, &Point3::midpoint);
@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn dual_of_icosahedron() {
-        let scale: f32 = 1.0;
+        let scale = 1.0;
         let mesh = primitives::icosahedron(scale).generate_dual();
         assert_face_associations(&mesh);
     }
