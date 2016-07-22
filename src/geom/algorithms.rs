@@ -3,8 +3,13 @@
 
 use cgmath::prelude::*;
 use std::collections::HashMap;
+use std::hash::BuildHasherDefault;
+use fnv::FnvHasher;
 
 use geom::{EdgeIndex, FaceIndex, Mesh, Position, PositionIndex};
+
+type MidpointCache = HashMap<EdgeIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
+type SplitEdgeCache = HashMap<EdgeIndex, (EdgeIndex, EdgeIndex), BuildHasherDefault<FnvHasher>>;
 
 /// Trait for types that support being subdivided.
 pub trait Subdivide {
@@ -47,7 +52,7 @@ impl Subdivide for Mesh {
         where F: Fn(Position, Position) -> Position
     {
         fn calc_and_cache_midpoint<F>(index: EdgeIndex, in_mesh: &Mesh, out_mesh: &mut Mesh,
-                                      cache: &mut HashMap<EdgeIndex, PositionIndex>,
+                                      cache: &mut MidpointCache,
                                       midpoint_fn: &F) -> PositionIndex
             where F: Fn(Position, Position) -> Position
         {
@@ -61,8 +66,14 @@ impl Subdivide for Mesh {
             mp_index
         }
 
-        let mut midpoint_cache: HashMap<EdgeIndex, PositionIndex> = HashMap::new();
-        let mut split_edges: HashMap<EdgeIndex, (EdgeIndex, EdgeIndex)> = HashMap::new();
+        let mut midpoint_cache = {
+            let fnv = BuildHasherDefault::<FnvHasher>::default();
+            MidpointCache::with_hasher(fnv)
+        };
+        let mut split_edges = {
+            let fnv = BuildHasherDefault::<FnvHasher>::default();
+            SplitEdgeCache::with_hasher(fnv)
+        };
 
         let mut mesh = Mesh::empty();
         mesh.positions.extend_from_slice(&self.positions);
@@ -148,6 +159,8 @@ impl Subdivide for Mesh {
     }
 }
 
+type CentroidCache = HashMap<FaceIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
+type FaceMembershipCache = HashMap<PositionIndex, FaceIndex, BuildHasherDefault<FnvHasher>>;
 
 pub trait Dual {
     fn generate_dual(&self) -> Mesh;
@@ -169,8 +182,14 @@ impl Dual for Mesh {
             adjacent_edge.face
         }
 
-        let mut centroid_cache: HashMap<FaceIndex, PositionIndex> = HashMap::new();
-        let mut face_cache: HashMap<PositionIndex, FaceIndex> = HashMap::new();
+        let mut centroid_cache = {
+            let fnv = BuildHasherDefault::<FnvHasher>::default();
+            CentroidCache::with_hasher(fnv)
+        };
+        let mut face_cache = {
+            let fnv = BuildHasherDefault::<FnvHasher>::default();
+            FaceMembershipCache::with_hasher(fnv)
+        };
 
         let mut mesh = Mesh::empty();
 

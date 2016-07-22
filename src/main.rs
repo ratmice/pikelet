@@ -23,6 +23,7 @@ extern crate rayon;
 extern crate time;
 #[macro_use]
 extern crate itertools;
+extern crate fnv;
 
 extern crate job_queue;
 
