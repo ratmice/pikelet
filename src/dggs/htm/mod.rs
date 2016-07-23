@@ -31,6 +31,40 @@ pub mod cell {
         Down
     }
 
+    #[derive(Clone, Debug, Copy, PartialEq)]
+    pub enum NeighborDirection {
+        Left,
+        Right,
+        Vert
+    }
+
+    pub fn stop_tab(excode: Path, direction: NeighborDirection) -> bool {
+        let child_type = excode & ID_MASK;
+        match (child_type, direction) {
+            (0b00, NeighborDirection::Left) => false,
+            (0b00, NeighborDirection::Right) => false,
+            (0b00, NeighborDirection::Vert) => true,
+
+            (0b01, NeighborDirection::Left) => false,
+            (0b01, NeighborDirection::Right) => true,
+            (0b01, NeighborDirection::Vert) => false,
+
+            (0b10, NeighborDirection::Left) => true,
+            (0b10, NeighborDirection::Right) => true,
+            (0b10, NeighborDirection::Vert) => true,
+
+            (0b11, NeighborDirection::Left) => true,
+            (0b11, NeighborDirection::Right) => false,
+            (0b11, NeighborDirection::Vert) => false,
+
+            _ => panic!("unreachable!")
+        }
+    }
+
+    pub fn common_ancestor(excode: Path, direction: NeighborDirection) -> Path {
+        unimplemented!()
+    }
+
     pub fn orientation_for_path(subdivision_level: Level, tree_orientation: Orientation, path: Path) -> Orientation {
         let node_id = path & ID_MASK;
         let parent_orientation = if subdivision_level == 1 {
