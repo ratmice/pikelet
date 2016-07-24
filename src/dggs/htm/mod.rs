@@ -38,8 +38,7 @@ pub mod cell {
         Vert
     }
 
-    pub fn stop_tab(excode: Path, direction: NeighborDirection) -> bool {
-        let child_type = excode & ID_MASK;
+    pub fn stop_tab(child_type: u8, direction: NeighborDirection) -> bool {
         match (child_type, direction) {
             (0b00, NeighborDirection::Left) => false,
             (0b00, NeighborDirection::Right) => false,
@@ -61,7 +60,8 @@ pub mod cell {
         }
     }
 
-    pub fn common_ancestor(excode: Path, direction: NeighborDirection) -> Path {
+    pub fn common_ancestor(excode: Path, direction: NeighborDirection, depth: usize) -> Path {
+        let child_type = excode & ID_MASK;
         unimplemented!()
     }
 
@@ -84,43 +84,33 @@ pub mod cell {
     }
 }
 
-// so many ??? regarding memory fragmenation
-pub enum NodeData {
-    Empty,
-    Index(usize),
-    Released(usize)
+pub trait NodeData {
+    fn default() -> Self;
 }
 
-pub struct Node {
+pub struct Node<T: NodeData> {
     pub path: cell::Path,
-    // It may be that we don't have to store this for every node.
-    // Since we keep the tree orientation in the QuadTree struct,
-    // we'll more or less always have a way to determine cell
-    // orientation via it's path. I was just assuming for the moment
-    // that a bit of pre-calculation could make life easier down
-    // the road.
     pub orientation: cell::Orientation,
-    pub data: NodeData
+    pub data: T
 }
 
-impl Node {
-    pub fn new(path: cell::Path, orientation: cell::Orientation) -> Node {
+impl <T: NodeData> Node<T> {
+    pub fn new(path: cell::Path, orientation: cell::Orientation, data: T) -> Node<T> {
         Node {
             path: path,
             orientation: orientation,
-            data: NodeData::Empty
+            data: data
         }
     }
 }
 
-pub struct QuadTree<T> {
+pub struct QuadTree<T: NodeData> {
     pub subdivision_level: cell::Level,
     pub orientation: cell::Orientation,
-    pub nodes: Vec<Node>,
-    data: Vec<T>
+    pub nodes: Vec<Node<T>>
 }
 
-impl<T> QuadTree<T> {
+impl<T: NodeData> QuadTree<T> {
     pub fn with_orientation(orientation: cell::Orientation, subdivision_level: cell::Level) -> QuadTree<T> {
         let cell_count = 4 ^ subdivision_level;
 
@@ -128,23 +118,22 @@ impl<T> QuadTree<T> {
             subdivision_level: subdivision_level,
             orientation: orientation,
             nodes: Vec::with_capacity(cell_count),
-            data: Vec::new()
         };
 
         for path in 0..cell_count {
             let cell_orientation = cell::orientation_for_path(subdivision_level, orientation, path);
-            tree.nodes.push(Node::new(path, cell_orientation));
+            tree.nodes.push(Node::new(path, cell_orientation, T::default()));
         }
 
         tree
     }
 }
 
-pub struct Icosahedron<T> {
+pub struct Icosahedron<T: NodeData> {
     nodes: Vec<QuadTree<T>>,
 }
 
-impl<T> Icosahedron<T> {
+impl<T: NodeData> Icosahedron<T> {
     pub fn with_subdivisions(subdivision_level: usize) -> Icosahedron<T> {
         Icosahedron {
             nodes: vec! [
@@ -203,6 +192,12 @@ mod tests {
     use super::cell;
 
     struct TestData;
+
+    impl super::NodeData for TestData {
+        fn default() -> TestData {
+            TestData {}
+        }
+    }
 
     type TestTree = QuadTree<TestData>;
 
