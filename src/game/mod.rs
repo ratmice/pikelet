@@ -119,8 +119,8 @@ impl State {
             frame_metrics: frame_metrics,
             mouse_position: Point2::origin(),
 
-            camera_rotation: Rad::new(0.0),
-            camera_rotation_delta: Rad::new(0.0),
+            camera_rotation: Rad(0.0),
+            camera_rotation_delta: Rad(0.0),
             camera_xz_radius: 2.0,
             camera_y_height: 1.0,
             camera_near: 0.1,
@@ -227,7 +227,7 @@ impl Game {
         self.state.camera_rotation -= self.state.camera_rotation_delta;
 
         if self.state.is_dragging {
-            self.state.camera_rotation_delta = Rad::new(0.0);
+            self.state.camera_rotation_delta = Rad(0.0);
         }
 
         Loop::Continue
