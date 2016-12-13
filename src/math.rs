@@ -82,8 +82,8 @@ impl<A: Angle> From<LatLong<A>> for GeoPoint<A::Unitless> {
     }
 }
 
-pub fn arc_length<T: BaseFloat>(angle: Rad<T>, radius: T) -> T {
-    angle.s * radius
+pub fn arc_length<T: BaseFloat>(angle: Rad<T>, radius: T) -> Rad<T> {
+    angle * radius
 }
 
 /// A point on the surface of a sphere.
