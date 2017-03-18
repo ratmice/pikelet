@@ -58,24 +58,26 @@ impl Context {
         use glium::glutin::VirtualKeyCode as Key;
 
         match event {
-            KeyboardInput(state, _, Some(code)) => match code {
-                Key::Tab => self.imgui.set_key(0, state == Pressed),
-                Key::Left => self.imgui.set_key(1, state == Pressed),
-                Key::Right => self.imgui.set_key(2, state == Pressed),
-                Key::Up => self.imgui.set_key(3, state == Pressed),
-                Key::Down => self.imgui.set_key(4, state == Pressed),
-                Key::PageUp => self.imgui.set_key(5, state == Pressed),
-                Key::PageDown => self.imgui.set_key(6, state == Pressed),
-                Key::Home => self.imgui.set_key(7, state == Pressed),
-                Key::End => self.imgui.set_key(8, state == Pressed),
-                Key::Delete => self.imgui.set_key(9, state == Pressed),
-                Key::Back => self.imgui.set_key(10, state == Pressed),
-                Key::Return => self.imgui.set_key(11, state == Pressed),
-                Key::Escape => self.imgui.set_key(12, state == Pressed),
-                Key::LControl | Key::RControl => self.imgui.set_key_ctrl(state == Pressed),
-                Key::LShift | Key::RShift => self.imgui.set_key_shift(state == Pressed),
-                Key::LAlt | Key::RAlt => self.imgui.set_key_alt(state == Pressed),
-                _ => {},
+            KeyboardInput(state, _, Some(code)) => {
+                match code {
+                    Key::Tab => self.imgui.set_key(0, state == Pressed),
+                    Key::Left => self.imgui.set_key(1, state == Pressed),
+                    Key::Right => self.imgui.set_key(2, state == Pressed),
+                    Key::Up => self.imgui.set_key(3, state == Pressed),
+                    Key::Down => self.imgui.set_key(4, state == Pressed),
+                    Key::PageUp => self.imgui.set_key(5, state == Pressed),
+                    Key::PageDown => self.imgui.set_key(6, state == Pressed),
+                    Key::Home => self.imgui.set_key(7, state == Pressed),
+                    Key::End => self.imgui.set_key(8, state == Pressed),
+                    Key::Delete => self.imgui.set_key(9, state == Pressed),
+                    Key::Back => self.imgui.set_key(10, state == Pressed),
+                    Key::Return => self.imgui.set_key(11, state == Pressed),
+                    Key::Escape => self.imgui.set_key(12, state == Pressed),
+                    Key::LControl | Key::RControl => self.imgui.set_key_ctrl(state == Pressed),
+                    Key::LShift | Key::RShift => self.imgui.set_key_shift(state == Pressed),
+                    Key::LAlt | Key::RAlt => self.imgui.set_key_alt(state == Pressed),
+                    _ => {},
+                }
             },
             MouseMoved(x, y) => self.mouse_pos = (x, y),
             MouseInput(state, MouseButton::Left) => self.mouse_pressed.0 = state == Pressed,
@@ -88,19 +90,26 @@ impl Context {
         }
     }
 
-    pub fn render<F: FnOnce(&Ui)>(&mut self, target: &mut Frame, metrics: FrameMetrics, run_ui: F) -> RendererResult<()> {
+    pub fn render<F: FnOnce(&Ui)>(&mut self,
+                                  target: &mut Frame,
+                                  metrics: FrameMetrics,
+                                  run_ui: F)
+                                  -> RendererResult<()> {
         let scale = self.imgui.display_framebuffer_scale();
-        self.imgui.set_mouse_pos(self.mouse_pos.0 as f32 / scale.0, self.mouse_pos.1 as f32 / scale.1);
-        self.imgui.set_mouse_down(&[self.mouse_pressed.0, self.mouse_pressed.1, self.mouse_pressed.2, false, false]);
+        self.imgui.set_mouse_pos(self.mouse_pos.0 as f32 / scale.0,
+                                 self.mouse_pos.1 as f32 / scale.1);
+        self.imgui.set_mouse_down(&[self.mouse_pressed.0,
+                                    self.mouse_pressed.1,
+                                    self.mouse_pressed.2,
+                                    false,
+                                    false]);
         self.imgui.set_mouse_wheel(self.mouse_wheel / scale.1);
         self.mouse_wheel = 0.0;
 
         let FrameMetrics { size_pixels, size_points, .. } = metrics;
-        let ui = self.imgui.frame(
-            (size_points.width, size_points.height),
-            (size_pixels.width, size_pixels.height),
-            metrics.delta_time,
-        );
+        let ui = self.imgui.frame((size_points.width, size_points.height),
+                                  (size_pixels.width, size_pixels.height),
+                                  metrics.delta_time);
 
         run_ui(&ui);
 
@@ -112,21 +121,43 @@ pub fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool
     let mut value = initial_value;
     ui.checkbox(text, &mut value);
 
-    if value != initial_value { Some(value) } else { None }
+    if value != initial_value {
+        Some(value)
+    } else {
+        None
+    }
 }
 
-pub fn slider_float(ui: &Ui, text: imgui::ImStr, initial_value: f32, min: f32, max: f32) -> Option<f32> {
+pub fn slider_float(ui: &Ui,
+                    text: imgui::ImStr,
+                    initial_value: f32,
+                    min: f32,
+                    max: f32)
+                    -> Option<f32> {
     use std::f32;
 
     let mut value = initial_value;
     ui.slider_float(text, &mut value, min, max).build();
 
-    if f32::abs(value - initial_value) > f32::EPSILON { Some(value) } else { None }
+    if f32::abs(value - initial_value) > f32::EPSILON {
+        Some(value)
+    } else {
+        None
+    }
 }
 
-pub fn slider_int(ui: &Ui, text: imgui::ImStr, initial_value: i32, min: i32, max: i32) -> Option<i32> {
+pub fn slider_int(ui: &Ui,
+                  text: imgui::ImStr,
+                  initial_value: i32,
+                  min: i32,
+                  max: i32)
+                  -> Option<i32> {
     let mut value = initial_value;
     ui.slider_int(text, &mut value, min, max).build();
 
-    if value != initial_value { Some(value) } else { None }
+    if value != initial_value {
+        Some(value)
+    } else {
+        None
+    }
 }

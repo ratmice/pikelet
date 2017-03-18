@@ -64,13 +64,22 @@ impl Mesh {
         id
     }
 
-    pub fn add_boundary_edge(&mut self, pos: PositionIndex, face: FaceIndex, next: EdgeIndex) -> EdgeIndex {
+    pub fn add_boundary_edge(&mut self,
+                             pos: PositionIndex,
+                             face: FaceIndex,
+                             next: EdgeIndex)
+                             -> EdgeIndex {
         let id = self.next_edge_id();
         self.edges.push(Edge::new_boundary(pos, face, next));
         id
     }
 
-    pub fn add_edge(&mut self, pos: PositionIndex, face: FaceIndex, next: EdgeIndex, adjacent: EdgeIndex) -> EdgeIndex {
+    pub fn add_edge(&mut self,
+                    pos: PositionIndex,
+                    face: FaceIndex,
+                    next: EdgeIndex,
+                    adjacent: EdgeIndex)
+                    -> EdgeIndex {
         let id = self.next_edge_id();
         self.edges.push(Edge::new(pos, face, next, adjacent));
         id
@@ -81,16 +90,16 @@ impl Mesh {
         self.edges[b].adjacent = Some(a);
 
         debug_assert!({
-            let e0 = &self.edges[a];
-            let e0p0 = e0.position.clone();
-            let e0p1 = self.edges[e0.next].position.clone();
+                          let e0 = &self.edges[a];
+                          let e0p0 = e0.position.clone();
+                          let e0p1 = self.edges[e0.next].position.clone();
 
-            let e1 = &self.edges[b];
-            let e1p0 = e1.position.clone();
-            let e1p1 = self.edges[e1.next].position.clone();
+                          let e1 = &self.edges[b];
+                          let e1p0 = e1.position.clone();
+                          let e1p1 = self.edges[e1.next].position.clone();
 
-            e0p0 == e1p1 && e0p1 == e1p0
-        });
+                          e0p0 == e1p1 && e0p1 == e1p0
+                      });
     }
 
     /// Add three new `Edge`s and a `Face` to a `Mesh`.
@@ -99,7 +108,11 @@ impl Mesh {
     ///
     /// Edges will not include adjacency information
     ///
-    pub fn add_triangle(&mut self, p0: PositionIndex, p1: PositionIndex, p2: PositionIndex) -> FaceIndex {
+    pub fn add_triangle(&mut self,
+                        p0: PositionIndex,
+                        p1: PositionIndex,
+                        p2: PositionIndex)
+                        -> FaceIndex {
         let id = self.next_face_id();
         let e0 = self.next_edge_id();
         let e1 = e0 + 1;

@@ -17,8 +17,7 @@ pub trait Subdivide {
     fn subdivide<F>(&self, count: usize, midpoint_fn: &F) -> Mesh
         where F: Fn(Position, Position) -> Position;
     /// The actual subdivision implementation.
-    fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh
-        where F: Fn(Position, Position) -> Position;
+    fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh where F: Fn(Position, Position) -> Position;
 }
 
 
@@ -43,23 +42,22 @@ impl Subdivide for Mesh {
     fn subdivide<F>(&self, count: usize, midpoint_fn: &F) -> Mesh
         where F: Fn(Position, Position) -> Position
     {
-        (0..count).fold(self.clone(), |acc, _| {
-            acc.subdivide_once(&midpoint_fn)
-        })
+        (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(&midpoint_fn))
     }
 
     fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh
         where F: Fn(Position, Position) -> Position
     {
-        fn calc_and_cache_midpoint<F>(index: EdgeIndex, in_mesh: &Mesh, out_mesh: &mut Mesh,
+        fn calc_and_cache_midpoint<F>(index: EdgeIndex,
+                                      in_mesh: &Mesh,
+                                      out_mesh: &mut Mesh,
                                       cache: &mut MidpointCache,
-                                      midpoint_fn: &F) -> PositionIndex
+                                      midpoint_fn: &F)
+                                      -> PositionIndex
             where F: Fn(Position, Position) -> Position
         {
             let edge = &in_mesh.edges[index];
-            let mp_index = out_mesh.add_position(
-                in_mesh.edge_midpoint(edge, midpoint_fn)
-            );
+            let mp_index = out_mesh.add_position(in_mesh.edge_midpoint(edge, midpoint_fn));
             if let Some(adjacent_index) = edge.adjacent {
                 cache.insert(adjacent_index, mp_index);
             }
@@ -86,15 +84,25 @@ impl Subdivide for Mesh {
 
             debug_assert_eq!(self.edges[in_e2].next, in_e0);
 
-            // Edge indices: f0             // Edge indices: f1
-            let e0 = mesh.next_edge_id();   let e3 = e0 + 3;
-            let e1 = e0 + 1;                let e4 = e0 + 4;
-            let e2 = e0 + 2;                let e5 = e0 + 5;
+            // Edge indices: f0
+            let e0 = mesh.next_edge_id();
+            let e1 = e0 + 1;
+            let e2 = e0 + 2;
 
-            // Edge indices: f2     // Edge indices: f3
-            let e6 = e0 + 6;        let  e9 = e0 +  9;
-            let e7 = e0 + 7;        let e10 = e0 + 10;
-            let e8 = e0 + 8;        let e11 = e0 + 11;
+            // Edge indices: f1
+            let e3 = e0 + 3;
+            let e4 = e0 + 4;
+            let e5 = e0 + 5;
+
+            // Edge indices: f2
+            let e6 = e0 + 6;
+            let e7 = e0 + 7;
+            let e8 = e0 + 8;
+
+            // Edge indices: f3
+            let e9 = e0 + 9;
+            let e10 = e0 + 10;
+            let e11 = e0 + 11;
 
             // Original position indices
             let p0 = self.edges[in_e0].position;
@@ -103,38 +111,47 @@ impl Subdivide for Mesh {
 
             // Midpoint position indices
 
-            let p3 = midpoint_cache
-                .remove(&in_e0)
-                .unwrap_or_else(|| {
-                    calc_and_cache_midpoint(
-                        in_e0, self, &mut mesh, &mut midpoint_cache, &midpoint_fn
-                    )
-                });
+            let p3 = match midpoint_cache.remove(&in_e0) {
+                Some(point) => point,
+                None => {
+                    calc_and_cache_midpoint(in_e0,
+                                            self,
+                                            &mut mesh,
+                                            &mut midpoint_cache,
+                                            &midpoint_fn)
+                },
+            };
 
-            let p4 = midpoint_cache
-                .remove(&in_e1)
-                .unwrap_or_else(|| {
-                    calc_and_cache_midpoint(
-                        in_e1, self, &mut mesh, &mut midpoint_cache, &midpoint_fn
-                    )
-                });
+            let p4 = match midpoint_cache.remove(&in_e1) {
+                Some(point) => point,
+                None => {
+                    calc_and_cache_midpoint(in_e1,
+                                            self,
+                                            &mut mesh,
+                                            &mut midpoint_cache,
+                                            &midpoint_fn)
+                },
+            };
 
-            let p5 = midpoint_cache
-                .remove(&in_e2)
-                .unwrap_or_else(|| {
-                    calc_and_cache_midpoint(
-                        in_e2, self, &mut mesh, &mut midpoint_cache, &midpoint_fn
-                    )
-                });
+            let p5 = match midpoint_cache.remove(&in_e2) {
+                Some(point) => point,
+                None => {
+                    calc_and_cache_midpoint(in_e2,
+                                            self,
+                                            &mut mesh,
+                                            &mut midpoint_cache,
+                                            &midpoint_fn)
+                },
+            };
 
             mesh.add_triangle(p0, p3, p5);
             mesh.add_triangle(p3, p1, p4);
             mesh.add_triangle(p3, p4, p5);
             mesh.add_triangle(p5, p4, p2);
 
-            split_edges.insert(in_e0, ( e0,  e3));
-            split_edges.insert(in_e1, ( e4, e10));
-            split_edges.insert(in_e2, (e11,  e2));
+            split_edges.insert(in_e0, (e0, e3));
+            split_edges.insert(in_e1, (e4, e10));
+            split_edges.insert(in_e2, (e11, e2));
 
             mesh.make_adjacent(e1, e8);
             mesh.make_adjacent(e5, e6);
@@ -198,11 +215,9 @@ impl Dual for Mesh {
             face_cache.entry(point_indices[1]).or_insert(face_index);
             face_cache.entry(point_indices[2]).or_insert(face_index);
 
-            let face_positions = [
-                self.positions[point_indices[0]],
-                self.positions[point_indices[1]],
-                self.positions[point_indices[2]],
-            ];
+            let face_positions = [self.positions[point_indices[0]],
+                                  self.positions[point_indices[1]],
+                                  self.positions[point_indices[2]]];
 
             let centroid_index = mesh.add_position(Position::centroid(&face_positions));
             centroid_cache.insert(face_index, centroid_index);
@@ -231,7 +246,9 @@ impl Dual for Mesh {
                         if e1.position == pi {
                             e0.next
                         } else {
-                            assert!(pi == self.edges[e1.next].position, "Unable to find outgoing edge for position {}", pi);
+                            assert!(pi == self.edges[e1.next].position,
+                                    "Unable to find outgoing edge for position {}",
+                                    pi);
                             e1.next
                         }
                     }
@@ -249,7 +266,7 @@ impl Dual for Mesh {
             let centroid_index = mesh.add_position(centroid);
 
             match centroids.len() {
-                6 =>  {
+                6 => {
                     mesh.add_triangle(centroid_index, centroid_indices[0], centroid_indices[1]);
                     mesh.add_triangle(centroid_index, centroid_indices[1], centroid_indices[2]);
                     mesh.add_triangle(centroid_index, centroid_indices[2], centroid_indices[3]);

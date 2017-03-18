@@ -51,7 +51,8 @@ impl From<glutin::Event> for InputEvent {
         use glium::glutin::VirtualKeyCode as Key;
 
         match src {
-            Event::Closed | Event::KeyboardInput(Pressed, _, Some(Key::Escape)) => InputEvent::Close,
+            Event::Closed |
+            Event::KeyboardInput(Pressed, _, Some(Key::Escape)) => InputEvent::Close,
             Event::KeyboardInput(Pressed, _, Some(Key::R)) => InputEvent::ResetState,
             Event::KeyboardInput(Pressed, _, Some(Key::U)) => InputEvent::ToggleUi,
             Event::MouseInput(Pressed, MouseButton::Left) => InputEvent::DragStart,
@@ -129,9 +130,18 @@ impl State {
             camera_drag_factor: 10.0,
 
             star_field_radius: 10.0,
-            stars0: StarField { size: 1.0, count: 100000 },
-            stars1: StarField { size: 2.5, count: 10000 },
-            stars2: StarField { size: 5.0, count: 1000 },
+            stars0: StarField {
+                size: 1.0,
+                count: 100000,
+            },
+            stars1: StarField {
+                size: 2.5,
+                count: 10000,
+            },
+            stars2: StarField {
+                size: 5.0,
+                count: 1000,
+            },
 
             planet_radius: 1.0,
             planet_subdivs: 3,
@@ -161,10 +171,11 @@ impl State {
 
     fn create_scene_camera(&self) -> ComputedCamera {
         Camera {
-            position: self.scene_camera_position(),
-            target: Point3::origin(),
-            projection: self.scene_camera_projection(),
-        }.compute()
+                position: self.scene_camera_position(),
+                target: Point3::origin(),
+                projection: self.scene_camera_projection(),
+            }
+            .compute()
     }
 
     fn create_hud_camera(&self) -> Matrix4<f32> {
@@ -191,15 +202,22 @@ impl Game {
     }
 
     fn queue_regenete_planet_job(&self) {
-        self.queue_job(Job::Planet {
-            subdivs: self.state.planet_subdivs,
-        });
+        self.queue_job(Job::Planet { subdivs: self.state.planet_subdivs });
     }
 
     fn queue_regenete_stars_jobs(&self) {
-        self.queue_job(Job::Stars { index: 2, count: self.state.stars2.count });
-        self.queue_job(Job::Stars { index: 1, count: self.state.stars1.count });
-        self.queue_job(Job::Stars { index: 0, count: self.state.stars0.count });
+        self.queue_job(Job::Stars {
+                           index: 2,
+                           count: self.state.stars2.count,
+                       });
+        self.queue_job(Job::Stars {
+                           index: 1,
+                           count: self.state.stars1.count,
+                       });
+        self.queue_job(Job::Stars {
+                           index: 0,
+                           count: self.state.stars0.count,
+                       });
     }
 
     fn handle_mouse_update(&mut self, new_position: Point2<i32>) {
@@ -211,8 +229,10 @@ impl Game {
         if !self.state.is_ui_capturing_mouse {
             if self.state.is_dragging {
                 let size_points = self.state.frame_metrics.size_points;
-                let rotations_per_second = (mouse_delta.x as f32 / size_points.width as f32) * self.state.camera_drag_factor;
-                self.state.camera_rotation_delta = Rad::full_turn() * rotations_per_second * self.state.frame_metrics.delta_time;
+                let rotations_per_second = (mouse_delta.x as f32 / size_points.width as f32) *
+                                           self.state.camera_drag_factor;
+                self.state.camera_rotation_delta = Rad::full_turn() * rotations_per_second *
+                                                   self.state.frame_metrics.delta_time;
             }
 
             if self.state.is_zooming {
@@ -250,7 +270,11 @@ impl Game {
             SetWireframe(value) => self.state.is_wireframe = value,
             ToggleUi => self.state.is_ui_enabled = !self.state.is_ui_enabled,
             ResetState => self.state.reset(),
-            DragStart => if !self.state.is_ui_capturing_mouse { self.state.is_dragging = true },
+            DragStart => {
+                if !self.state.is_ui_capturing_mouse {
+                    self.state.is_dragging = true
+                }
+            },
             DragEnd => self.state.is_dragging = false,
             ZoomStart => self.state.is_zooming = true,
             ZoomEnd => self.state.is_zooming = false,
@@ -282,13 +306,24 @@ impl Game {
         command_list.clear(color::BLUE);
 
         if self.state.is_showing_star_field {
-            let star_field_matrix =
-                Matrix4::from_translation(camera.position.to_vec())
-                    * Matrix4::from_scale(self.state.star_field_radius);
+            let star_field_matrix = Matrix4::from_translation(camera.position.to_vec()) *
+                                    Matrix4::from_scale(self.state.star_field_radius);
 
-            command_list.points("stars0", self.state.stars0.size, color::WHITE, star_field_matrix, camera);
-            command_list.points("stars1", self.state.stars1.size, color::WHITE, star_field_matrix, camera);
-            command_list.points("stars2", self.state.stars2.size, color::WHITE, star_field_matrix, camera);
+            command_list.points("stars0",
+                                self.state.stars0.size,
+                                color::WHITE,
+                                star_field_matrix,
+                                camera);
+            command_list.points("stars1",
+                                self.state.stars1.size,
+                                color::WHITE,
+                                star_field_matrix,
+                                camera);
+            command_list.points("stars2",
+                                self.state.stars2.size,
+                                color::WHITE,
+                                star_field_matrix,
+                                camera);
         }
 
         let planet_matrix = Matrix4::from_scale(self.state.planet_radius);
@@ -296,7 +331,11 @@ impl Game {
         if self.state.is_wireframe {
             command_list.lines("planet", 0.5, color::BLACK, planet_matrix, camera);
         } else {
-            command_list.solid("planet", self.state.light_dir, color::GREEN, planet_matrix, camera);
+            command_list.solid("planet",
+                               self.state.light_dir,
+                               color::GREEN,
+                               planet_matrix,
+                               camera);
         }
 
         if self.state.is_ui_enabled {
@@ -310,7 +349,12 @@ impl Game {
                 y: 2.0 * scale.y,
             };
 
-            command_list.text("blogger_sans", color::BLACK, text, font_size, position, screen_matrix);
+            command_list.text("blogger_sans",
+                              color::BLACK,
+                              text,
+                              font_size,
+                              position,
+                              screen_matrix);
         }
 
         command_list
@@ -321,7 +365,11 @@ impl Game {
             metrics: self.state.frame_metrics,
             is_limiting_fps: self.state.is_limiting_fps,
             command_list: self.create_command_list(),
-            ui_data: if self.state.is_ui_enabled { Some(self.create_ui_data()) } else { None },
+            ui_data: if self.state.is_ui_enabled {
+                Some(self.create_ui_data())
+            } else {
+                None
+            },
         }
     }
 }
@@ -340,43 +388,49 @@ pub fn init_resources(display: &glium::Display) -> Resources {
             .expect("Could not locate `resources` folder");
 
     fn load_shader(path: &Path) -> io::Result<String> {
-        let mut file = try!(File::open(path));
+        let mut file = File::open(path)?;
         let mut buffer = String::new();
-        try!(file.read_to_string(&mut buffer));
+        file.read_to_string(&mut buffer)?;
 
         Ok(buffer)
     }
 
     resources.handle_event(ResourceEvent::CompileProgram {
-        name: "flat_shaded".to_string(),
-        vertex_shader: load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
-        fragment_shader: load_shader(&assets.join("shaders/flat_shaded.f.glsl")).unwrap(),
-    });
+                               name: "flat_shaded".to_string(),
+                               vertex_shader:
+                                   load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
+                               fragment_shader:
+                                   load_shader(&assets.join("shaders/flat_shaded.f.glsl")).unwrap(),
+                           });
 
     resources.handle_event(ResourceEvent::CompileProgram {
-        name: "text".to_string(),
-        vertex_shader: load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
-        fragment_shader: load_shader(&assets.join("shaders/text.f.glsl")).unwrap(),
-    });
+                               name: "text".to_string(),
+                               vertex_shader: load_shader(&assets.join("shaders/text.v.glsl"))
+                                   .unwrap(),
+                               fragment_shader: load_shader(&assets.join("shaders/text.f.glsl"))
+                                   .unwrap(),
+                           });
 
     resources.handle_event(ResourceEvent::CompileProgram {
-        name: "unshaded".to_string(),
-        vertex_shader: load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
-        fragment_shader: load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap(),
-    });
+                               name: "unshaded".to_string(),
+                               vertex_shader: load_shader(&assets.join("shaders/unshaded.v.glsl"))
+                                   .unwrap(),
+                               fragment_shader:
+                                   load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap(),
+                           });
 
     fn load_font(path: &Path) -> io::Result<Vec<u8>> {
-        let mut file = try!(File::open(path));
+        let mut file = File::open(path)?;
         let mut buffer = vec![];
-        try!(file.read_to_end(&mut buffer));
+        file.read_to_end(&mut buffer)?;
 
         Ok(buffer)
     }
 
     resources.handle_event(ResourceEvent::UploadFont {
-        name: "blogger_sans".to_string(),
-        data: load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap(),
-    });
+                               name: "blogger_sans".to_string(),
+                               data: load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap(),
+                           });
 
     resources
 }
@@ -391,25 +445,36 @@ pub struct UiData {
     star_field_radius: f32,
 }
 
-pub fn run_ui<F>(ui: &Ui, state: UiData, send: F) where F: Fn(InputEvent) {
+pub fn run_ui<F>(ui: &Ui, state: UiData, send: F)
+    where F: Fn(InputEvent)
+{
     use self::InputEvent::*;
 
     ui.window(im_str!("State"))
         .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
         .size((300.0, 250.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
-            ui::checkbox(ui, im_str!("Wireframe"), state.is_wireframe)
-                .map(|v| send(SetWireframe(v)));
+            ui::checkbox(ui, im_str!("Wireframe"), state.is_wireframe).map(|v| {
+                                                                               send(SetWireframe(v))
+                                                                           });
             ui::checkbox(ui, im_str!("Show star field"), state.is_showing_star_field)
                 .map(|v| send(SetShowingStarField(v)));
             ui::checkbox(ui, im_str!("Limit FPS"), state.is_limiting_fps)
                 .map(|v| send(SetLimitingFps(v)));
-            ui::slider_int(ui, im_str!("Planet subdivisions"), state.planet_subdivs as i32, 1, 8)
-                .map(|v| send(SetPlanetSubdivisions(v as usize)));
+            ui::slider_int(ui,
+                           im_str!("Planet subdivisions"),
+                           state.planet_subdivs as i32,
+                           1,
+                           8)
+                    .map(|v| send(SetPlanetSubdivisions(v as usize)));
             ui::slider_float(ui, im_str!("Planet radius"), state.planet_radius, 0.0, 2.0)
                 .map(|v| send(SetPlanetRadius(v)));
-            ui::slider_float(ui, im_str!("Star field radius"), state.star_field_radius, 0.0, 20.0)
-                .map(|v| send(SetStarFieldRadius(v)));
+            ui::slider_float(ui,
+                             im_str!("Star field radius"),
+                             state.star_field_radius,
+                             0.0,
+                             20.0)
+                    .map(|v| send(SetStarFieldRadius(v)));
 
             if ui.small_button(im_str!("Reset state")) {
                 send(ResetState);
@@ -442,17 +507,16 @@ pub fn spawn(frame_data: FrameMetrics,
                 UpdateEvent::FrameRequested(frame_data) => {
                     // We send the data for the last frame so that the renderer
                     // can get started doing it's job in parallel!
-                    render_tx.send(game.create_render_data())
-                        .expect("Failed to send render data");
+                    render_tx.send(game.create_render_data()).expect("Failed to send render data");
 
                     game.handle_frame_request(frame_data)
                 },
-                UpdateEvent::Input(event) => {
-                    game.handle_input(event)
-                },
+                UpdateEvent::Input(event) => game.handle_input(event),
             };
 
-            if loop_result == Loop::Break { break };
+            if loop_result == Loop::Break {
+                break;
+            };
         }
     });
 

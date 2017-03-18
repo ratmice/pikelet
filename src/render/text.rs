@@ -21,10 +21,7 @@ pub const TEXTURE_VERTICES: [TextVertex; 4] = [
     TextVertex { position: [          0.0, TEXTURE_HEIGHT], tex_coords: [0.0, 1.0] }, // Bottom-left
 ];
 
-pub const TEXTURE_INDICES: [u8; 2 * 3] = [
-    0, 1, 2,
-    2, 3, 0,
-];
+pub const TEXTURE_INDICES: [u8; 2 * 3] = [0, 1, 2, 2, 3, 0];
 
 #[derive(Clone, Debug)]
 pub struct TextData {
@@ -52,10 +49,10 @@ impl TextData {
         for glyph in glyphs {
             if let Some(bb) = glyph.pixel_bounding_box() {
                 glyph.draw(|x, y, value| {
-                    let x = (x as i32 + bb.min.x) as usize;
-                    let y = (y as i32 + bb.min.y) as usize;
-                    data[x + y * width] = value as f32;
-                });
+                               let x = (x as i32 + bb.min.x) as usize;
+                               let y = (y as i32 + bb.min.y) as usize;
+                               data[x + y * width] = value as f32;
+                           });
             }
         }
 

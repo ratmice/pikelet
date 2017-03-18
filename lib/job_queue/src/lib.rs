@@ -12,9 +12,7 @@ struct JobQueue<Job> {
 
 impl<Job: PartialEq> JobQueue<Job> {
     fn new() -> JobQueue<Job> {
-        JobQueue {
-            queued_jobs: VecDeque::new(),
-        }
+        JobQueue { queued_jobs: VecDeque::new() }
     }
 
     fn pop_front(&mut self) -> Option<Job> {
@@ -39,10 +37,10 @@ impl<Job: PartialEq> JobQueue<Job> {
     }
 }
 
-pub fn spawn<T, Job, F>(mut f: F) -> (Sender<Job>, Receiver<T>) where
-    T: Send + 'static,
-    Job: Send + PartialEq + 'static,
-    F: FnMut(Job) -> T + Send + 'static,
+pub fn spawn<T, Job, F>(mut f: F) -> (Sender<Job>, Receiver<T>)
+    where T: Send + 'static,
+          Job: Send + PartialEq + 'static,
+          F: FnMut(Job) -> T + Send + 'static
 {
     use std::sync::{Arc, Mutex};
     use std::sync::mpsc;
@@ -55,12 +53,10 @@ pub fn spawn<T, Job, F>(mut f: F) -> (Sender<Job>, Receiver<T>) where
     {
         let queue = queue.clone();
 
-        thread::spawn(move || {
-            for job in job_rx.iter() {
-                let mut queue = queue.lock().unwrap();
-                queue.push_back(job);
-            }
-        });
+        thread::spawn(move || for job in job_rx.iter() {
+                          let mut queue = queue.lock().unwrap();
+                          queue.push_back(job);
+                      });
     }
 
     thread::spawn(move || {
@@ -72,7 +68,9 @@ pub fn spawn<T, Job, F>(mut f: F) -> (Sender<Job>, Receiver<T>) where
             };
 
             if let Some(job) = job {
-                if result_tx.send(f(job)).is_err() { break };
+                if result_tx.send(f(job)).is_err() {
+                    break;
+                };
             };
 
             // Better way? The other thread could be something like an OTP gen_server...

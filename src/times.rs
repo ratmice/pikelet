@@ -8,9 +8,15 @@ pub struct State<T: Copy + Sub<T, Output = T>> {
 }
 
 impl<T: Copy + Sub<T, Output = T>> State<T> {
-    pub fn previous(&self) -> T { self.previous }
-    pub fn current(&self) -> T { self.current }
-    pub fn delta(&self) -> T { self.current - self.previous }
+    pub fn previous(&self) -> T {
+        self.previous
+    }
+    pub fn current(&self) -> T {
+        self.current
+    }
+    pub fn delta(&self) -> T {
+        self.current - self.previous
+    }
 }
 
 pub struct Times<T: Copy + Sub<T, Output = T>> {
@@ -25,9 +31,9 @@ impl<T: Copy + Sub<T, Output = T>> Iterator for Times<T> {
         let current = (self.get_time)();
         let previous = mem::replace(&mut self.previous, current);
         Some(State {
-            previous: previous,
-            current: current,
-        })
+                 previous: previous,
+                 current: current,
+             })
     }
 }
 

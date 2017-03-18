@@ -18,9 +18,7 @@ use self::text::{TextData, TextVertex};
 mod text;
 
 enum DrawCommand {
-    Clear {
-        color: Color,
-    },
+    Clear { color: Color },
     Points {
         buffer_name: String,
         size: f32,
@@ -58,64 +56,81 @@ pub struct CommandList {
 
 impl CommandList {
     pub fn new() -> CommandList {
-        CommandList {
-            commands: Vec::new(),
-        }
+        CommandList { commands: Vec::new() }
     }
 
     pub fn clear(&mut self, color: Color) {
-        self.commands.push(DrawCommand::Clear {
-            color: color,
-        });
+        self.commands.push(DrawCommand::Clear { color: color });
     }
 
-    pub fn points<S>(&mut self, buffer_name: S, size: f32, color: Color, model: Matrix4<f32>, camera: ComputedCamera) where
-        S: Into<String>,
+    pub fn points<S>(&mut self,
+                     buffer_name: S,
+                     size: f32,
+                     color: Color,
+                     model: Matrix4<f32>,
+                     camera: ComputedCamera)
+        where S: Into<String>
     {
         self.commands.push(DrawCommand::Points {
-            buffer_name: buffer_name.into(),
-            size: size,
-            color: color,
-            model: model,
-            camera: camera,
-        });
+                               buffer_name: buffer_name.into(),
+                               size: size,
+                               color: color,
+                               model: model,
+                               camera: camera,
+                           });
     }
 
-    pub fn lines<S>(&mut self, buffer_name: S, width: f32, color: Color, model: Matrix4<f32>, camera: ComputedCamera) where
-        S: Into<String>,
+    pub fn lines<S>(&mut self,
+                    buffer_name: S,
+                    width: f32,
+                    color: Color,
+                    model: Matrix4<f32>,
+                    camera: ComputedCamera)
+        where S: Into<String>
     {
         self.commands.push(DrawCommand::Lines {
-            buffer_name: buffer_name.into(),
-            width: width,
-            color: color,
-            model: model,
-            camera: camera,
-        });
+                               buffer_name: buffer_name.into(),
+                               width: width,
+                               color: color,
+                               model: model,
+                               camera: camera,
+                           });
     }
 
-    pub fn solid<S>(&mut self, buffer_name: S, light_dir: Vector3<f32>, color: Color, model: Matrix4<f32>, camera: ComputedCamera) where
-        S: Into<String>,
+    pub fn solid<S>(&mut self,
+                    buffer_name: S,
+                    light_dir: Vector3<f32>,
+                    color: Color,
+                    model: Matrix4<f32>,
+                    camera: ComputedCamera)
+        where S: Into<String>
     {
         self.commands.push(DrawCommand::Solid {
-            buffer_name: buffer_name.into(),
-            light_dir: light_dir,
-            color: color,
-            model: model,
-            camera: camera,
-        });
+                               buffer_name: buffer_name.into(),
+                               light_dir: light_dir,
+                               color: color,
+                               model: model,
+                               camera: camera,
+                           });
     }
 
-    pub fn text<S>(&mut self, font_name: S, color: Color, text: String, size: f32, position: Point2<f32>, screen_matrix: Matrix4<f32>) where
-        S: Into<String>,
+    pub fn text<S>(&mut self,
+                   font_name: S,
+                   color: Color,
+                   text: String,
+                   size: f32,
+                   position: Point2<f32>,
+                   screen_matrix: Matrix4<f32>)
+        where S: Into<String>
     {
         self.commands.push(DrawCommand::Text {
-            font_name: font_name.into(),
-            color: color,
-            text: text,
-            size: size,
-            position: position,
-            screen_matrix: screen_matrix,
-        });
+                               font_name: font_name.into(),
+                               color: color,
+                               text: text,
+                               size: size,
+                               position: position,
+                               screen_matrix: screen_matrix,
+                           });
     }
 }
 
@@ -185,23 +200,29 @@ pub enum ResourceEvent {
         vertex_shader: String,
         fragment_shader: String,
     },
-    UploadFont {
-        name: String,
-        data: Vec<u8>,
-    },
+    UploadFont { name: String, data: Vec<u8> },
 }
 
 impl fmt::Debug for ResourceEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ResourceEvent::UploadBuffer { ref name, ref vertices, ref indices } => {
-                write!(f, "ResourceEvent::UploadBuffer {{ name: {:?}, vertices: vec![_; {}], indices: {:?} }}", name, vertices.len(), indices)
+                write!(f,
+                       "ResourceEvent::UploadBuffer {{ name: {:?}, vertices: vec![_; {}], indices: {:?} }}",
+                       name,
+                       vertices.len(),
+                       indices)
             },
             ResourceEvent::CompileProgram { ref name, .. } => {
-                write!(f, "ResourceEvent::CompileProgram {{ name: {:?}, vertex_shader: \"..\", fragment_shader: \"..\"] }}", name)
+                write!(f,
+                       "ResourceEvent::CompileProgram {{ name: {:?}, vertex_shader: \"..\", fragment_shader: \"..\"] }}",
+                       name)
             },
             ResourceEvent::UploadFont { ref name, ref data } => {
-                write!(f, "ResourceEvent::UploadFont {{ name: {:?}, data: vec![_; {}] }}", name, data.len())
+                write!(f,
+                       "ResourceEvent::UploadFont {{ name: {:?}, data: vec![_; {}] }}",
+                       name,
+                       data.len())
             },
         }
     }
@@ -230,7 +251,10 @@ impl Resources {
             fonts: HashMap::new(),
 
             text_vertex_buffer: VertexBuffer::new(facade, &text::TEXTURE_VERTICES).unwrap(),
-            text_index_buffer: IndexBuffer::new(facade, PrimitiveType::TrianglesList, &text::TEXTURE_INDICES).unwrap(),
+            text_index_buffer: IndexBuffer::new(facade,
+                                                PrimitiveType::TrianglesList,
+                                                &text::TEXTURE_INDICES)
+                    .unwrap(),
         }
     }
 
@@ -243,7 +267,9 @@ impl Resources {
                 self.buffers.insert(name, (vbo, ibo));
             },
             ResourceEvent::CompileProgram { name, vertex_shader, fragment_shader } => {
-                let program = Program::from_source(&self.context, &vertex_shader, &fragment_shader, None).unwrap();
+                let program =
+                    Program::from_source(&self.context, &vertex_shader, &fragment_shader, None)
+                        .unwrap();
 
                 self.programs.insert(name, program);
             },
@@ -278,7 +304,11 @@ impl Resources {
             },
             DrawCommand::Points { buffer_name, size, color, model, camera } => {
                 let program = &self.programs["unshaded"];
-                let draw_params = DrawParameters { polygon_mode: PolygonMode::Point, point_size: Some(size), ..draw_params() };
+                let draw_params = DrawParameters {
+                    polygon_mode: PolygonMode::Point,
+                    point_size: Some(size),
+                    ..draw_params()
+                };
                 let uniforms = uniform! {
                     color:      color,
                     model:      array4x4(model),
@@ -292,7 +322,11 @@ impl Resources {
             },
             DrawCommand::Lines { buffer_name, width, color, model, camera } => {
                 let program = &self.programs["unshaded"];
-                let draw_params = DrawParameters { polygon_mode: PolygonMode::Line, line_width: Some(width), ..draw_params() };
+                let draw_params = DrawParameters {
+                    polygon_mode: PolygonMode::Line,
+                    line_width: Some(width),
+                    ..draw_params()
+                };
                 let uniforms = uniform! {
                     color:      color,
                     model:      array4x4(model),
@@ -306,7 +340,8 @@ impl Resources {
             },
             DrawCommand::Solid { buffer_name, light_dir, color, model, camera } => {
                 let program = &self.programs["flat_shaded"];
-                let draw_params = DrawParameters { polygon_mode: PolygonMode::Fill, ..draw_params() };
+                let draw_params =
+                    DrawParameters { polygon_mode: PolygonMode::Fill, ..draw_params() };
                 let uniforms = uniform! {
                     color:      color,
                     light_dir:  array3(light_dir),
@@ -329,7 +364,7 @@ impl Resources {
                     None => return Ok(()),
                 };
                 let text_data = TextData::new(font, &text, size);
-                let text_texture = try!(Texture2d::new(&self.context, &text_data));
+                let text_texture = Texture2d::new(&self.context, &text_data)?;
 
                 Some(frame.draw(
                     &self.text_vertex_buffer,
@@ -372,7 +407,7 @@ impl Resources {
 
     pub fn draw(&self, frame: &mut Frame, command_list: CommandList) -> RenderResult<()> {
         for command in command_list.commands {
-            try!(self.handle_draw_command(frame, command));
+            self.handle_draw_command(frame, command)?;
         }
 
         Ok(())

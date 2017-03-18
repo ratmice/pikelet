@@ -5,75 +5,54 @@ use super::*;
 
 pub fn triangle(scale: f32) -> Mesh {
     let extent = scale / 2.0;
-    let positions = vec![
-        Point3::new(0.0, extent, 0.0),
-        Point3::new(-extent, -extent, 0.0),
-        Point3::new(extent, -extent, 0.0)
-    ];
+    let positions = vec![Point3::new(0.0, extent, 0.0),
+                         Point3::new(-extent, -extent, 0.0),
+                         Point3::new(extent, -extent, 0.0)];
 
-    let faces = vec![
-        Face::new(0)
-    ];
+    let faces = vec![Face::new(0)];
 
-    let edges = vec![
-        Edge::new_boundary(0, 0, 1),
-        Edge::new_boundary(1, 0, 2),
-        Edge::new_boundary(2, 0, 0),
-    ];
+    let edges =
+        vec![Edge::new_boundary(0, 0, 1), Edge::new_boundary(1, 0, 2), Edge::new_boundary(2, 0, 0)];
 
     Mesh {
         positions: positions,
         edges: edges,
-        faces: faces
+        faces: faces,
     }
 }
 
 pub fn plane(scale: f32) -> Mesh {
     let extent = scale / 2.0;
-    let positions = vec![
-        Point3::new(-extent, extent, 0.0),
-        Point3::new(-extent, -extent, 0.0),
-        Point3::new(extent, -extent, 0.0),
-        Point3::new(extent, extent, 0.0),
-    ];
+    let positions = vec![Point3::new(-extent, extent, 0.0),
+                         Point3::new(-extent, -extent, 0.0),
+                         Point3::new(extent, -extent, 0.0),
+                         Point3::new(extent, extent, 0.0)];
 
-    let faces = vec![
-        Face::new(0),
-        Face::new(3)
-    ];
+    let faces = vec![Face::new(0), Face::new(3)];
 
-    let edges = vec![
-        Edge::new_boundary(0, 0, 1),
-        Edge::new_boundary(1, 0, 2),
-        Edge::new(2, 0, 0, 3),
-        Edge::new(0, 1, 4, 2),
-        Edge::new_boundary(2, 1, 5),
-        Edge::new_boundary(3, 1, 3),
-    ];
+    let edges = vec![Edge::new_boundary(0, 0, 1),
+                     Edge::new_boundary(1, 0, 2),
+                     Edge::new(2, 0, 0, 3),
+                     Edge::new(0, 1, 4, 2),
+                     Edge::new_boundary(2, 1, 5),
+                     Edge::new_boundary(3, 1, 3)];
 
     Mesh {
         positions: positions,
         edges: edges,
-        faces: faces
+        faces: faces,
     }
 }
 
 pub fn tetrahedron(scale: f32) -> Mesh {
     let extent = scale / 2.0;
 
-    let positions = vec![
-        Point3::new(extent, extent, extent),
-        Point3::new(extent, -extent, -extent),
-        Point3::new(-extent, extent, -extent),
-        Point3::new(-extent, -extent, extent),
-    ];
+    let positions = vec![Point3::new(extent, extent, extent),
+                         Point3::new(extent, -extent, -extent),
+                         Point3::new(-extent, extent, -extent),
+                         Point3::new(-extent, -extent, extent)];
 
-    let faces = vec![
-        Face::new(0),
-        Face::new(3),
-        Face::new(6),
-        Face::new(9),
-    ];
+    let faces = vec![Face::new(0), Face::new(3), Face::new(6), Face::new(9)];
 
     let edges = vec![
         // Face 0     // point, face, next, adj
@@ -97,7 +76,7 @@ pub fn tetrahedron(scale: f32) -> Mesh {
     Mesh {
         positions: positions,
         edges: edges,
-        faces: faces
+        faces: faces,
     }
 }
 
@@ -110,23 +89,21 @@ pub fn icosahedron(radius: f32) -> Mesh {
     //       (would be cool if you could annotate source code with images
     //        to explain notes like this!)
     let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
-    let positions = vec![
-        math::set_radius(Point3::new( 0.0,  phi, -1.0), radius),
-        math::set_radius(Point3::new(-phi,  1.0,  0.0), radius),
-        math::set_radius(Point3::new( 0.0,  phi,  1.0), radius),
-        math::set_radius(Point3::new( phi,  1.0,  0.0), radius),
-        math::set_radius(Point3::new( 1.0,  0.0, -phi), radius),
-        math::set_radius(Point3::new(-1.0,  0.0, -phi), radius),
-        math::set_radius(Point3::new(-1.0,  0.0,  phi), radius),
-        math::set_radius(Point3::new( 1.0,  0.0,  phi), radius),
-        math::set_radius(Point3::new( phi, -1.0,  0.0), radius),
-        math::set_radius(Point3::new( 0.0, -phi, -1.0), radius),
-        math::set_radius(Point3::new(-phi, -1.0,  0.0), radius),
-        math::set_radius(Point3::new( 0.0, -phi,  1.0), radius),
-    ];
+    let positions = vec![math::set_radius(Point3::new(0.0, phi, -1.0), radius),
+                         math::set_radius(Point3::new(-phi, 1.0, 0.0), radius),
+                         math::set_radius(Point3::new(0.0, phi, 1.0), radius),
+                         math::set_radius(Point3::new(phi, 1.0, 0.0), radius),
+                         math::set_radius(Point3::new(1.0, 0.0, -phi), radius),
+                         math::set_radius(Point3::new(-1.0, 0.0, -phi), radius),
+                         math::set_radius(Point3::new(-1.0, 0.0, phi), radius),
+                         math::set_radius(Point3::new(1.0, 0.0, phi), radius),
+                         math::set_radius(Point3::new(phi, -1.0, 0.0), radius),
+                         math::set_radius(Point3::new(0.0, -phi, -1.0), radius),
+                         math::set_radius(Point3::new(-phi, -1.0, 0.0), radius),
+                         math::set_radius(Point3::new(0.0, -phi, 1.0), radius)];
 
-                       // Edges around
-    let faces = vec![  // the face:
+    // Edges around the face:
+    let faces = vec![
         Face::new( 0), //  0,  1,  2
         Face::new( 3), //  3,  4,  5
         Face::new( 6), //  6,  7,  8
@@ -235,6 +212,6 @@ pub fn icosahedron(radius: f32) -> Mesh {
     Mesh {
         positions: positions,
         faces: faces,
-        edges: edges
+        edges: edges,
     }
 }
