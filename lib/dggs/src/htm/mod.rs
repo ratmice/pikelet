@@ -46,8 +46,8 @@ impl<T: NodeData> QuadTree<T> {
             nodes: Vec::with_capacity(cell_count),
         };
 
-        for path in 0..cell_count {
-            let cell_orientation = cell::orientation_for_path(subdivision_level, orientation, path);
+        for path in (0..cell_count).map(cell::Path) {
+            let cell_orientation = path.orientation(subdivision_level, orientation);
             tree.nodes.push(Node::new(path, cell_orientation, T::default()));
         }
 

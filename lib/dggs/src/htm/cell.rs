@@ -1,6 +1,9 @@
 pub type Index = usize;
 pub type Level = usize;
-pub type Path = usize;
+
+/// A path to a cell in the discrete global grid system
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct Path(pub usize);
 
 pub const ID_MASK: usize = 0x03;
 pub const EVEN_BITS: usize = 0xAAAAAAAAAAAAAAAA;
@@ -16,9 +19,63 @@ pub const BOTTOM: usize = 0b00;
 pub const BOTTOM_LEFT: usize = 0b01;
 pub const BOTTOM_RIGHT: usize = 0b11;
 
+impl Path {
+    pub fn nearest_common_ancestor(self, direction: NeighborDirection, depth: usize) -> Path {
+        let child_type = self.0 & ID_MASK;
+        unimplemented!()
+    }
+
+    pub fn parent(self) -> Path {
+        Path(self.0 >> 2)
+    }
+
+    pub fn orientation(self,
+                       subdivision_level: Level,
+                       tree_orientation: Orientation)
+                       -> Orientation {
+        let node_id = self.0 & ID_MASK;
+        let parent_orientation = match subdivision_level {
+            1 => tree_orientation,
+            _ => self.parent().orientation(subdivision_level - 1, tree_orientation),
+        };
+
+        match node_id {
+            CENTER => {
+                match parent_orientation {
+                    Orientation::Up => Orientation::Down,
+                    Orientation::Down => Orientation::Up,
+                }
+            },
+            _ => parent_orientation,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Copy, PartialEq)]
 pub enum Orientation {
+    /// ```text
+    ///         +
+    ///        / \
+    ///       /   \
+    ///      / 00  \
+    ///     +-------+
+    ///    / \ 10  / \
+    ///   /   \   /   \
+    ///  / 01  \ / 11  \
+    /// /-------+-------+
+    /// ```
     Up,
+    /// ```text
+    /// +-------+-------+
+    ///  \ 01  / \ 11  /
+    ///   \   /   \   /
+    ///    \ / 10  \ /
+    ///     +-------+
+    ///      \ 00  /
+    ///       \   /
+    ///        \ /
+    ///         +
+    /// ```
     Down,
 }
 
@@ -29,6 +86,7 @@ pub enum NeighborDirection {
     Vert,
 }
 
+/// Indicates when to cease search for the `nearest_common_ancestor`
 pub fn stop_tab(child_type: u8, direction: NeighborDirection) -> bool {
     match (child_type, direction) {
         (0b00, NeighborDirection::Left) => false,
@@ -48,33 +106,5 @@ pub fn stop_tab(child_type: u8, direction: NeighborDirection) -> bool {
         (0b11, NeighborDirection::Vert) => false,
 
         _ => panic!("unreachable!"),
-    }
-}
-
-pub fn common_ancestor(excode: Path, direction: NeighborDirection, depth: usize) -> Path {
-    let child_type = excode & ID_MASK;
-    unimplemented!()
-}
-
-pub fn orientation_for_path(subdivision_level: Level,
-                            tree_orientation: Orientation,
-                            path: Path)
-                            -> Orientation {
-    let node_id = path & ID_MASK;
-    let parent_orientation = if subdivision_level == 1 {
-        tree_orientation
-    } else {
-        let parent_path = path >> 2;
-        let parent_level = subdivision_level - 1;
-        orientation_for_path(parent_level, tree_orientation, parent_path)
-    };
-    match node_id {
-        CENTER => {
-            match parent_orientation {
-                Orientation::Up => Orientation::Down,
-                Orientation::Down => Orientation::Up,
-            }
-        },
-        _ => parent_orientation,
     }
 }
