@@ -1,0 +1,7 @@
+[package]
+authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>", "Chip Collier <photex@gmail.com>"]
+name = "dggs"
+version = "0.0.1"
+
+[dev-dependencies]
+expectest = "0.5.1"

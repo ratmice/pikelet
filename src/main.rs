@@ -25,6 +25,7 @@ extern crate time;
 extern crate itertools;
 extern crate fnv;
 
+extern crate dggs;
 extern crate job_queue;
 
 use cgmath::Vector2;
@@ -38,7 +39,6 @@ pub mod camera;
 pub mod color;
 mod game;
 pub mod geom;
-pub mod dggs;
 pub mod math;
 pub mod times;
 mod render;
@@ -60,16 +60,14 @@ impl FrameMetrics {
     }
 
     fn framebuffer_scale(&self) -> Vector2<f32> {
-        Vector2::new(
-            match self.size_points.width {
-                0 => 0.0,
-                width => self.size_pixels.width as f32 / width as f32,
-            },
-            match self.size_points.height {
-                0 => 0.0,
-                height => self.size_pixels.height as f32 / height as f32,
-            },
-        )
+        Vector2::new(match self.size_points.width {
+                         0 => 0.0,
+                         width => self.size_pixels.width as f32 / width as f32,
+                     },
+                     match self.size_points.height {
+                         0 => 0.0,
+                         height => self.size_pixels.height as f32 / height as f32,
+                     })
     }
 
     fn aspect_ratio(&self) -> f32 {
@@ -114,13 +112,12 @@ fn main() {
     use std::sync::mpsc;
     use std::thread;
 
-    let display =
-        WindowBuilder::new()
-            .with_title("Voyager!")
-            .with_dimensions(1000, 500)
-            .with_depth_buffer(24)
-            .build_glium()
-            .unwrap();
+    let display = WindowBuilder::new()
+        .with_title("Voyager!")
+        .with_dimensions(1000, 500)
+        .with_depth_buffer(24)
+        .build_glium()
+        .unwrap();
 
     let metrics = create_frame_metrics(&display, 0.0);
     let mut resources = game::init_resources(&display);
@@ -161,12 +158,13 @@ fn main() {
 
         if let Some(ui_data) = render_data.ui_data {
             ui_context.render(&mut frame, render_data.metrics, |ui| {
-                game::run_ui(ui, ui_data, |event| {
-                    // FIXME: could cause a panic on the slim chance that the update thread
-                    // closes during ui rendering.
-                    update_tx.send(UpdateEvent::Input(event)).unwrap();
-                });
-            }).unwrap();
+                    game::run_ui(ui, ui_data, |event| {
+                        // FIXME: could cause a panic on the slim chance that the update thread
+                        // closes during ui rendering.
+                        update_tx.send(UpdateEvent::Input(event)).unwrap();
+                    });
+                })
+                .unwrap();
         }
 
         frame.finish().unwrap();
