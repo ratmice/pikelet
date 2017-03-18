@@ -62,46 +62,26 @@ pub struct Icosahedron<T: NodeData> {
 impl<T: NodeData> Icosahedron<T> {
     pub fn with_subdivisions(subdivision_level: cell::Level) -> Icosahedron<T> {
         Icosahedron {
-            nodes: vec![// 0
-                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
-                        // 1
-                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
-                        // 2
-                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
-                        // 3
-                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
-                        // 4
-                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
-                        // 5
-                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
-                        // 6
-                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
-                        // 7
-                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
-                        // 8
-                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
-                        // 9
-                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
-                        // 10
-                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
-                        // 11
-                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
-                        // 12
-                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
-                        // 13
-                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
-                        // 14
-                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
-                        // 15
-                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
-                        // 16
-                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
-                        // 17
-                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
-                        // 18
-                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level),
-                        // 19
-                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level)],
+            nodes: vec![QuadTree::with_orientation(cell::Orientation::Up, subdivision_level), // 0
+                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level), // 1
+                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level), // 2
+                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level), // 3
+                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level), // 4
+                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level), // 5
+                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level), // 6
+                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level), // 7
+                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level), // 8
+                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level), // 9
+                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level), // 10
+                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level), // 11
+                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level), // 12
+                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level), // 13
+                        QuadTree::with_orientation(cell::Orientation::Up, subdivision_level), // 14
+                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level), // 15
+                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level), // 16
+                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level), // 17
+                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level), // 18
+                        QuadTree::with_orientation(cell::Orientation::Down, subdivision_level)], // 19
         }
     }
 }
