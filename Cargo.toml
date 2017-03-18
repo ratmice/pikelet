@@ -3,6 +3,13 @@ authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>", "Chip Collier <photex@gm
 name = "voyager"
 version = "0.0.1"
 
+[workspace]
+members = [
+    "lib/dggs",
+    "lib/geomath",
+    "lib/job_queue",
+]
+
 [dependencies]
 cgmath = "0.12"
 clippy = { version = "0.0", optional = true }
