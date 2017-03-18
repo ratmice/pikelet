@@ -26,6 +26,7 @@ extern crate itertools;
 extern crate fnv;
 
 extern crate dggs;
+extern crate geomath;
 extern crate job_queue;
 
 use cgmath::Vector2;

@@ -1,10 +1,11 @@
 use cgmath::conv::*;
+use geomath::GeoPoint;
 use rand::{self, Rng};
 
 use geom::Mesh;
 use geom::primitives;
 use geom::algorithms::{Subdivide, Dual};
-use math::{self, GeoPoint};
+use math;
 use render::{ResourceEvent, Vertex, Indices};
 
 fn generate_planet_mesh(subdivs: usize) -> Mesh {
@@ -38,7 +39,8 @@ fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
 fn create_star_vertices(count: usize) -> Vec<Vertex> {
     let mut rng = rand::weak_rng();
 
-    (0..count).map(|_| rng.gen::<GeoPoint<f32>>())
+    (0..count)
+        .map(|_| rng.gen::<GeoPoint<f32>>())
         .map(|star| Vertex { position: array3(star.to_point(1.0)) })
         .collect()
 }

@@ -21,6 +21,7 @@ itertools = "0.5"
 fnv = "1.0"
 
 dggs = { path = "lib/dggs" }
+geomath = { path = "lib/geomath" }
 job_queue = { path = "lib/job_queue" }
 
 [dev-dependencies]

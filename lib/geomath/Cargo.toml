@@ -1,0 +1,8 @@
+[package]
+name = "geomath"
+version = "0.1.0"
+authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
+
+[dependencies]
+cgmath = "0.12"
+rand = "^0.3.14"
