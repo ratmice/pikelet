@@ -135,13 +135,9 @@ mod test {
 
     #[test]
     fn test_spawn() {
-        use std::sync::mpsc;
-
         let job0 = Job(0, "0");
         let job1 = Job(1, "1");
         let job2 = Job(2, "2");
-
-        let (tx, rx) = mpsc::channel();
 
         let (job_tx, result_rx) = super::spawn(|job| job);
 
