@@ -43,7 +43,7 @@ impl<T: NodeData> QuadTree<T> {
         let mut tree = QuadTree {
             subdivision_level: subdivision_level,
             orientation: orientation,
-            nodes: Vec::with_capacity(cell_count),
+            nodes: Vec::with_capacity(cell_count as usize),
         };
 
         for path in (0..cell_count).map(cell::Path) {
@@ -60,7 +60,7 @@ pub struct Icosahedron<T: NodeData> {
 }
 
 impl<T: NodeData> Icosahedron<T> {
-    pub fn with_subdivisions(subdivision_level: usize) -> Icosahedron<T> {
+    pub fn with_subdivisions(subdivision_level: cell::Level) -> Icosahedron<T> {
         Icosahedron {
             nodes: vec![// 0
                         QuadTree::with_orientation(cell::Orientation::Up, subdivision_level),
@@ -136,7 +136,7 @@ mod tests {
     fn assert_orientations(start: cell::Index, tree: &TestTree) {
         for offset in 0..3 {
             let index = start + offset;
-            let cell_orientation = &tree.nodes[index].orientation;
+            let cell_orientation = &tree.nodes[index as usize].orientation;
             let expected_orientation = match tree.orientation {
                 orientation if offset != 2 => orientation,
                 cell::Orientation::Up => cell::Orientation::Down,

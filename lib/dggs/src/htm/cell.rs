@@ -1,28 +1,37 @@
-pub type Index = usize;
-pub type Level = usize;
+pub type Index = u32;
+pub type Level = u32;
 
 /// A path to a cell in the discrete global grid system
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct Path(pub usize);
+pub struct Path(pub u32);
 
-pub const ID_MASK: usize = 0x03;
-pub const EVEN_BITS: usize = 0xAAAAAAAAAAAAAAAA;
-pub const ODD_BITS: usize = 0x5555555555555555;
+pub const ID_MASK: u32 = 0b00000000000000000000000000000011;
+pub const EVEN_BITS: u32 = 0b01010101010101010101010101010101;
+pub const ODD_BITS: u32 = 0b10101010101010101010101010101010;
 
-pub const CENTER: usize = 0b10;
-
-pub const TOP: usize = 0b00;
-pub const TOP_LEFT: usize = 0b01;
-pub const TOP_RIGHT: usize = 0b11;
-
-pub const BOTTOM: usize = 0b00;
-pub const BOTTOM_LEFT: usize = 0b01;
-pub const BOTTOM_RIGHT: usize = 0b11;
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u8)]
+pub enum ChildType {
+    Center = 0b10,
+    Vert = 0b00,
+    Left = 0b01,
+    Right = 0b11,
+}
 
 impl Path {
     pub fn nearest_common_ancestor(self, direction: NeighborDirection, depth: usize) -> Path {
-        let child_type = self.0 & ID_MASK;
+        let child_type = self.child_type();
         unimplemented!()
+    }
+
+    pub fn child_type(self) -> ChildType {
+        match self.0 & ID_MASK {
+            0b10 => ChildType::Center,
+            0b00 => ChildType::Vert,
+            0b01 => ChildType::Left,
+            0b11 => ChildType::Right,
+            _ => unreachable!(),
+        }
     }
 
     pub fn parent(self) -> Path {
@@ -33,14 +42,13 @@ impl Path {
                        subdivision_level: Level,
                        tree_orientation: Orientation)
                        -> Orientation {
-        let node_id = self.0 & ID_MASK;
         let parent_orientation = match subdivision_level {
             1 => tree_orientation,
             _ => self.parent().orientation(subdivision_level - 1, tree_orientation),
         };
 
-        match node_id {
-            CENTER => {
+        match self.child_type() {
+            ChildType::Center => {
                 match parent_orientation {
                     Orientation::Up => Orientation::Down,
                     Orientation::Down => Orientation::Up,
@@ -87,24 +95,22 @@ pub enum NeighborDirection {
 }
 
 /// Indicates when to cease search for the `nearest_common_ancestor`
-pub fn stop_tab(child_type: u8, direction: NeighborDirection) -> bool {
+pub fn stop_tab(child_type: ChildType, direction: NeighborDirection) -> bool {
     match (child_type, direction) {
-        (0b00, NeighborDirection::Left) => false,
-        (0b00, NeighborDirection::Right) => false,
-        (0b00, NeighborDirection::Vert) => true,
+        (ChildType::Vert, NeighborDirection::Left) => false,
+        (ChildType::Vert, NeighborDirection::Right) => false,
+        (ChildType::Vert, NeighborDirection::Vert) => true,
 
-        (0b01, NeighborDirection::Left) => false,
-        (0b01, NeighborDirection::Right) => true,
-        (0b01, NeighborDirection::Vert) => false,
+        (ChildType::Left, NeighborDirection::Left) => false,
+        (ChildType::Left, NeighborDirection::Right) => true,
+        (ChildType::Left, NeighborDirection::Vert) => false,
 
-        (0b10, NeighborDirection::Left) => true,
-        (0b10, NeighborDirection::Right) => true,
-        (0b10, NeighborDirection::Vert) => true,
+        (ChildType::Center, NeighborDirection::Left) => true,
+        (ChildType::Center, NeighborDirection::Right) => true,
+        (ChildType::Center, NeighborDirection::Vert) => true,
 
-        (0b11, NeighborDirection::Left) => true,
-        (0b11, NeighborDirection::Right) => false,
-        (0b11, NeighborDirection::Vert) => false,
-
-        _ => panic!("unreachable!"),
+        (ChildType::Right, NeighborDirection::Left) => true,
+        (ChildType::Right, NeighborDirection::Right) => false,
+        (ChildType::Right, NeighborDirection::Vert) => false,
     }
 }
