@@ -16,11 +16,12 @@ pub struct LatLong<A: Angle> {
 }
 
 impl<A: Angle> From<GeoPoint<A::Unitless>> for LatLong<A> {
+    #[inline]
     fn from(src: GeoPoint<A::Unitless>) -> LatLong<A> {
         // From https://en.wikipedia.org/wiki/Spherical_coordinate_system#Cartesian_coordinates
         LatLong {
             lat: A::atan(src.up.y / src.up.x),
-            // Should not need `A::acos(src.up.z / src.up.magnitude())` because
+            // Probably don't need `A::acos(src.up.z / src.up.magnitude())` because
             // `src.0` is a unit vector, barring rounding errors
             long: A::acos(src.up.z),
         }
@@ -30,6 +31,7 @@ impl<A: Angle> From<GeoPoint<A::Unitless>> for LatLong<A> {
 impl<A: Angle> Rand for LatLong<A>
     where A::Unitless: BaseFloat + Rand + SampleRange
 {
+    #[inline]
     fn rand<R: Rng>(rng: &mut R) -> LatLong<A> {
         // From http://mathworld.wolfram.com/SpherePointPicking.html
 
@@ -44,6 +46,7 @@ impl<A: Angle> Rand for LatLong<A>
 }
 
 impl<A: Angle> From<LatLong<A>> for GeoPoint<A::Unitless> {
+    #[inline]
     fn from(src: LatLong<A>) -> GeoPoint<A::Unitless> {
         // From https://en.wikipedia.org/wiki/Spherical_coordinate_system#Cartesian_coordinates
         let sin_lat = A::sin(src.lat);
@@ -57,6 +60,7 @@ impl<A: Angle> From<LatLong<A>> for GeoPoint<A::Unitless> {
     }
 }
 
+#[inline]
 pub fn arc_length<T: BaseFloat>(angle: Rad<T>, radius: T) -> Rad<T> {
     angle * radius
 }
@@ -77,30 +81,37 @@ pub struct GeoPoint<T> {
 }
 
 impl<T: BaseFloat> GeoPoint<T> {
+    #[inline]
     pub fn north() -> GeoPoint<T> {
         GeoPoint { up: Vector3::unit_x() }
     }
 
+    #[inline]
     pub fn south() -> GeoPoint<T> {
         GeoPoint::north().antipode()
     }
 
+    #[inline]
     pub fn up(self) -> Vector3<T> {
         self.up
     }
 
+    #[inline]
     pub fn midpoint(self, other: GeoPoint<T>) -> GeoPoint<T> {
         GeoPoint { up: Vector3::normalize(self.up + other.up) }
     }
 
+    #[inline]
     pub fn antipode(self) -> GeoPoint<T> {
         GeoPoint { up: -self.up }
     }
 
+    #[inline]
     pub fn distance(self, other: GeoPoint<T>) -> Rad<T> {
         Vector3::angle(self.up, other.up)
     }
 
+    #[inline]
     pub fn to_point(self, radius: T) -> Point3<T> {
         Point3::from_vec(self.up) * radius
     }
@@ -109,6 +120,7 @@ impl<T: BaseFloat> GeoPoint<T> {
 impl<T: BaseFloat> Rand for GeoPoint<T>
     where T: Rand + SampleRange
 {
+    #[inline]
     fn rand<R: Rng>(rng: &mut R) -> GeoPoint<T> {
         GeoPoint::from(LatLong::<Rad<T>>::rand(rng))
     }
@@ -121,6 +133,7 @@ pub struct GeoVector<T> {
 }
 
 impl<T: BaseFloat> GeoVector<T> {
+    #[inline]
     pub fn forward(self) -> Vector3<T> {
         self.forward
     }
@@ -129,6 +142,7 @@ impl<T: BaseFloat> GeoVector<T> {
 impl<T: BaseFloat> Add for GeoVector<T> {
     type Output = GeoVector<T>;
 
+    #[inline]
     fn add(self, other: GeoVector<T>) -> GeoVector<T> {
         GeoVector { forward: self.forward + other.forward }
     }
@@ -137,6 +151,7 @@ impl<T: BaseFloat> Add for GeoVector<T> {
 impl<T: BaseFloat> Sub for GeoVector<T> {
     type Output = GeoVector<T>;
 
+    #[inline]
     fn sub(self, other: GeoVector<T>) -> GeoVector<T> {
         GeoVector { forward: self.forward - other.forward }
     }
@@ -145,6 +160,7 @@ impl<T: BaseFloat> Sub for GeoVector<T> {
 impl<T: BaseFloat> Neg for GeoVector<T> {
     type Output = GeoVector<T>;
 
+    #[inline]
     fn neg(self) -> GeoVector<T> {
         GeoVector { forward: -self.forward }
     }
@@ -153,6 +169,7 @@ impl<T: BaseFloat> Neg for GeoVector<T> {
 impl<T: BaseFloat> Mul<T> for GeoVector<T> {
     type Output = GeoVector<T>;
 
+    #[inline]
     fn mul(self, other: T) -> GeoVector<T> {
         GeoVector { forward: self.forward * other }
     }
@@ -161,6 +178,7 @@ impl<T: BaseFloat> Mul<T> for GeoVector<T> {
 impl<T: BaseFloat> Div<T> for GeoVector<T> {
     type Output = GeoVector<T>;
 
+    #[inline]
     fn div(self, other: T) -> GeoVector<T> {
         GeoVector { forward: self.forward / other }
     }
@@ -169,16 +187,19 @@ impl<T: BaseFloat> Div<T> for GeoVector<T> {
 impl<T: BaseFloat> Rem<T> for GeoVector<T> {
     type Output = GeoVector<T>;
 
+    #[inline]
     fn rem(self, other: T) -> GeoVector<T> {
         GeoVector { forward: self.forward % other }
     }
 }
 
 impl<T: BaseFloat> Zero for GeoVector<T> {
+    #[inline]
     fn is_zero(&self) -> bool {
         self.forward.is_zero()
     }
 
+    #[inline]
     fn zero() -> GeoVector<T> {
         GeoVector { forward: Vector3::zero() }
     }
@@ -199,11 +220,13 @@ impl<T: BaseFloat> GreatCircle<T> {
     /// Construct a great-circle from two points on a sphere. Note that this
     /// will result in an invalid value if the points are on opposite sides
     /// of the sphere.
+    #[inline]
     pub fn from_points(a: GeoPoint<T>, b: GeoPoint<T>) -> GreatCircle<T> {
         GreatCircle { normal: Vector3::cross(a.up, b.up).normalize() }
     }
 
     /// The normal vector of the great-circle plane.
+    #[inline]
     pub fn normal(self) -> Vector3<T> {
         self.normal
     }
