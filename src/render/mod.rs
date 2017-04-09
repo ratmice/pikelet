@@ -71,13 +71,14 @@ impl CommandList {
                      camera: ComputedCamera)
         where S: Into<String>
     {
-        self.commands.push(DrawCommand::Points {
-                               buffer_name: buffer_name.into(),
-                               size: size,
-                               color: color,
-                               model: model,
-                               camera: camera,
-                           });
+        self.commands
+            .push(DrawCommand::Points {
+                      buffer_name: buffer_name.into(),
+                      size: size,
+                      color: color,
+                      model: model,
+                      camera: camera,
+                  });
     }
 
     pub fn lines<S>(&mut self,
@@ -88,13 +89,14 @@ impl CommandList {
                     camera: ComputedCamera)
         where S: Into<String>
     {
-        self.commands.push(DrawCommand::Lines {
-                               buffer_name: buffer_name.into(),
-                               width: width,
-                               color: color,
-                               model: model,
-                               camera: camera,
-                           });
+        self.commands
+            .push(DrawCommand::Lines {
+                      buffer_name: buffer_name.into(),
+                      width: width,
+                      color: color,
+                      model: model,
+                      camera: camera,
+                  });
     }
 
     pub fn solid<S>(&mut self,
@@ -105,13 +107,14 @@ impl CommandList {
                     camera: ComputedCamera)
         where S: Into<String>
     {
-        self.commands.push(DrawCommand::Solid {
-                               buffer_name: buffer_name.into(),
-                               light_dir: light_dir,
-                               color: color,
-                               model: model,
-                               camera: camera,
-                           });
+        self.commands
+            .push(DrawCommand::Solid {
+                      buffer_name: buffer_name.into(),
+                      light_dir: light_dir,
+                      color: color,
+                      model: model,
+                      camera: camera,
+                  });
     }
 
     pub fn text<S>(&mut self,
@@ -123,14 +126,15 @@ impl CommandList {
                    screen_matrix: Matrix4<f32>)
         where S: Into<String>
     {
-        self.commands.push(DrawCommand::Text {
-                               font_name: font_name.into(),
-                               color: color,
-                               text: text,
-                               size: size,
-                               position: position,
-                               screen_matrix: screen_matrix,
-                           });
+        self.commands
+            .push(DrawCommand::Text {
+                      font_name: font_name.into(),
+                      color: color,
+                      text: text,
+                      size: size,
+                      position: position,
+                      screen_matrix: screen_matrix,
+                  });
     }
 }
 
@@ -206,7 +210,11 @@ pub enum ResourceEvent {
 impl fmt::Debug for ResourceEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ResourceEvent::UploadBuffer { ref name, ref vertices, ref indices } => {
+            ResourceEvent::UploadBuffer {
+                ref name,
+                ref vertices,
+                ref indices,
+            } => {
                 write!(f,
                        "ResourceEvent::UploadBuffer {{ name: {:?}, vertices: vec![_; {}], indices: {:?} }}",
                        name,
@@ -260,13 +268,21 @@ impl Resources {
 
     pub fn handle_event(&mut self, event: ResourceEvent) {
         match event {
-            ResourceEvent::UploadBuffer { name, vertices, indices } => {
+            ResourceEvent::UploadBuffer {
+                name,
+                vertices,
+                indices,
+            } => {
                 let vbo = VertexBuffer::new(&self.context, &vertices).unwrap();
                 let ibo = indices.to_no_indices();
 
                 self.buffers.insert(name, (vbo, ibo));
             },
-            ResourceEvent::CompileProgram { name, vertex_shader, fragment_shader } => {
+            ResourceEvent::CompileProgram {
+                name,
+                vertex_shader,
+                fragment_shader,
+            } => {
                 let program =
                     Program::from_source(&self.context, &vertex_shader, &fragment_shader, None)
                         .unwrap();
@@ -302,7 +318,13 @@ impl Resources {
                 frame.clear_color_and_depth(color, 1.0);
                 Some(Ok(()))
             },
-            DrawCommand::Points { buffer_name, size, color, model, camera } => {
+            DrawCommand::Points {
+                buffer_name,
+                size,
+                color,
+                model,
+                camera,
+            } => {
                 let program = &self.programs["unshaded"];
                 let draw_params = DrawParameters {
                     polygon_mode: PolygonMode::Point,
@@ -316,11 +338,19 @@ impl Resources {
                     proj:       array4x4(camera.projection),
                 };
 
-                self.buffers.get(&buffer_name).map(|&(ref vbuf, ref ibuf)| {
-                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-                })
+                self.buffers
+                    .get(&buffer_name)
+                    .map(|&(ref vbuf, ref ibuf)| {
+                             frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                         })
             },
-            DrawCommand::Lines { buffer_name, width, color, model, camera } => {
+            DrawCommand::Lines {
+                buffer_name,
+                width,
+                color,
+                model,
+                camera,
+            } => {
                 let program = &self.programs["unshaded"];
                 let draw_params = DrawParameters {
                     polygon_mode: PolygonMode::Line,
@@ -334,14 +364,24 @@ impl Resources {
                     proj:       array4x4(camera.projection),
                 };
 
-                self.buffers.get(&buffer_name).map(|&(ref vbuf, ref ibuf)| {
-                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-                })
+                self.buffers
+                    .get(&buffer_name)
+                    .map(|&(ref vbuf, ref ibuf)| {
+                             frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                         })
             },
-            DrawCommand::Solid { buffer_name, light_dir, color, model, camera } => {
+            DrawCommand::Solid {
+                buffer_name,
+                light_dir,
+                color,
+                model,
+                camera,
+            } => {
                 let program = &self.programs["flat_shaded"];
-                let draw_params =
-                    DrawParameters { polygon_mode: PolygonMode::Fill, ..draw_params() };
+                let draw_params = DrawParameters {
+                    polygon_mode: PolygonMode::Fill,
+                    ..draw_params()
+                };
                 let uniforms = uniform! {
                     color:      color,
                     light_dir:  array3(light_dir),
@@ -351,11 +391,20 @@ impl Resources {
                     eye:        array3(camera.position),
                 };
 
-                self.buffers.get(&buffer_name).map(|&(ref vbuf, ref ibuf)| {
-                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-                })
+                self.buffers
+                    .get(&buffer_name)
+                    .map(|&(ref vbuf, ref ibuf)| {
+                             frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                         })
             },
-            DrawCommand::Text { font_name, color, text, size, position, screen_matrix } => {
+            DrawCommand::Text {
+                font_name,
+                color,
+                text,
+                size,
+                position,
+                screen_matrix,
+            } => {
                 use glium::texture::Texture2d;
                 use glium::uniforms::MagnifySamplerFilter;
 

@@ -146,13 +146,15 @@ impl<'a> Iterator for Triangles<'a> {
     type Item = [PositionIndex; 3];
 
     fn next(&mut self) -> Option<[PositionIndex; 3]> {
-        self.iter.next().map(|face| {
-            let e0 = &self.mesh.edges[face.root];
-            let e1 = &self.mesh.edges[e0.next];
-            let e2 = &self.mesh.edges[e1.next];
+        self.iter
+            .next()
+            .map(|face| {
+                     let e0 = &self.mesh.edges[face.root];
+                     let e1 = &self.mesh.edges[e0.next];
+                     let e2 = &self.mesh.edges[e1.next];
 
-            [e0.position, e1.position, e2.position]
-        })
+                     [e0.position, e1.position, e2.position]
+                 })
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

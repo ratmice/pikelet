@@ -155,10 +155,13 @@ fn main() {
         // Render frame
         let mut frame = display.draw();
 
-        resources.draw(&mut frame, render_data.command_list).unwrap();
+        resources
+            .draw(&mut frame, render_data.command_list)
+            .unwrap();
 
         if let Some(ui_data) = render_data.ui_data {
-            ui_context.render(&mut frame, render_data.metrics, |ui| {
+            ui_context
+                .render(&mut frame, render_data.metrics, |ui| {
                     game::run_ui(ui, ui_data, |event| {
                         // FIXME: could cause a panic on the slim chance that the update thread
                         // closes during ui rendering.

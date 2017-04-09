@@ -224,7 +224,9 @@ impl Dual for Mesh {
         }
 
         for pi in 0..self.positions.len() {
-            let fi0 = *face_cache.get(&pi).expect("Position in Mesh without any connected faces!?");
+            let fi0 = *face_cache
+                           .get(&pi)
+                           .expect("Position in Mesh without any connected faces!?");
             let mut current_face_index = fi0;
 
             let mut centroids = Vec::with_capacity(6);

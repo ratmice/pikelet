@@ -11,8 +11,9 @@ pub fn triangle(scale: f32) -> Mesh {
 
     let faces = vec![Face::new(0)];
 
-    let edges =
-        vec![Edge::new_boundary(0, 0, 1), Edge::new_boundary(1, 0, 2), Edge::new_boundary(2, 0, 0)];
+    let edges = vec![Edge::new_boundary(0, 0, 1),
+                     Edge::new_boundary(1, 0, 2),
+                     Edge::new_boundary(2, 0, 0)];
 
     Mesh {
         positions: positions,

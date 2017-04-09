@@ -40,7 +40,8 @@ impl TextData {
 
         let glyphs: Vec<_> = font.layout(text, scale, offset).collect();
 
-        let width = glyphs.iter()
+        let width = glyphs
+            .iter()
             .map(|glyph| glyph.unpositioned().h_metrics().advance_width)
             .fold(0.0, |x, y| x + y)
             .ceil() as usize;

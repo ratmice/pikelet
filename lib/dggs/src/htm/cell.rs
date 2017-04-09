@@ -44,7 +44,10 @@ impl Path {
                        -> Orientation {
         let parent_orientation = match subdivision_level {
             1 => tree_orientation,
-            _ => self.parent().orientation(subdivision_level - 1, tree_orientation),
+            _ => {
+                self.parent()
+                    .orientation(subdivision_level - 1, tree_orientation)
+            },
         };
 
         match self.child_type() {

@@ -382,10 +382,9 @@ pub fn init_resources(display: &glium::Display) -> Resources {
 
     let mut resources = Resources::new(display);
 
-    let assets =
-        FolderSearch::ParentsThenKids(3, 3)
-            .for_folder("resources")
-            .expect("Could not locate `resources` folder");
+    let assets = FolderSearch::ParentsThenKids(3, 3)
+        .for_folder("resources")
+        .expect("Could not locate `resources` folder");
 
     fn load_shader(path: &Path) -> io::Result<String> {
         let mut file = File::open(path)?;
@@ -507,7 +506,9 @@ pub fn spawn(frame_data: FrameMetrics,
                 UpdateEvent::FrameRequested(frame_data) => {
                     // We send the data for the last frame so that the renderer
                     // can get started doing it's job in parallel!
-                    render_tx.send(game.create_render_data()).expect("Failed to send render data");
+                    render_tx
+                        .send(game.create_render_data())
+                        .expect("Failed to send render data");
 
                     game.handle_frame_request(frame_data)
                 },
