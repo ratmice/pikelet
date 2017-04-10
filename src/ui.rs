@@ -1,4 +1,4 @@
-use glium::Display;
+use glium::backend::Facade;
 use glium::glutin;
 use glium::Frame;
 use imgui::{self, ImGui, ImGuiKey, Ui};
@@ -15,9 +15,9 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(display: &Display) -> Context {
+    pub fn new<F: Facade>(facade: &F) -> Context {
         let mut imgui = ImGui::init();
-        let renderer = Renderer::init(&mut imgui, display).unwrap();
+        let renderer = Renderer::init(&mut imgui, facade).unwrap();
 
         imgui.set_ini_filename(None);
         imgui.set_log_filename(None);
