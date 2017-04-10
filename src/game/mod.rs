@@ -444,45 +444,46 @@ pub struct UiData {
     star_field_radius: f32,
 }
 
-pub fn run_ui<F>(ui: &Ui, state: UiData, send: F)
-    where F: Fn(InputEvent)
-{
+pub fn run_ui(ui: &Ui, state: UiData) -> Vec<InputEvent> {
     use self::InputEvent::*;
+
+    let mut events = Vec::new();
 
     ui.window(im_str!("State"))
         .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
         .size((300.0, 250.0), imgui::ImGuiSetCond_FirstUseEver)
         .build(|| {
-            ui::checkbox(ui, im_str!("Wireframe"), state.is_wireframe).map(|v| {
-                                                                               send(SetWireframe(v))
-                                                                           });
+            ui::checkbox(ui, im_str!("Wireframe"), state.is_wireframe)
+                .map(|v| events.push(SetWireframe(v)));
             ui::checkbox(ui, im_str!("Show star field"), state.is_showing_star_field)
-                .map(|v| send(SetShowingStarField(v)));
+                .map(|v| events.push(SetShowingStarField(v)));
             ui::checkbox(ui, im_str!("Limit FPS"), state.is_limiting_fps)
-                .map(|v| send(SetLimitingFps(v)));
+                .map(|v| events.push(SetLimitingFps(v)));
             ui::slider_int(ui,
                            im_str!("Planet subdivisions"),
                            state.planet_subdivs as i32,
                            1,
                            8)
-                    .map(|v| send(SetPlanetSubdivisions(v as usize)));
+                    .map(|v| events.push(SetPlanetSubdivisions(v as usize)));
             ui::slider_float(ui, im_str!("Planet radius"), state.planet_radius, 0.0, 2.0)
-                .map(|v| send(SetPlanetRadius(v)));
+                .map(|v| events.push(SetPlanetRadius(v)));
             ui::slider_float(ui,
                              im_str!("Star field radius"),
                              state.star_field_radius,
                              0.0,
                              20.0)
-                    .map(|v| send(SetStarFieldRadius(v)));
+                    .map(|v| events.push(SetStarFieldRadius(v)));
 
             if ui.small_button(im_str!("Reset state")) {
-                send(ResetState);
+                events.push(ResetState);
             }
         });
 
     if ui.want_capture_mouse() != state.is_ui_capturing_mouse {
-        send(SetUiCapturingMouse(ui.want_capture_mouse()));
+        events.push(SetUiCapturingMouse(ui.want_capture_mouse()));
     }
+
+    events
 }
 
 pub fn spawn(frame_data: FrameMetrics,

@@ -167,11 +167,9 @@ fn main() {
         if let Some(ui_data) = render_data.ui_data {
             let ui = ui_context.frame(render_data.metrics);
 
-            game::run_ui(&ui, ui_data, |event| {
-                // FIXME: could cause a panic on the slim chance that the update thread
-                // closes during ui rendering.
-                update_tx.send(UpdateEvent::Input(event)).unwrap();
-            });
+            for event in game::run_ui(&ui, ui_data) {
+                drop(update_tx.send(UpdateEvent::Input(event)));
+            }
 
             ui_renderer.render(&mut frame, ui).unwrap();
         }
