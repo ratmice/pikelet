@@ -1,24 +1,17 @@
-use glium::backend::Facade;
 use glium::glutin;
-use glium::Frame;
 use imgui::{self, ImGui, ImGuiKey, Ui};
-use imgui::glium_renderer::{Renderer, RendererResult};
 
 use FrameMetrics;
 
 pub struct Context {
     imgui: ImGui,
-    renderer: Renderer,
     mouse_pos: (i32, i32),
     mouse_pressed: (bool, bool, bool),
     mouse_wheel: f32,
 }
 
 impl Context {
-    pub fn new<F: Facade>(facade: &F) -> Context {
-        let mut imgui = ImGui::init();
-        let renderer = Renderer::init(&mut imgui, facade).unwrap();
-
+    pub fn new(mut imgui: ImGui) -> Context {
         imgui.set_ini_filename(None);
         imgui.set_log_filename(None);
 
@@ -44,7 +37,6 @@ impl Context {
 
         Context {
             imgui: imgui,
-            renderer: renderer,
             mouse_pos: (0, 0),
             mouse_pressed: (false, false, false),
             mouse_wheel: 0.0,
@@ -90,11 +82,7 @@ impl Context {
         }
     }
 
-    pub fn render<F: FnOnce(&Ui)>(&mut self,
-                                  target: &mut Frame,
-                                  metrics: FrameMetrics,
-                                  run_ui: F)
-                                  -> RendererResult<()> {
+    pub fn frame(&mut self, metrics: FrameMetrics) -> Ui {
         let scale = self.imgui.display_framebuffer_scale();
         self.imgui
             .set_mouse_pos(self.mouse_pos.0 as f32 / scale.0,
@@ -111,16 +99,13 @@ impl Context {
         let FrameMetrics {
             size_pixels,
             size_points,
-            ..
+            delta_time,
         } = metrics;
-        let ui = self.imgui
+
+        self.imgui
             .frame((size_points.width, size_points.height),
                    (size_pixels.width, size_pixels.height),
-                   metrics.delta_time);
-
-        run_ui(&ui);
-
-        self.renderer.render(target, ui)
+                   delta_time)
     }
 }
 

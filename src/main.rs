@@ -110,6 +110,8 @@ macro_rules! try_or {
 fn main() {
     use glium::DisplayBuild;
     use glium::glutin::WindowBuilder;
+    use imgui::glium_renderer::Renderer as UiRenderer;
+    use imgui::ImGui;
     use std::sync::mpsc;
     use std::thread;
 
@@ -122,7 +124,10 @@ fn main() {
 
     let metrics = create_frame_metrics(&display, 0.0);
     let mut resources = game::init_resources(&display);
-    let mut ui_context = UiContext::new(&display);
+
+    let mut imgui = ImGui::init();
+    let mut ui_renderer = UiRenderer::init(&mut imgui, &display).unwrap();
+    let mut ui_context = UiContext::new(imgui);
 
     let (render_tx, render_rx) = mpsc::sync_channel(1);
     let (update_tx, resource_rx) = game::spawn(metrics, render_tx);
@@ -160,15 +165,15 @@ fn main() {
             .unwrap();
 
         if let Some(ui_data) = render_data.ui_data {
-            ui_context
-                .render(&mut frame, render_data.metrics, |ui| {
-                    game::run_ui(ui, ui_data, |event| {
-                        // FIXME: could cause a panic on the slim chance that the update thread
-                        // closes during ui rendering.
-                        update_tx.send(UpdateEvent::Input(event)).unwrap();
-                    });
-                })
-                .unwrap();
+            let ui = ui_context.frame(render_data.metrics);
+
+            game::run_ui(&ui, ui_data, |event| {
+                // FIXME: could cause a panic on the slim chance that the update thread
+                // closes during ui rendering.
+                update_tx.send(UpdateEvent::Input(event)).unwrap();
+            });
+
+            ui_renderer.render(&mut frame, ui).unwrap();
         }
 
         frame.finish().unwrap();
