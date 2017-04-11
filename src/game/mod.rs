@@ -3,7 +3,6 @@ use cgmath::prelude::*;
 use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
 use glium::{self, glutin};
-use imgui::{self, Ui};
 use std::sync::mpsc::{Receiver, Sender, SyncSender};
 
 use {FrameMetrics, RenderData, UpdateEvent};
@@ -11,11 +10,12 @@ use camera::{Camera, ComputedCamera};
 use color;
 use math::Size2;
 use render::{CommandList, ResourceEvent, Resources};
-use ui;
 
+use self::debug_controls::DebugControls;
 use self::job::Job;
 
 mod job;
+mod debug_controls;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 enum Loop {
@@ -285,19 +285,7 @@ impl Game {
         Loop::Continue
     }
 
-    fn create_ui_data(&self) -> UiData {
-        UiData {
-            is_wireframe: self.state.is_wireframe,
-            is_showing_star_field: self.state.is_showing_star_field,
-            is_limiting_fps: self.state.is_limiting_fps,
-            is_ui_capturing_mouse: self.state.is_ui_capturing_mouse,
-            planet_subdivs: self.state.planet_subdivs,
-            planet_radius: self.state.planet_radius,
-            star_field_radius: self.state.star_field_radius,
-        }
-    }
-
-    fn create_command_list(&self) -> CommandList {
+    fn create_command_list(&self) -> CommandList<InputEvent> {
         let mut command_list = CommandList::new();
 
         let camera = self.state.create_scene_camera();
@@ -355,21 +343,28 @@ impl Game {
                               font_size,
                               position,
                               screen_matrix);
+
+            let debug_controls = DebugControls {
+                is_wireframe: self.state.is_wireframe,
+                is_showing_star_field: self.state.is_showing_star_field,
+                is_limiting_fps: self.state.is_limiting_fps,
+                is_ui_capturing_mouse: self.state.is_ui_capturing_mouse,
+                planet_subdivs: self.state.planet_subdivs as i32,
+                planet_radius: self.state.planet_radius,
+                star_field_radius: self.state.star_field_radius,
+            };
+
+            command_list.ui(move |ui| debug_controls.render(ui));
         }
 
         command_list
     }
 
-    fn create_render_data(&self) -> RenderData<UiData> {
+    fn create_render_data(&self) -> RenderData<InputEvent> {
         RenderData {
             metrics: self.state.frame_metrics,
             is_limiting_fps: self.state.is_limiting_fps,
             command_list: self.create_command_list(),
-            ui_data: if self.state.is_ui_enabled {
-                Some(self.create_ui_data())
-            } else {
-                None
-            },
         }
     }
 }
@@ -394,29 +389,35 @@ pub fn init_resources(display: &glium::Display) -> Resources {
         Ok(buffer)
     }
 
-    resources.handle_event(ResourceEvent::CompileProgram {
-                               name: "flat_shaded".to_string(),
-                               vertex_shader:
-                                   load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
-                               fragment_shader:
-                                   load_shader(&assets.join("shaders/flat_shaded.f.glsl")).unwrap(),
-                           });
+    resources.handle_resource_event(ResourceEvent::CompileProgram {
+                                        name: "flat_shaded".to_string(),
+                                        vertex_shader:
+                                            load_shader(&assets.join("shaders/flat_shaded.v.glsl"))
+                                                .unwrap(),
+                                        fragment_shader:
+                                            load_shader(&assets.join("shaders/flat_shaded.f.glsl"))
+                                                .unwrap(),
+                                    });
 
-    resources.handle_event(ResourceEvent::CompileProgram {
-                               name: "text".to_string(),
-                               vertex_shader: load_shader(&assets.join("shaders/text.v.glsl"))
-                                   .unwrap(),
-                               fragment_shader: load_shader(&assets.join("shaders/text.f.glsl"))
-                                   .unwrap(),
-                           });
+    resources.handle_resource_event(ResourceEvent::CompileProgram {
+                                        name: "text".to_string(),
+                                        vertex_shader:
+                                            load_shader(&assets.join("shaders/text.v.glsl"))
+                                                .unwrap(),
+                                        fragment_shader:
+                                            load_shader(&assets.join("shaders/text.f.glsl"))
+                                                .unwrap(),
+                                    });
 
-    resources.handle_event(ResourceEvent::CompileProgram {
-                               name: "unshaded".to_string(),
-                               vertex_shader: load_shader(&assets.join("shaders/unshaded.v.glsl"))
-                                   .unwrap(),
-                               fragment_shader:
-                                   load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap(),
-                           });
+    resources.handle_resource_event(ResourceEvent::CompileProgram {
+                                        name: "unshaded".to_string(),
+                                        vertex_shader:
+                                            load_shader(&assets.join("shaders/unshaded.v.glsl"))
+                                                .unwrap(),
+                                        fragment_shader:
+                                            load_shader(&assets.join("shaders/unshaded.f.glsl"))
+                                                .unwrap(),
+                                    });
 
     fn load_font(path: &Path) -> io::Result<Vec<u8>> {
         let mut file = File::open(path)?;
@@ -426,68 +427,17 @@ pub fn init_resources(display: &glium::Display) -> Resources {
         Ok(buffer)
     }
 
-    resources.handle_event(ResourceEvent::UploadFont {
-                               name: "blogger_sans".to_string(),
-                               data: load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap(),
-                           });
+    resources.handle_resource_event(ResourceEvent::UploadFont {
+                                        name: "blogger_sans".to_string(),
+                                        data: load_font(&assets.join("fonts/blogger_sans.ttf"))
+                                            .unwrap(),
+                                    });
 
     resources
 }
 
-pub struct UiData {
-    is_wireframe: bool,
-    is_showing_star_field: bool,
-    is_limiting_fps: bool,
-    is_ui_capturing_mouse: bool,
-    planet_subdivs: usize,
-    planet_radius: f32,
-    star_field_radius: f32,
-}
-
-pub fn run_ui(ui: &Ui, state: UiData) -> Vec<InputEvent> {
-    use self::InputEvent::*;
-
-    let mut events = Vec::new();
-
-    ui.window(im_str!("State"))
-        .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
-        .size((300.0, 250.0), imgui::ImGuiSetCond_FirstUseEver)
-        .build(|| {
-            ui::checkbox(ui, im_str!("Wireframe"), state.is_wireframe)
-                .map(|v| events.push(SetWireframe(v)));
-            ui::checkbox(ui, im_str!("Show star field"), state.is_showing_star_field)
-                .map(|v| events.push(SetShowingStarField(v)));
-            ui::checkbox(ui, im_str!("Limit FPS"), state.is_limiting_fps)
-                .map(|v| events.push(SetLimitingFps(v)));
-            ui::slider_int(ui,
-                           im_str!("Planet subdivisions"),
-                           state.planet_subdivs as i32,
-                           1,
-                           8)
-                    .map(|v| events.push(SetPlanetSubdivisions(v as usize)));
-            ui::slider_float(ui, im_str!("Planet radius"), state.planet_radius, 0.0, 2.0)
-                .map(|v| events.push(SetPlanetRadius(v)));
-            ui::slider_float(ui,
-                             im_str!("Star field radius"),
-                             state.star_field_radius,
-                             0.0,
-                             20.0)
-                    .map(|v| events.push(SetStarFieldRadius(v)));
-
-            if ui.small_button(im_str!("Reset state")) {
-                events.push(ResetState);
-            }
-        });
-
-    if ui.want_capture_mouse() != state.is_ui_capturing_mouse {
-        events.push(SetUiCapturingMouse(ui.want_capture_mouse()));
-    }
-
-    events
-}
-
 pub fn spawn(frame_data: FrameMetrics,
-             render_tx: SyncSender<RenderData<UiData>>)
+             render_tx: SyncSender<RenderData<InputEvent>>)
              -> (Sender<UpdateEvent<InputEvent>>, Receiver<ResourceEvent>) {
     use job_queue;
     use std::sync::mpsc;

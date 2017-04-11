@@ -34,7 +34,6 @@ use std::time::Duration;
 
 use math::Size2;
 use render::CommandList;
-use ui::Context as UiContext;
 
 pub mod camera;
 pub mod color;
@@ -76,11 +75,10 @@ impl FrameMetrics {
     }
 }
 
-pub struct RenderData<UiData> {
+pub struct RenderData<Event> {
     metrics: FrameMetrics,
     is_limiting_fps: bool,
-    command_list: CommandList,
-    ui_data: Option<UiData>,
+    command_list: CommandList<Event>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -110,8 +108,6 @@ macro_rules! try_or {
 fn main() {
     use glium::DisplayBuild;
     use glium::glutin::WindowBuilder;
-    use imgui::glium_renderer::Renderer as UiRenderer;
-    use imgui::ImGui;
     use std::sync::mpsc;
     use std::thread;
 
@@ -123,14 +119,11 @@ fn main() {
         .unwrap();
 
     let metrics = create_frame_metrics(&display, 0.0);
-    let mut resources = game::init_resources(&display);
-
-    let mut imgui = ImGui::init();
-    let mut ui_renderer = UiRenderer::init(&mut imgui, &display).unwrap();
-    let mut ui_context = UiContext::new(imgui);
 
     let (render_tx, render_rx) = mpsc::sync_channel(1);
     let (update_tx, resource_rx) = game::spawn(metrics, render_tx);
+
+    let mut resources = game::init_resources(&display);
 
     'main: for time in times::in_seconds() {
         // Swap frames with update thread
@@ -144,35 +137,25 @@ fn main() {
 
         // Get user input
         for event in display.poll_events() {
-            if render_data.ui_data.is_some() {
-                ui_context.update(event.clone());
-            }
-
+            resources.handle_ui_event(event.clone());
             let update_event = UpdateEvent::Input(event.into());
             try_or!(update_tx.send(update_event), break 'main);
         }
 
         // Update resources
         while let Ok(event) = resource_rx.try_recv() {
-            resources.handle_event(event);
+            resources.handle_resource_event(event);
         }
 
         // Render frame
         let mut frame = display.draw();
 
         resources
-            .draw(&mut frame, render_data.command_list)
+            .draw(&mut frame,
+                  render_data.metrics,
+                  render_data.command_list,
+                  |event| drop(update_tx.send(UpdateEvent::Input(event))))
             .unwrap();
-
-        if let Some(ui_data) = render_data.ui_data {
-            let ui = ui_context.frame(render_data.metrics);
-
-            for event in game::run_ui(&ui, ui_data) {
-                drop(update_tx.send(UpdateEvent::Input(event)));
-            }
-
-            ui_renderer.render(&mut frame, ui).unwrap();
-        }
 
         frame.finish().unwrap();
 

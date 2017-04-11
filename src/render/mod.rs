@@ -2,10 +2,12 @@ extern crate rusttype;
 
 use cgmath::conv::*;
 use cgmath::{Matrix4, Point2, Vector3};
-use glium::{self, index, program, texture, vertex};
+use glium::{self, glutin, index, program, texture, vertex};
 use glium::{DrawParameters, Frame, IndexBuffer, PolygonMode, Program, Surface, VertexBuffer};
 use glium::backend::{Context, Facade};
 use glium::index::{PrimitiveType, NoIndices};
+use imgui::{ImGui, Ui};
+use imgui::glium_renderer::{Renderer as UiRenderer, RendererError as UiRendererError};
 use self::rusttype::{Font, FontCollection};
 use std::collections::HashMap;
 use std::fmt;
@@ -13,11 +15,13 @@ use std::rc::Rc;
 
 use camera::ComputedCamera;
 use color::Color;
+use FrameMetrics;
 use self::text::{TextData, TextVertex};
+use ui::Context as UiContext;
 
 mod text;
 
-enum DrawCommand {
+enum DrawCommand<Event> {
     Clear { color: Color },
     Points {
         buffer_name: String,
@@ -48,14 +52,15 @@ enum DrawCommand {
         position: Point2<f32>,
         screen_matrix: Matrix4<f32>,
     },
+    Ui { run_ui: Box<Fn(&Ui) -> Vec<Event> + Send>, },
 }
 
-pub struct CommandList {
-    commands: Vec<DrawCommand>,
+pub struct CommandList<Event> {
+    commands: Vec<DrawCommand<Event>>,
 }
 
-impl CommandList {
-    pub fn new() -> CommandList {
+impl<Event> CommandList<Event> {
+    pub fn new() -> CommandList<Event> {
         CommandList { commands: Vec::new() }
     }
 
@@ -136,6 +141,13 @@ impl CommandList {
                       screen_matrix: screen_matrix,
                   });
     }
+
+    pub fn ui<F>(&mut self, run_ui: F)
+        where F: Fn(&Ui) -> Vec<Event> + Send + 'static
+    {
+        self.commands
+            .push(DrawCommand::Ui { run_ui: Box::new(run_ui) });
+    }
 }
 
 pub type RenderResult<T> = Result<T, RenderError>;
@@ -167,6 +179,9 @@ quick_error! {
             from()
             description(error.description())
             cause(error)
+        }
+        Ui(error: UiRendererError) {
+            from()
         }
     }
 }
@@ -241,6 +256,10 @@ pub type Buffer = (VertexBuffer<Vertex>, NoIndices);
 pub struct Resources {
     context: Rc<Context>,
 
+    ui_renderer: UiRenderer,
+    ui_context: UiContext,
+    ui_was_rendered: bool,
+
     buffers: HashMap<String, Buffer>,
     programs: HashMap<String, Program>,
     fonts: HashMap<String, Font<'static>>,
@@ -251,8 +270,16 @@ pub struct Resources {
 
 impl Resources {
     pub fn new<F: Facade>(facade: &F) -> Resources {
+        let mut imgui = ImGui::init();
+        let ui_renderer = UiRenderer::init(&mut imgui, facade).unwrap();
+        let ui_context = UiContext::new(imgui);
+
         Resources {
             context: facade.get_context().clone(),
+
+            ui_renderer: ui_renderer,
+            ui_context: ui_context,
+            ui_was_rendered: false,
 
             buffers: HashMap::new(),
             programs: HashMap::new(),
@@ -266,7 +293,13 @@ impl Resources {
         }
     }
 
-    pub fn handle_event(&mut self, event: ResourceEvent) {
+    pub fn handle_ui_event(&mut self, event: glutin::Event) {
+        if self.ui_was_rendered {
+            self.ui_context.update(event);
+        }
+    }
+
+    pub fn handle_resource_event(&mut self, event: ResourceEvent) {
         match event {
             ResourceEvent::UploadBuffer {
                 name,
@@ -298,7 +331,14 @@ impl Resources {
         }
     }
 
-    fn handle_draw_command(&self, frame: &mut Frame, command: DrawCommand) -> RenderResult<()> {
+    fn handle_draw_command<Event, F>(&mut self,
+                                     frame: &mut Frame,
+                                     frame_metrics: FrameMetrics,
+                                     command: DrawCommand<Event>,
+                                     on_event: &mut F)
+                                     -> RenderResult<()>
+        where F: FnMut(Event)
+    {
         fn draw_params<'a>() -> DrawParameters<'a> {
             use glium::{BackfaceCullingMode, Depth, DepthTest};
 
@@ -446,6 +486,18 @@ impl Resources {
                     },
                 ))
             },
+            DrawCommand::Ui { run_ui } => {
+                self.ui_was_rendered = true;
+                let ui = self.ui_context.frame(frame_metrics);
+
+                for event in run_ui(&ui) {
+                    on_event(event);
+                }
+
+                self.ui_renderer.render(frame, ui)?;
+
+                Some(Ok(()))
+            },
         };
 
         match result {
@@ -454,9 +506,18 @@ impl Resources {
         }
     }
 
-    pub fn draw(&self, frame: &mut Frame, command_list: CommandList) -> RenderResult<()> {
+    pub fn draw<Event, F>(&mut self,
+                          frame: &mut Frame,
+                          frame_metrics: FrameMetrics,
+                          command_list: CommandList<Event>,
+                          mut on_event: F)
+                          -> RenderResult<()>
+        where F: FnMut(Event)
+    {
+        self.ui_was_rendered = false;
+
         for command in command_list.commands {
-            self.handle_draw_command(frame, command)?;
+            self.handle_draw_command(frame, frame_metrics, command, &mut on_event)?;
         }
 
         Ok(())
