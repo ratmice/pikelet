@@ -2,6 +2,7 @@
 authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>", "Chip Collier <photex@gmail.com>"]
 name = "voyager"
 version = "0.0.1"
+publish = false
 
 [workspace]
 members = [

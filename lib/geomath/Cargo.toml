@@ -2,6 +2,7 @@
 name = "geomath"
 version = "0.1.0"
 authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
+publish = false
 
 [dependencies]
 cgmath = "0.12"
