@@ -1,8 +1,3 @@
-#![cfg_attr(feature = "clippy", feature(plugin))]
-#![cfg_attr(feature = "clippy", plugin(clippy))]
-#![cfg_attr(feature = "clippy", allow(doc_markdown))]
-#![cfg_attr(feature = "clippy", allow(new_without_default))]
-
 extern crate cgmath;
 #[cfg(test)]
 #[macro_use(expect)]
