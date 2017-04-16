@@ -5,6 +5,7 @@ use std::vec;
 use camera::ComputedCamera;
 use color::Color;
 
+#[cfg_attr(feature = "cargo-clippy", allow(large_enum_variant))]
 pub enum DrawCommand<Event> {
     Clear { color: Color },
     Points {

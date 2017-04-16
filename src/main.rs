@@ -7,8 +7,6 @@ extern crate find_folder;
 extern crate glium;
 #[macro_use]
 extern crate imgui;
-#[macro_use]
-extern crate maplit;
 extern crate notify;
 extern crate num_traits;
 #[macro_use]
@@ -16,8 +14,6 @@ extern crate quick_error;
 extern crate rand;
 extern crate rayon;
 extern crate time;
-#[macro_use]
-extern crate itertools;
 extern crate fnv;
 
 extern crate dggs;
@@ -100,6 +96,7 @@ macro_rules! try_or {
     };
 }
 
+#[cfg_attr(feature = "cargo-clippy", allow(drop_copy))]
 fn main() {
     use glium::DisplayBuild;
     use glium::glutin::WindowBuilder;

@@ -167,7 +167,7 @@ impl Subdivide for Mesh {
                 continue;
             }
             let adjacent_edge = edge.adjacent.unwrap();
-            let &(b_adjacent, a_adjacent) = split_edges.get(&adjacent_edge).unwrap();
+            let (b_adjacent, a_adjacent) = split_edges[&adjacent_edge];
             mesh.edges[a].adjacent = Some(a_adjacent);
             mesh.edges[b].adjacent = Some(b_adjacent);
         }
@@ -184,6 +184,7 @@ pub trait Dual {
 }
 
 impl Dual for Mesh {
+    #[cfg_attr(feature = "cargo-clippy", allow(should_assert_eq))]
     fn generate_dual(&self) -> Mesh {
         fn next_face_around_position(mesh: &Mesh, pi: PositionIndex, ei0: EdgeIndex) -> FaceIndex {
             let e0 = &mesh.edges[ei0];

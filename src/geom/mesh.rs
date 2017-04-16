@@ -85,18 +85,19 @@ impl Mesh {
         id
     }
 
+    #[cfg_attr(feature = "cargo-clippy", allow(panic_params))]
     pub fn make_adjacent(&mut self, a: EdgeIndex, b: EdgeIndex) {
         self.edges[a].adjacent = Some(b);
         self.edges[b].adjacent = Some(a);
 
         debug_assert!({
                           let e0 = &self.edges[a];
-                          let e0p0 = e0.position.clone();
-                          let e0p1 = self.edges[e0.next].position.clone();
+                          let e0p0 = e0.position;
+                          let e0p1 = self.edges[e0.next].position;
 
                           let e1 = &self.edges[b];
-                          let e1p0 = e1.position.clone();
-                          let e1p1 = self.edges[e1.next].position.clone();
+                          let e1p0 = e1.position;
+                          let e1p1 = self.edges[e1.next].position;
 
                           e0p0 == e1p1 && e0p1 == e1p0
                       });
