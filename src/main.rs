@@ -1,6 +1,5 @@
 extern crate cgmath;
 #[cfg(test)]
-#[macro_use(expect)]
 extern crate expectest;
 extern crate find_folder;
 #[macro_use]

@@ -5,5 +5,5 @@ authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
 publish = false
 
 [dependencies]
-cgmath = "0.12"
+cgmath = "0.13.0"
 rand = "^0.3.14"
