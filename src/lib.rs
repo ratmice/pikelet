@@ -56,7 +56,7 @@ pub enum InputEvent {
 
 impl From<glutin::Event> for InputEvent {
     fn from(src: glutin::Event) -> InputEvent {
-        use glium::glutin::ElementState::*;
+        use glium::glutin::ElementState::{Pressed, Released};
         use glium::glutin::Event;
         use glium::glutin::MouseButton;
         use glium::glutin::VirtualKeyCode as Key;

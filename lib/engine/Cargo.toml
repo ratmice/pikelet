@@ -5,9 +5,10 @@ version = "0.0.1"
 publish = false
 
 [dependencies]
-cgmath = "0.13.0"
+cgmath = "0.14.0"
 glium = "0.16.0"
-imgui = "0.0.11"
+imgui = "0.0.13"
+imgui-glium-renderer = "0.0.13"
 quick-error = "1.0.0"
 rusttype = "0.2"
 time = "0.1"

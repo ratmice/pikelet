@@ -1,4 +1,5 @@
 extern crate rusttype;
+extern crate imgui_glium_renderer;
 
 use cgmath::conv::*;
 use glium::{self, glutin, index, program, texture, vertex};
@@ -6,7 +7,7 @@ use glium::{DrawParameters, Frame, IndexBuffer, PolygonMode, Program, Surface, V
 use glium::backend::{Context, Facade};
 use glium::index::{PrimitiveType, NoIndices};
 use imgui::ImGui;
-use imgui::glium_renderer::{Renderer as UiRenderer, RendererError as UiRendererError};
+use self::imgui_glium_renderer::{Renderer as UiRenderer, RendererError as UiRendererError};
 use self::rusttype::{Font, FontCollection};
 use std::collections::HashMap;
 use std::fmt;

@@ -6,6 +6,7 @@ use cgmath::BaseFloat;
 use cgmath::{Point3, Rad, Vector3};
 use rand::{Rand, Rng};
 use rand::distributions::range::SampleRange;
+use std::iter;
 use std::ops::*;
 
 /// A location on a unit sphere, described using latitude and longitude.
@@ -202,6 +203,13 @@ impl<T: BaseFloat> Zero for GeoVector<T> {
     #[inline]
     fn zero() -> GeoVector<T> {
         GeoVector { forward: Vector3::zero() }
+    }
+}
+
+impl<S: BaseFloat> iter::Sum<GeoVector<S>> for GeoVector<S> {
+    #[inline]
+    fn sum<I: Iterator<Item = GeoVector<S>>>(iter: I) -> GeoVector<S> {
+        iter.fold(GeoVector::zero(), Add::add)
     }
 }
 
