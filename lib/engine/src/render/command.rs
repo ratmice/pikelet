@@ -1,6 +1,7 @@
 use cgmath::{Matrix4, Point2, Vector3};
 use imgui::Ui;
 use std::vec;
+use std::borrow::Cow;
 
 use camera::ComputedCamera;
 use color::Color;
@@ -9,28 +10,28 @@ use color::Color;
 pub enum DrawCommand<Event> {
     Clear { color: Color },
     Points {
-        buffer_name: String,
+        buffer_name: Cow<'static, str>,
         size: f32,
         color: Color,
         model: Matrix4<f32>,
         camera: ComputedCamera,
     },
     Lines {
-        buffer_name: String,
+        buffer_name: Cow<'static, str>,
         width: f32,
         color: Color,
         model: Matrix4<f32>,
         camera: ComputedCamera,
     },
     Solid {
-        buffer_name: String,
+        buffer_name: Cow<'static, str>,
         light_dir: Vector3<f32>,
         color: Color,
         model: Matrix4<f32>,
         camera: ComputedCamera,
     },
     Text {
-        font_name: String,
+        font_name: Cow<'static, str>,
         color: Color,
         text: String,
         size: f32,
@@ -59,7 +60,7 @@ impl<Event> CommandList<Event> {
                      color: Color,
                      model: Matrix4<f32>,
                      camera: ComputedCamera)
-        where S: Into<String>
+        where S: Into<Cow<'static, str>>
     {
         self.commands
             .push(DrawCommand::Points {
@@ -77,7 +78,7 @@ impl<Event> CommandList<Event> {
                     color: Color,
                     model: Matrix4<f32>,
                     camera: ComputedCamera)
-        where S: Into<String>
+        where S: Into<Cow<'static, str>>
     {
         self.commands
             .push(DrawCommand::Lines {
@@ -95,7 +96,7 @@ impl<Event> CommandList<Event> {
                     color: Color,
                     model: Matrix4<f32>,
                     camera: ComputedCamera)
-        where S: Into<String>
+        where S: Into<Cow<'static, str>>
     {
         self.commands
             .push(DrawCommand::Solid {
@@ -114,7 +115,7 @@ impl<Event> CommandList<Event> {
                    size: f32,
                    position: Point2<f32>,
                    screen_matrix: Matrix4<f32>)
-        where S: Into<String>
+        where S: Into<Cow<'static, str>>
     {
         self.commands
             .push(DrawCommand::Text {

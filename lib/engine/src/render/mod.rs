@@ -252,7 +252,7 @@ impl Resources {
                 };
 
                 self.buffers
-                    .get(&buffer_name)
+                    .get(buffer_name.as_ref())
                     .map(|&(ref vbuf, ref ibuf)| {
                              frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
                          })
@@ -278,7 +278,7 @@ impl Resources {
                 };
 
                 self.buffers
-                    .get(&buffer_name)
+                    .get(buffer_name.as_ref())
                     .map(|&(ref vbuf, ref ibuf)| {
                              frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
                          })
@@ -305,7 +305,7 @@ impl Resources {
                 };
 
                 self.buffers
-                    .get(&buffer_name)
+                    .get(buffer_name.as_ref())
                     .map(|&(ref vbuf, ref ibuf)| {
                              frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
                          })
@@ -321,7 +321,7 @@ impl Resources {
                 use glium::texture::Texture2d;
                 use glium::uniforms::MagnifySamplerFilter;
 
-                let font = match self.fonts.get(&font_name) {
+                let font = match self.fonts.get(font_name.as_ref()) {
                     Some(font) => font,
                     None => return Ok(()),
                 };
