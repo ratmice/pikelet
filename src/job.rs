@@ -1,17 +1,14 @@
 use cgmath::conv::*;
+use engine::render::{ResourceEvent, Vertex, Indices};
+use geom::{self, primitives, Mesh};
+use geom::algorithms::{Subdivide, Dual};
 use geomath::GeoPoint;
 use rand::{self, Rng};
 use std::sync::mpsc::Sender;
 
-use geom::Mesh;
-use geom::primitives;
-use geom::algorithms::{Subdivide, Dual};
-use math;
-use render::{ResourceEvent, Vertex, Indices};
-
 fn generate_planet_mesh(subdivs: usize) -> Mesh {
     primitives::icosahedron(1.0)
-        .subdivide(subdivs, &|a, b| math::midpoint_arc(1.0, a, b))
+        .subdivide(subdivs, &|a, b| geom::midpoint_arc(1.0, a, b))
         .generate_dual()
 }
 
@@ -59,18 +56,22 @@ impl Job {
                 let mesh = generate_planet_mesh(subdivs);
                 let vertices = create_vertices(&mesh);
 
-                resource_tx.send(ResourceEvent::UploadBuffer {
-                    name: "planet".to_string(),
-                    vertices: vertices,
-                    indices: Indices::TrianglesList,
-                }).unwrap();
+                resource_tx
+                    .send(ResourceEvent::UploadBuffer {
+                              name: "planet".to_string(),
+                              vertices: vertices,
+                              indices: Indices::TrianglesList,
+                          })
+                    .unwrap();
             },
             Job::Stars { index, count } => {
-                resource_tx.send(ResourceEvent::UploadBuffer {
-                    name: format!("stars{}", index),
-                    vertices: create_star_vertices(count),
-                    indices: Indices::Points,
-                }).unwrap();
+                resource_tx
+                    .send(ResourceEvent::UploadBuffer {
+                              name: format!("stars{}", index),
+                              vertices: create_star_vertices(count),
+                              indices: Indices::Points,
+                          })
+                    .unwrap();
             },
         }
     }

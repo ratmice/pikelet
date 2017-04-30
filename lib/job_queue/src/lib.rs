@@ -139,9 +139,7 @@ mod test {
         let job1 = Job(1, "1");
         let job2 = Job(2, "2");
 
-        let job_tx = super::spawn(|job| {
-            result_tx.send(job).unwrap();
-        });
+        let job_tx = super::spawn(|job| { result_tx.send(job).unwrap(); });
 
         job_tx.send(job0).unwrap();
         job_tx.send(job1).unwrap();

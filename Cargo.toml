@@ -7,6 +7,8 @@ publish = false
 [workspace]
 members = [
     "lib/dggs",
+    "lib/engine",
+    "lib/geom",
     "lib/geomath",
     "lib/job_queue",
 ]
@@ -14,18 +16,16 @@ members = [
 [dependencies]
 cgmath = "0.13.0"
 find_folder = "0.3.0"
+fnv = "1.0"
 glium = "0.16.0"
 imgui = "0.0.11"
 notify = "4.0"
 num-traits = "0.1"
-quick-error = "1.0.0"
 rand = "^0.3.14"
-rayon = "0.7.0"
-rusttype = "0.2"
-time = "0.1"
-fnv = "1.0"
 
 dggs = { path = "lib/dggs" }
+engine = { path = "lib/engine" }
+geom = { path = "lib/geom" }
 geomath = { path = "lib/geomath" }
 job_queue = { path = "lib/job_queue" }
 

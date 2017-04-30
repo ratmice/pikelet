@@ -1,5 +1,4 @@
 use cgmath::Point3;
-use math;
 
 use super::*;
 
@@ -90,18 +89,18 @@ pub fn icosahedron(radius: f32) -> Mesh {
     //       (would be cool if you could annotate source code with images
     //        to explain notes like this!)
     let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
-    let positions = vec![math::set_radius(Point3::new(0.0, phi, -1.0), radius),
-                         math::set_radius(Point3::new(-phi, 1.0, 0.0), radius),
-                         math::set_radius(Point3::new(0.0, phi, 1.0), radius),
-                         math::set_radius(Point3::new(phi, 1.0, 0.0), radius),
-                         math::set_radius(Point3::new(1.0, 0.0, -phi), radius),
-                         math::set_radius(Point3::new(-1.0, 0.0, -phi), radius),
-                         math::set_radius(Point3::new(-1.0, 0.0, phi), radius),
-                         math::set_radius(Point3::new(1.0, 0.0, phi), radius),
-                         math::set_radius(Point3::new(phi, -1.0, 0.0), radius),
-                         math::set_radius(Point3::new(0.0, -phi, -1.0), radius),
-                         math::set_radius(Point3::new(-phi, -1.0, 0.0), radius),
-                         math::set_radius(Point3::new(0.0, -phi, 1.0), radius)];
+    let positions = vec![set_radius(Point3::new(0.0, phi, -1.0), radius),
+                         set_radius(Point3::new(-phi, 1.0, 0.0), radius),
+                         set_radius(Point3::new(0.0, phi, 1.0), radius),
+                         set_radius(Point3::new(phi, 1.0, 0.0), radius),
+                         set_radius(Point3::new(1.0, 0.0, -phi), radius),
+                         set_radius(Point3::new(-1.0, 0.0, -phi), radius),
+                         set_radius(Point3::new(-1.0, 0.0, phi), radius),
+                         set_radius(Point3::new(1.0, 0.0, phi), radius),
+                         set_radius(Point3::new(phi, -1.0, 0.0), radius),
+                         set_radius(Point3::new(0.0, -phi, -1.0), radius),
+                         set_radius(Point3::new(-phi, -1.0, 0.0), radius),
+                         set_radius(Point3::new(0.0, -phi, 1.0), radius)];
 
     // Edges around the face:
     let faces = vec![

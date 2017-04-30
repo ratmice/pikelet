@@ -1,7 +1,7 @@
 use imgui::{self, Ui};
 
-use game::InputEvent;
-use ui;
+use InputEvent;
+use engine::ui;
 
 pub struct DebugControls {
     pub is_wireframe: bool,
@@ -15,7 +15,7 @@ pub struct DebugControls {
 
 impl DebugControls {
     pub fn render(&self, ui: &Ui) -> Vec<InputEvent> {
-        use game::InputEvent::*;
+        use InputEvent::*;
 
         let mut events = Vec::new();
 

@@ -1,15 +1,32 @@
-use cgmath;
+extern crate cgmath;
+#[cfg(test)]
+extern crate expectest;
+extern crate find_folder;
+extern crate fnv;
+extern crate glium;
+#[macro_use]
+extern crate imgui;
+extern crate notify;
+extern crate num_traits;
+extern crate rand;
+
+extern crate dggs;
+extern crate engine;
+extern crate geom;
+extern crate geomath;
+extern crate job_queue;
+
 use cgmath::prelude::*;
 use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
 use glium::glutin;
 use std::sync::mpsc::Sender;
 
-use {FrameMetrics, Loop, RenderData};
-use camera::{Camera, ComputedCamera};
-use color;
-use math::Size2;
-use render::{CommandList, ResourceEvent};
+use engine::{Application, FrameMetrics, Loop, RenderData};
+use engine::camera::{Camera, ComputedCamera};
+use engine::color;
+use engine::math::Size2;
+use engine::render::{CommandList, ResourceEvent};
 
 use self::debug_controls::DebugControls;
 use self::job::Job;
@@ -183,8 +200,10 @@ pub struct Game {
     job_tx: Sender<Job>,
 }
 
-impl Game {
-    pub fn init(frame_metrics: FrameMetrics, resource_tx: Sender<ResourceEvent>) -> Game {
+impl Application for Game {
+    type Event = InputEvent;
+
+    fn init(frame_metrics: FrameMetrics, resource_tx: Sender<ResourceEvent>) -> Game {
         use job_queue;
         use std::fs::File;
         use std::io;
@@ -214,35 +233,32 @@ impl Game {
             Ok(buffer)
         }
 
-        resource_tx.send((ResourceEvent::CompileProgram {
-                                            name: "flat_shaded".to_string(),
-                                            vertex_shader:
-                                                load_shader(&assets.join("shaders/flat_shaded.v.glsl"))
-                                                    .unwrap(),
-                                            fragment_shader:
-                                                load_shader(&assets.join("shaders/flat_shaded.f.glsl"))
-                                                    .unwrap(),
-                                        })).unwrap();
+        resource_tx
+            .send((ResourceEvent::CompileProgram {
+                       name: "flat_shaded".to_string(),
+                       vertex_shader: load_shader(&assets.join("shaders/flat_shaded.v.glsl"))
+                           .unwrap(),
+                       fragment_shader: load_shader(&assets.join("shaders/flat_shaded.f.glsl"))
+                           .unwrap(),
+                   }))
+            .unwrap();
 
-        resource_tx.send((ResourceEvent::CompileProgram {
-                                            name: "text".to_string(),
-                                            vertex_shader:
-                                                load_shader(&assets.join("shaders/text.v.glsl"))
-                                                    .unwrap(),
-                                            fragment_shader:
-                                                load_shader(&assets.join("shaders/text.f.glsl"))
-                                                    .unwrap(),
-                                        })).unwrap();
+        resource_tx
+            .send((ResourceEvent::CompileProgram {
+                       name: "text".to_string(),
+                       vertex_shader: load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
+                       fragment_shader: load_shader(&assets.join("shaders/text.f.glsl")).unwrap(),
+                   }))
+            .unwrap();
 
-        resource_tx.send((ResourceEvent::CompileProgram {
-                                            name: "unshaded".to_string(),
-                                            vertex_shader:
-                                                load_shader(&assets.join("shaders/unshaded.v.glsl"))
-                                                    .unwrap(),
-                                            fragment_shader:
-                                                load_shader(&assets.join("shaders/unshaded.f.glsl"))
-                                                    .unwrap(),
-                                        })).unwrap();
+        resource_tx
+            .send((ResourceEvent::CompileProgram {
+                       name: "unshaded".to_string(),
+                       vertex_shader: load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
+                       fragment_shader: load_shader(&assets.join("shaders/unshaded.f.glsl"))
+                           .unwrap(),
+                   }))
+            .unwrap();
 
         fn load_font(path: &Path) -> io::Result<Vec<u8>> {
             let mut file = File::open(path)?;
@@ -252,15 +268,69 @@ impl Game {
             Ok(buffer)
         }
 
-        resource_tx.send((ResourceEvent::UploadFont {
-                                            name: "blogger_sans".to_string(),
-                                            data: load_font(&assets.join("fonts/blogger_sans.ttf"))
-                                                .unwrap(),
-                                        })).unwrap();
+        resource_tx
+            .send((ResourceEvent::UploadFont {
+                       name: "blogger_sans".to_string(),
+                       data: load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap(),
+                   }))
+            .unwrap();
 
         game
     }
 
+    fn handle_frame_request(&mut self, frame_metrics: FrameMetrics) -> Loop {
+        self.state.frame_metrics = frame_metrics;
+        self.state.camera_rotation -= self.state.camera_rotation_delta;
+
+        if self.state.is_dragging {
+            self.state.camera_rotation_delta = Rad(0.0);
+        }
+
+        Loop::Continue
+    }
+
+    fn handle_input(&mut self, event: InputEvent) -> Loop {
+        use self::InputEvent::*;
+
+        match event {
+            Close => return Loop::Break,
+            SetLimitingFps(value) => self.state.is_limiting_fps = value,
+            SetPlanetRadius(value) => self.state.planet_radius = value,
+            SetPlanetSubdivisions(planet_subdivs) => {
+                self.state.planet_subdivs = planet_subdivs;
+                self.queue_regenete_planet_job();
+            },
+            SetShowingStarField(value) => self.state.is_showing_star_field = value,
+            SetStarFieldRadius(value) => self.state.star_field_radius = value,
+            SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
+            SetWireframe(value) => self.state.is_wireframe = value,
+            ToggleUi => self.state.is_ui_enabled = !self.state.is_ui_enabled,
+            ResetState => self.state.reset(),
+            DragStart => {
+                if !self.state.is_ui_capturing_mouse {
+                    self.state.is_dragging = true
+                }
+            },
+            DragEnd => self.state.is_dragging = false,
+            ZoomStart => self.state.is_zooming = true,
+            ZoomEnd => self.state.is_zooming = false,
+            MousePosition(position) => self.handle_mouse_update(position),
+            NoOp => {},
+        }
+
+        Loop::Continue
+    }
+
+    fn render(&self) -> RenderData<InputEvent> {
+        RenderData {
+            metrics: self.state.frame_metrics,
+            is_limiting_fps: self.state.is_limiting_fps,
+            command_list: self.create_command_list(),
+        }
+    }
+}
+
+impl Game {
     fn queue_job(&self, job: Job) {
         self.job_tx.send(job).expect("Failed queue job");
     }
@@ -306,49 +376,6 @@ impl Game {
         }
     }
 
-    pub fn handle_frame_request(&mut self, frame_metrics: FrameMetrics) -> Loop {
-        self.state.frame_metrics = frame_metrics;
-        self.state.camera_rotation -= self.state.camera_rotation_delta;
-
-        if self.state.is_dragging {
-            self.state.camera_rotation_delta = Rad(0.0);
-        }
-
-        Loop::Continue
-    }
-
-    pub fn handle_input(&mut self, event: InputEvent) -> Loop {
-        use self::InputEvent::*;
-
-        match event {
-            Close => return Loop::Break,
-            SetLimitingFps(value) => self.state.is_limiting_fps = value,
-            SetPlanetRadius(value) => self.state.planet_radius = value,
-            SetPlanetSubdivisions(planet_subdivs) => {
-                self.state.planet_subdivs = planet_subdivs;
-                self.queue_regenete_planet_job();
-            },
-            SetShowingStarField(value) => self.state.is_showing_star_field = value,
-            SetStarFieldRadius(value) => self.state.star_field_radius = value,
-            SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
-            SetWireframe(value) => self.state.is_wireframe = value,
-            ToggleUi => self.state.is_ui_enabled = !self.state.is_ui_enabled,
-            ResetState => self.state.reset(),
-            DragStart => {
-                if !self.state.is_ui_capturing_mouse {
-                    self.state.is_dragging = true
-                }
-            },
-            DragEnd => self.state.is_dragging = false,
-            ZoomStart => self.state.is_zooming = true,
-            ZoomEnd => self.state.is_zooming = false,
-            MousePosition(position) => self.handle_mouse_update(position),
-            NoOp => {},
-        }
-
-        Loop::Continue
-    }
-
     fn create_command_list(&self) -> CommandList<InputEvent> {
         let mut command_list = CommandList::new();
 
@@ -392,13 +419,13 @@ impl Game {
 
         if self.state.is_ui_enabled {
             let size_points = self.state.frame_metrics.size_points;
-            let scale = self.state.frame_metrics.framebuffer_scale();
+            let (scale_x, scale_y) = self.state.frame_metrics.framebuffer_scale();
 
             let text = format!("{:.2}", self.state.frame_metrics.frames_per_second());
-            let font_size = 12.0 * scale.y;
+            let font_size = 12.0 * scale_y;
             let position = Point2 {
-                x: (size_points.width as f32 - 30.0) * scale.x,
-                y: 2.0 * scale.y,
+                x: (size_points.width as f32 - 30.0) * scale_x,
+                y: 2.0 * scale_y,
             };
 
             command_list.text("blogger_sans",
@@ -422,13 +449,5 @@ impl Game {
         }
 
         command_list
-    }
-
-    pub fn create_render_data(&self) -> RenderData<InputEvent> {
-        RenderData {
-            metrics: self.state.frame_metrics,
-            is_limiting_fps: self.state.is_limiting_fps,
-            command_list: self.create_command_list(),
-        }
     }
 }

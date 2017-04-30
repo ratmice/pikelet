@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 use fnv::FnvHasher;
 
-use geom::{EdgeIndex, FaceIndex, Mesh, Position, PositionIndex};
+use {EdgeIndex, FaceIndex, Mesh, Position, PositionIndex};
 
 type MidpointCache = HashMap<EdgeIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
 type SplitEdgeCache = HashMap<EdgeIndex, (EdgeIndex, EdgeIndex), BuildHasherDefault<FnvHasher>>;
