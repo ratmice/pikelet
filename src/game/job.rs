@@ -1,6 +1,7 @@
 use cgmath::conv::*;
 use geomath::GeoPoint;
 use rand::{self, Rng};
+use std::sync::mpsc::Sender;
 
 use geom::Mesh;
 use geom::primitives;
@@ -52,24 +53,24 @@ pub enum Job {
 }
 
 impl Job {
-    pub fn process(self) -> ResourceEvent {
+    pub fn process(self, resource_tx: &Sender<ResourceEvent>) {
         match self {
             Job::Planet { subdivs } => {
                 let mesh = generate_planet_mesh(subdivs);
                 let vertices = create_vertices(&mesh);
 
-                ResourceEvent::UploadBuffer {
+                resource_tx.send(ResourceEvent::UploadBuffer {
                     name: "planet".to_string(),
                     vertices: vertices,
                     indices: Indices::TrianglesList,
-                }
+                }).unwrap();
             },
             Job::Stars { index, count } => {
-                ResourceEvent::UploadBuffer {
+                resource_tx.send(ResourceEvent::UploadBuffer {
                     name: format!("stars{}", index),
                     vertices: create_star_vertices(count),
                     indices: Indices::Points,
-                }
+                }).unwrap();
             },
         }
     }

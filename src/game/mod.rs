@@ -2,26 +2,20 @@ use cgmath;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
-use glium::{self, glutin};
-use std::sync::mpsc::{Receiver, Sender, SyncSender};
+use glium::glutin;
+use std::sync::mpsc::Sender;
 
-use {FrameMetrics, RenderData, UpdateEvent};
+use {FrameMetrics, Loop, RenderData};
 use camera::{Camera, ComputedCamera};
 use color;
 use math::Size2;
-use render::{CommandList, ResourceEvent, Resources};
+use render::{CommandList, ResourceEvent};
 
 use self::debug_controls::DebugControls;
 use self::job::Job;
 
 mod job;
 mod debug_controls;
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-enum Loop {
-    Continue,
-    Break,
-}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum InputEvent {
@@ -184,17 +178,87 @@ impl State {
     }
 }
 
-struct Game {
+pub struct Game {
     state: State,
     job_tx: Sender<Job>,
 }
 
 impl Game {
-    fn new(frame_metrics: FrameMetrics, job_tx: Sender<Job>) -> Game {
-        Game {
+    pub fn init(frame_metrics: FrameMetrics, resource_tx: Sender<ResourceEvent>) -> Game {
+        use job_queue;
+        use std::fs::File;
+        use std::io;
+        use std::io::prelude::*;
+        use std::path::Path;
+
+        let game = Game {
             state: State::new(frame_metrics),
-            job_tx: job_tx,
+            job_tx: {
+                let resource_tx = resource_tx.clone();
+                job_queue::spawn(move |job| Job::process(job, &resource_tx))
+            },
+        };
+
+        game.queue_regenete_stars_jobs();
+        game.queue_regenete_planet_job();
+
+        let assets = FolderSearch::ParentsThenKids(3, 3)
+            .for_folder("resources")
+            .expect("Could not locate `resources` folder");
+
+        fn load_shader(path: &Path) -> io::Result<String> {
+            let mut file = File::open(path)?;
+            let mut buffer = String::new();
+            file.read_to_string(&mut buffer)?;
+
+            Ok(buffer)
         }
+
+        resource_tx.send((ResourceEvent::CompileProgram {
+                                            name: "flat_shaded".to_string(),
+                                            vertex_shader:
+                                                load_shader(&assets.join("shaders/flat_shaded.v.glsl"))
+                                                    .unwrap(),
+                                            fragment_shader:
+                                                load_shader(&assets.join("shaders/flat_shaded.f.glsl"))
+                                                    .unwrap(),
+                                        })).unwrap();
+
+        resource_tx.send((ResourceEvent::CompileProgram {
+                                            name: "text".to_string(),
+                                            vertex_shader:
+                                                load_shader(&assets.join("shaders/text.v.glsl"))
+                                                    .unwrap(),
+                                            fragment_shader:
+                                                load_shader(&assets.join("shaders/text.f.glsl"))
+                                                    .unwrap(),
+                                        })).unwrap();
+
+        resource_tx.send((ResourceEvent::CompileProgram {
+                                            name: "unshaded".to_string(),
+                                            vertex_shader:
+                                                load_shader(&assets.join("shaders/unshaded.v.glsl"))
+                                                    .unwrap(),
+                                            fragment_shader:
+                                                load_shader(&assets.join("shaders/unshaded.f.glsl"))
+                                                    .unwrap(),
+                                        })).unwrap();
+
+        fn load_font(path: &Path) -> io::Result<Vec<u8>> {
+            let mut file = File::open(path)?;
+            let mut buffer = vec![];
+            file.read_to_end(&mut buffer)?;
+
+            Ok(buffer)
+        }
+
+        resource_tx.send((ResourceEvent::UploadFont {
+                                            name: "blogger_sans".to_string(),
+                                            data: load_font(&assets.join("fonts/blogger_sans.ttf"))
+                                                .unwrap(),
+                                        })).unwrap();
+
+        game
     }
 
     fn queue_job(&self, job: Job) {
@@ -242,7 +306,7 @@ impl Game {
         }
     }
 
-    fn handle_frame_request(&mut self, frame_metrics: FrameMetrics) -> Loop {
+    pub fn handle_frame_request(&mut self, frame_metrics: FrameMetrics) -> Loop {
         self.state.frame_metrics = frame_metrics;
         self.state.camera_rotation -= self.state.camera_rotation_delta;
 
@@ -253,7 +317,7 @@ impl Game {
         Loop::Continue
     }
 
-    fn handle_input(&mut self, event: InputEvent) -> Loop {
+    pub fn handle_input(&mut self, event: InputEvent) -> Loop {
         use self::InputEvent::*;
 
         match event {
@@ -360,117 +424,11 @@ impl Game {
         command_list
     }
 
-    fn create_render_data(&self) -> RenderData<InputEvent> {
+    pub fn create_render_data(&self) -> RenderData<InputEvent> {
         RenderData {
             metrics: self.state.frame_metrics,
             is_limiting_fps: self.state.is_limiting_fps,
             command_list: self.create_command_list(),
         }
     }
-}
-
-pub fn init_resources(display: &glium::Display) -> Resources {
-    use std::fs::File;
-    use std::io;
-    use std::io::prelude::*;
-    use std::path::Path;
-
-    let mut resources = Resources::new(display);
-
-    let assets = FolderSearch::ParentsThenKids(3, 3)
-        .for_folder("resources")
-        .expect("Could not locate `resources` folder");
-
-    fn load_shader(path: &Path) -> io::Result<String> {
-        let mut file = File::open(path)?;
-        let mut buffer = String::new();
-        file.read_to_string(&mut buffer)?;
-
-        Ok(buffer)
-    }
-
-    resources.handle_resource_event(ResourceEvent::CompileProgram {
-                                        name: "flat_shaded".to_string(),
-                                        vertex_shader:
-                                            load_shader(&assets.join("shaders/flat_shaded.v.glsl"))
-                                                .unwrap(),
-                                        fragment_shader:
-                                            load_shader(&assets.join("shaders/flat_shaded.f.glsl"))
-                                                .unwrap(),
-                                    });
-
-    resources.handle_resource_event(ResourceEvent::CompileProgram {
-                                        name: "text".to_string(),
-                                        vertex_shader:
-                                            load_shader(&assets.join("shaders/text.v.glsl"))
-                                                .unwrap(),
-                                        fragment_shader:
-                                            load_shader(&assets.join("shaders/text.f.glsl"))
-                                                .unwrap(),
-                                    });
-
-    resources.handle_resource_event(ResourceEvent::CompileProgram {
-                                        name: "unshaded".to_string(),
-                                        vertex_shader:
-                                            load_shader(&assets.join("shaders/unshaded.v.glsl"))
-                                                .unwrap(),
-                                        fragment_shader:
-                                            load_shader(&assets.join("shaders/unshaded.f.glsl"))
-                                                .unwrap(),
-                                    });
-
-    fn load_font(path: &Path) -> io::Result<Vec<u8>> {
-        let mut file = File::open(path)?;
-        let mut buffer = vec![];
-        file.read_to_end(&mut buffer)?;
-
-        Ok(buffer)
-    }
-
-    resources.handle_resource_event(ResourceEvent::UploadFont {
-                                        name: "blogger_sans".to_string(),
-                                        data: load_font(&assets.join("fonts/blogger_sans.ttf"))
-                                            .unwrap(),
-                                    });
-
-    resources
-}
-
-pub fn spawn(frame_data: FrameMetrics,
-             render_tx: SyncSender<RenderData<InputEvent>>)
-             -> (Sender<UpdateEvent<InputEvent>>, Receiver<ResourceEvent>) {
-    use job_queue;
-    use std::sync::mpsc;
-    use std::thread;
-
-    let (update_tx, update_rx) = mpsc::channel();
-    let (job_tx, resource_rx) = job_queue::spawn(Job::process);
-
-    thread::spawn(move || {
-        let mut game = Game::new(frame_data, job_tx);
-
-        game.queue_regenete_stars_jobs();
-        game.queue_regenete_planet_job();
-
-        for event in update_rx.iter() {
-            let loop_result = match event {
-                UpdateEvent::FrameRequested(frame_data) => {
-                    // We send the data for the last frame so that the renderer
-                    // can get started doing it's job in parallel!
-                    render_tx
-                        .send(game.create_render_data())
-                        .expect("Failed to send render data");
-
-                    game.handle_frame_request(frame_data)
-                },
-                UpdateEvent::Input(event) => game.handle_input(event),
-            };
-
-            if loop_result == Loop::Break {
-                break;
-            };
-        }
-    });
-
-    (update_tx, resource_rx)
 }

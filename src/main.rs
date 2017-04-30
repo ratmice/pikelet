@@ -35,6 +35,12 @@ mod render;
 pub mod ui;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Loop {
+    Continue,
+    Break,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct FrameMetrics {
     pub size_points: Size2<u32>,
     pub size_pixels: Size2<u32>,
@@ -102,6 +108,8 @@ fn main() {
     use std::sync::mpsc;
     use std::thread;
 
+    use render::Resources;
+
     let display = WindowBuilder::new()
         .with_title("Voyager!")
         .with_dimensions(1000, 500)
@@ -112,9 +120,35 @@ fn main() {
     let metrics = create_frame_metrics(&display, 0.0);
 
     let (render_tx, render_rx) = mpsc::sync_channel(1);
-    let (update_tx, resource_rx) = game::spawn(metrics, render_tx);
+    let (update_tx, update_rx) = mpsc::channel();
+    let (resource_tx, resource_rx) = mpsc::channel();
 
-    let mut resources = game::init_resources(&display);
+    thread::spawn(move || {
+        use game::Game;
+
+        let mut game = Game::init(metrics, resource_tx);
+
+        for event in update_rx.iter() {
+            let loop_result = match event {
+                UpdateEvent::FrameRequested(metrics) => {
+                    // We send the data for the last frame so that the renderer
+                    // can get started doing it's job in parallel!
+                    render_tx
+                        .send(game.create_render_data())
+                        .expect("Failed to send render data");
+
+                    game.handle_frame_request(metrics)
+                },
+                UpdateEvent::Input(event) => game.handle_input(event),
+            };
+
+            if loop_result == Loop::Break {
+                break;
+            };
+        }
+    });
+
+    let mut resources = Resources::new(&display);;
 
     'main: for time in times::in_seconds() {
         // Swap frames with update thread
