@@ -200,16 +200,69 @@ pub struct Game {
     job_tx: Sender<Job>,
 }
 
+fn init_resources(resource_tx: Sender<ResourceEvent>) {
+    use std::fs::File;
+    use std::io;
+    use std::io::prelude::*;
+    use std::path::Path;
+
+    let assets = FolderSearch::ParentsThenKids(3, 3)
+        .for_folder("resources")
+        .expect("Could not locate `resources` folder");
+
+    fn load_shader(path: &Path) -> io::Result<String> {
+        let mut file = File::open(path)?;
+        let mut buffer = String::new();
+        file.read_to_string(&mut buffer)?;
+
+        Ok(buffer)
+    }
+
+    resource_tx
+        .send((ResourceEvent::CompileProgram {
+                   name: "flat_shaded".to_string(),
+                   vertex_shader: load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
+                   fragment_shader: load_shader(&assets.join("shaders/flat_shaded.f.glsl"))
+                       .unwrap(),
+               }))
+        .unwrap();
+
+    resource_tx
+        .send((ResourceEvent::CompileProgram {
+                   name: "text".to_string(),
+                   vertex_shader: load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
+                   fragment_shader: load_shader(&assets.join("shaders/text.f.glsl")).unwrap(),
+               }))
+        .unwrap();
+
+    resource_tx
+        .send((ResourceEvent::CompileProgram {
+                   name: "unshaded".to_string(),
+                   vertex_shader: load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
+                   fragment_shader: load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap(),
+               }))
+        .unwrap();
+
+    fn load_font(path: &Path) -> io::Result<Vec<u8>> {
+        let mut file = File::open(path)?;
+        let mut buffer = vec![];
+        file.read_to_end(&mut buffer)?;
+
+        Ok(buffer)
+    }
+
+    resource_tx
+        .send((ResourceEvent::UploadFont {
+                   name: "blogger_sans".to_string(),
+                   data: load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap(),
+               }))
+        .unwrap();
+}
+
 impl Application for Game {
     type Event = InputEvent;
 
     fn init(frame_metrics: FrameMetrics, resource_tx: Sender<ResourceEvent>) -> Game {
-        use job_queue;
-        use std::fs::File;
-        use std::io;
-        use std::io::prelude::*;
-        use std::path::Path;
-
         let game = Game {
             state: State::new(frame_metrics),
             job_tx: {
@@ -218,62 +271,9 @@ impl Application for Game {
             },
         };
 
+        init_resources(resource_tx);
         game.queue_regenete_stars_jobs();
         game.queue_regenete_planet_job();
-
-        let assets = FolderSearch::ParentsThenKids(3, 3)
-            .for_folder("resources")
-            .expect("Could not locate `resources` folder");
-
-        fn load_shader(path: &Path) -> io::Result<String> {
-            let mut file = File::open(path)?;
-            let mut buffer = String::new();
-            file.read_to_string(&mut buffer)?;
-
-            Ok(buffer)
-        }
-
-        resource_tx
-            .send((ResourceEvent::CompileProgram {
-                       name: "flat_shaded".to_string(),
-                       vertex_shader: load_shader(&assets.join("shaders/flat_shaded.v.glsl"))
-                           .unwrap(),
-                       fragment_shader: load_shader(&assets.join("shaders/flat_shaded.f.glsl"))
-                           .unwrap(),
-                   }))
-            .unwrap();
-
-        resource_tx
-            .send((ResourceEvent::CompileProgram {
-                       name: "text".to_string(),
-                       vertex_shader: load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
-                       fragment_shader: load_shader(&assets.join("shaders/text.f.glsl")).unwrap(),
-                   }))
-            .unwrap();
-
-        resource_tx
-            .send((ResourceEvent::CompileProgram {
-                       name: "unshaded".to_string(),
-                       vertex_shader: load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
-                       fragment_shader: load_shader(&assets.join("shaders/unshaded.f.glsl"))
-                           .unwrap(),
-                   }))
-            .unwrap();
-
-        fn load_font(path: &Path) -> io::Result<Vec<u8>> {
-            let mut file = File::open(path)?;
-            let mut buffer = vec![];
-            file.read_to_end(&mut buffer)?;
-
-            Ok(buffer)
-        }
-
-        resource_tx
-            .send((ResourceEvent::UploadFont {
-                       name: "blogger_sans".to_string(),
-                       data: load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap(),
-                   }))
-            .unwrap();
 
         game
     }
