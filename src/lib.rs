@@ -3,7 +3,6 @@ extern crate cgmath;
 extern crate expectest;
 extern crate find_folder;
 extern crate fnv;
-extern crate glium;
 #[macro_use]
 extern crate imgui;
 extern crate notify;
@@ -19,12 +18,12 @@ extern crate job_queue;
 use cgmath::prelude::*;
 use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
 use find_folder::Search as FolderSearch;
-use glium::glutin;
 use std::sync::mpsc::Sender;
 
 use engine::{Application, FrameMetrics, Loop, RenderData};
 use engine::camera::{Camera, ComputedCamera};
 use engine::color;
+use engine::input::Event as InputEvent;
 use engine::math::Size2;
 use engine::render::{CommandList, ResourceEvent};
 
@@ -35,7 +34,7 @@ mod job;
 mod debug_controls;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum InputEvent {
+pub enum Event {
     Close,
     SetLimitingFps(bool),
     SetPlanetRadius(f32),
@@ -54,24 +53,23 @@ pub enum InputEvent {
     NoOp,
 }
 
-impl From<glutin::Event> for InputEvent {
-    fn from(src: glutin::Event) -> InputEvent {
-        use glium::glutin::ElementState::{Pressed, Released};
-        use glium::glutin::Event;
-        use glium::glutin::MouseButton;
-        use glium::glutin::VirtualKeyCode as Key;
+impl From<InputEvent> for Event {
+    fn from(src: InputEvent) -> Event {
+        use engine::input::ElementState::{Pressed, Released};
+        use engine::input::MouseButton;
+        use engine::input::VirtualKeyCode as Key;
 
         match src {
-            Event::Closed |
-            Event::KeyboardInput(Pressed, _, Some(Key::Escape)) => InputEvent::Close,
-            Event::KeyboardInput(Pressed, _, Some(Key::R)) => InputEvent::ResetState,
-            Event::KeyboardInput(Pressed, _, Some(Key::U)) => InputEvent::ToggleUi,
-            Event::MouseInput(Pressed, MouseButton::Left) => InputEvent::DragStart,
-            Event::MouseInput(Released, MouseButton::Left) => InputEvent::DragEnd,
-            Event::MouseInput(Pressed, MouseButton::Right) => InputEvent::ZoomStart,
-            Event::MouseInput(Released, MouseButton::Right) => InputEvent::ZoomEnd,
-            Event::MouseMoved(x, y) => InputEvent::MousePosition(Point2::new(x, y)),
-            _ => InputEvent::NoOp,
+            InputEvent::Closed |
+            InputEvent::KeyboardInput(Pressed, _, Some(Key::Escape)) => Event::Close,
+            InputEvent::KeyboardInput(Pressed, _, Some(Key::R)) => Event::ResetState,
+            InputEvent::KeyboardInput(Pressed, _, Some(Key::U)) => Event::ToggleUi,
+            InputEvent::MouseInput(Pressed, MouseButton::Left) => Event::DragStart,
+            InputEvent::MouseInput(Released, MouseButton::Left) => Event::DragEnd,
+            InputEvent::MouseInput(Pressed, MouseButton::Right) => Event::ZoomStart,
+            InputEvent::MouseInput(Released, MouseButton::Right) => Event::ZoomEnd,
+            InputEvent::MouseMoved(x, y) => Event::MousePosition(Point2::new(x, y)),
+            _ => Event::NoOp,
         }
     }
 }
@@ -260,7 +258,7 @@ fn init_resources(resource_tx: Sender<ResourceEvent>) {
 }
 
 impl Application for Game {
-    type Event = InputEvent;
+    type Event = Event;
 
     fn init(frame_metrics: FrameMetrics, resource_tx: Sender<ResourceEvent>) -> Game {
         let game = Game {
@@ -289,8 +287,8 @@ impl Application for Game {
         Loop::Continue
     }
 
-    fn handle_input(&mut self, event: InputEvent) -> Loop {
-        use self::InputEvent::*;
+    fn handle_input(&mut self, event: Event) -> Loop {
+        use self::Event::*;
 
         match event {
             Close => return Loop::Break,
@@ -321,7 +319,7 @@ impl Application for Game {
         Loop::Continue
     }
 
-    fn render(&self) -> RenderData<InputEvent> {
+    fn render(&self) -> RenderData<Event> {
         RenderData {
             metrics: self.state.frame_metrics,
             is_limiting_fps: self.state.is_limiting_fps,
@@ -376,7 +374,7 @@ impl Game {
         }
     }
 
-    fn create_command_list(&self) -> CommandList<InputEvent> {
+    fn create_command_list(&self) -> CommandList<Event> {
         let mut command_list = CommandList::new();
 
         let camera = self.state.create_scene_camera();

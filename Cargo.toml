@@ -17,7 +17,6 @@ members = [
 cgmath = "0.14.0"
 find_folder = "0.3.0"
 fnv = "1.0"
-glium = "0.16.0"
 imgui = "0.0.13"
 notify = "4.0"
 num-traits = "0.1"

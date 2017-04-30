@@ -10,7 +10,6 @@ dependencies = [
  "fnv 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "geom 0.0.1",
  "geomath 0.1.0",
- "glium 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "imgui 0.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "job_queue 0.0.1",
  "notify 4.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
