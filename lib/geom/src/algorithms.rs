@@ -84,26 +84,6 @@ impl Subdivide for Mesh {
 
             debug_assert_eq!(self.edge(in_e2).unwrap().next, in_e0);
 
-            // Edge indices: f0
-            let e0 = mesh.next_edge_id();
-            let e1 = EdgeIndex(e0.0 + 1);
-            let e2 = EdgeIndex(e0.0 + 2);
-
-            // Edge indices: f1
-            let e3 = EdgeIndex(e0.0 + 3);
-            let e4 = EdgeIndex(e0.0 + 4);
-            let e5 = EdgeIndex(e0.0 + 5);
-
-            // Edge indices: f2
-            let e6 = EdgeIndex(e0.0 + 6);
-            let e7 = EdgeIndex(e0.0 + 7);
-            let e8 = EdgeIndex(e0.0 + 8);
-
-            // Edge indices: f3
-            let e9 = EdgeIndex(e0.0 + 9);
-            let e10 = EdgeIndex(e0.0 + 10);
-            let e11 = EdgeIndex(e0.0 + 11);
-
             // Original position indices
             let p0 = self.edge(in_e0).unwrap().position;
             let p1 = self.edge(in_e1).unwrap().position;
@@ -144,10 +124,10 @@ impl Subdivide for Mesh {
                 },
             };
 
-            mesh.add_triangle(p0, p3, p5);
-            mesh.add_triangle(p3, p1, p4);
-            mesh.add_triangle(p3, p4, p5);
-            mesh.add_triangle(p5, p4, p2);
+            let (_, (e0, e1, e2)) = mesh.add_triangle(p0, p3, p5);
+            let (_, (e3, e4, e5)) = mesh.add_triangle(p3, p1, p4);
+            let (_, (e6, e7, e8)) = mesh.add_triangle(p3, p4, p5);
+            let (_, (e9, e10, e11)) = mesh.add_triangle(p5, p4, p2);
 
             split_edges.insert(in_e0, (e0, e3));
             split_edges.insert(in_e1, (e4, e10));

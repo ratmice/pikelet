@@ -70,20 +70,8 @@ impl Mesh {
         self.positions.get_mut(id.0)
     }
 
-    pub fn next_face_id(&self) -> FaceIndex {
-        FaceIndex(self.faces.len())
-    }
-
-    pub fn next_edge_id(&self) -> EdgeIndex {
-        EdgeIndex(self.edges.len())
-    }
-
-    pub fn next_position_id(&self) -> PositionIndex {
-        PositionIndex(self.positions.len())
-    }
-
     pub fn add_position(&mut self, p: Position) -> PositionIndex {
-        let id = self.next_position_id();
+        let id = PositionIndex(self.positions.len());
         self.positions.push(p);
         id
     }
@@ -93,7 +81,7 @@ impl Mesh {
                              face: FaceIndex,
                              next: EdgeIndex)
                              -> EdgeIndex {
-        let id = self.next_edge_id();
+        let id = EdgeIndex(self.edges.len());
         self.edges.push(Edge::new_boundary(pos, face, next));
         id
     }
@@ -104,7 +92,7 @@ impl Mesh {
                     next: EdgeIndex,
                     adjacent: EdgeIndex)
                     -> EdgeIndex {
-        let id = self.next_edge_id();
+        let id = EdgeIndex(self.edges.len());
         self.edges.push(Edge::new(pos, face, next, adjacent));
         id
     }
@@ -137,9 +125,9 @@ impl Mesh {
                         p0: PositionIndex,
                         p1: PositionIndex,
                         p2: PositionIndex)
-                        -> FaceIndex {
-        let id = self.next_face_id();
-        let e0 = self.next_edge_id();
+                        -> (FaceIndex, (EdgeIndex, EdgeIndex, EdgeIndex)) {
+        let id = FaceIndex(self.faces.len());
+        let e0 = EdgeIndex(self.edges.len());
         let e1 = EdgeIndex(e0.0 + 1);
         let e2 = EdgeIndex(e1.0 + 1);
 
@@ -149,7 +137,7 @@ impl Mesh {
 
         self.faces.push(Face::new(e0));
 
-        id
+        (id, (e0, e1, e2))
     }
 
     /// Iterate through the faces, yielding point indices as if each face
