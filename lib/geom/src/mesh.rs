@@ -41,21 +41,45 @@ impl Mesh {
     pub fn edge_midpoint<F>(&self, edge: &Edge, midpoint_fn: &F) -> Position
         where F: Fn(Position, Position) -> Position
     {
-        let p0 = self.positions[edge.position];
-        let p1 = self.positions[self.edges[edge.next].position];
-        midpoint_fn(p0, p1)
+        let p0 = self.position(edge.position).unwrap();
+        let p1 = self.position(self.edge(edge.next).unwrap().position).unwrap();
+        midpoint_fn(*p0, *p1)
+    }
+
+    pub fn edge(&self, id: EdgeIndex) -> Option<&Edge> {
+        self.edges.get(id.0)
+    }
+
+    pub fn edge_mut(&mut self, id: EdgeIndex) -> Option<&mut Edge> {
+        self.edges.get_mut(id.0)
+    }
+
+    pub fn face(&self, id: FaceIndex) -> Option<&Face> {
+        self.faces.get(id.0)
+    }
+
+    pub fn face_mut(&mut self, id: FaceIndex) -> Option<&mut Face> {
+        self.faces.get_mut(id.0)
+    }
+
+    pub fn position(&self, id: PositionIndex) -> Option<&Position> {
+        self.positions.get(id.0)
+    }
+
+    pub fn position_mut(&mut self, id: PositionIndex) -> Option<&mut Position> {
+        self.positions.get_mut(id.0)
     }
 
     pub fn next_face_id(&self) -> FaceIndex {
-        self.faces.len()
+        FaceIndex(self.faces.len())
     }
 
     pub fn next_edge_id(&self) -> EdgeIndex {
-        self.edges.len()
+        EdgeIndex(self.edges.len())
     }
 
     pub fn next_position_id(&self) -> PositionIndex {
-        self.positions.len()
+        PositionIndex(self.positions.len())
     }
 
     pub fn add_position(&mut self, p: Position) -> PositionIndex {
@@ -87,17 +111,17 @@ impl Mesh {
 
     #[cfg_attr(feature = "cargo-clippy", allow(panic_params))]
     pub fn make_adjacent(&mut self, a: EdgeIndex, b: EdgeIndex) {
-        self.edges[a].adjacent = Some(b);
-        self.edges[b].adjacent = Some(a);
+        self.edge_mut(a).unwrap().adjacent = Some(b);
+        self.edge_mut(b).unwrap().adjacent = Some(a);
 
         debug_assert!({
-                          let e0 = &self.edges[a];
+                          let e0 = self.edge(a).unwrap();
                           let e0p0 = e0.position;
-                          let e0p1 = self.edges[e0.next].position;
+                          let e0p1 = self.edge(e0.next).unwrap().position;
 
-                          let e1 = &self.edges[b];
+                          let e1 = self.edge(b).unwrap();
                           let e1p0 = e1.position;
-                          let e1p1 = self.edges[e1.next].position;
+                          let e1p1 = self.edge(e1.next).unwrap().position;
 
                           e0p0 == e1p1 && e0p1 == e1p0
                       });
@@ -116,8 +140,8 @@ impl Mesh {
                         -> FaceIndex {
         let id = self.next_face_id();
         let e0 = self.next_edge_id();
-        let e1 = e0 + 1;
-        let e2 = e1 + 1;
+        let e1 = EdgeIndex(e0.0 + 1);
+        let e2 = EdgeIndex(e1.0 + 1);
 
         self.add_boundary_edge(p0, id, e1);
         self.add_boundary_edge(p1, id, e2);
@@ -150,9 +174,9 @@ impl<'a> Iterator for Triangles<'a> {
         self.iter
             .next()
             .map(|face| {
-                     let e0 = &self.mesh.edges[face.root];
-                     let e1 = &self.mesh.edges[e0.next];
-                     let e2 = &self.mesh.edges[e1.next];
+                     let e0 = self.mesh.edge(face.root).unwrap();
+                     let e1 = self.mesh.edge(e0.next).unwrap();
+                     let e2 = self.mesh.edge(e1.next).unwrap();
 
                      [e0.position, e1.position, e2.position]
                  })

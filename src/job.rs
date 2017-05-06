@@ -19,16 +19,16 @@ fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
 
     for face in &mesh.faces {
         let e0 = face.root;
-        let e1 = mesh.edges[e0].next;
-        let e2 = mesh.edges[e1].next;
+        let e1 = mesh.edge(e0).unwrap().next;
+        let e2 = mesh.edge(e1).unwrap().next;
 
-        let p0 = mesh.edges[e0].position;
-        let p1 = mesh.edges[e1].position;
-        let p2 = mesh.edges[e2].position;
+        let p0 = mesh.edge(e0).unwrap().position;
+        let p1 = mesh.edge(e1).unwrap().position;
+        let p2 = mesh.edge(e2).unwrap().position;
 
-        vertices.push(Vertex { position: mesh.positions[p0].into() });
-        vertices.push(Vertex { position: mesh.positions[p1].into() });
-        vertices.push(Vertex { position: mesh.positions[p2].into() });
+        vertices.push(Vertex { position: *mesh.position(p0).unwrap().as_ref() });
+        vertices.push(Vertex { position: *mesh.position(p1).unwrap().as_ref() });
+        vertices.push(Vertex { position: *mesh.position(p2).unwrap().as_ref() });
     }
 
     vertices

@@ -56,7 +56,7 @@ impl Subdivide for Mesh {
                                       -> PositionIndex
             where F: Fn(Position, Position) -> Position
         {
-            let edge = &in_mesh.edges[index];
+            let edge = in_mesh.edge(index).unwrap();
             let mp_index = out_mesh.add_position(in_mesh.edge_midpoint(edge, midpoint_fn));
             if let Some(adjacent_index) = edge.adjacent {
                 cache.insert(adjacent_index, mp_index);
@@ -79,35 +79,35 @@ impl Subdivide for Mesh {
         // Create our new faces
         for face in &self.faces {
             let in_e0 = face.root;
-            let in_e1 = self.edges[in_e0].next;
-            let in_e2 = self.edges[in_e1].next;
+            let in_e1 = self.edge(in_e0).unwrap().next;
+            let in_e2 = self.edge(in_e1).unwrap().next;
 
-            debug_assert_eq!(self.edges[in_e2].next, in_e0);
+            debug_assert_eq!(self.edge(in_e2).unwrap().next, in_e0);
 
             // Edge indices: f0
             let e0 = mesh.next_edge_id();
-            let e1 = e0 + 1;
-            let e2 = e0 + 2;
+            let e1 = EdgeIndex(e0.0 + 1);
+            let e2 = EdgeIndex(e0.0 + 2);
 
             // Edge indices: f1
-            let e3 = e0 + 3;
-            let e4 = e0 + 4;
-            let e5 = e0 + 5;
+            let e3 = EdgeIndex(e0.0 + 3);
+            let e4 = EdgeIndex(e0.0 + 4);
+            let e5 = EdgeIndex(e0.0 + 5);
 
             // Edge indices: f2
-            let e6 = e0 + 6;
-            let e7 = e0 + 7;
-            let e8 = e0 + 8;
+            let e6 = EdgeIndex(e0.0 + 6);
+            let e7 = EdgeIndex(e0.0 + 7);
+            let e8 = EdgeIndex(e0.0 + 8);
 
             // Edge indices: f3
-            let e9 = e0 + 9;
-            let e10 = e0 + 10;
-            let e11 = e0 + 11;
+            let e9 = EdgeIndex(e0.0 + 9);
+            let e10 = EdgeIndex(e0.0 + 10);
+            let e11 = EdgeIndex(e0.0 + 11);
 
             // Original position indices
-            let p0 = self.edges[in_e0].position;
-            let p1 = self.edges[in_e1].position;
-            let p2 = self.edges[in_e2].position;
+            let p0 = self.edge(in_e0).unwrap().position;
+            let p1 = self.edge(in_e1).unwrap().position;
+            let p2 = self.edge(in_e2).unwrap().position;
 
             // Midpoint position indices
 
@@ -162,14 +162,14 @@ impl Subdivide for Mesh {
 
         // Update adjacency for remaining edges
         for (index, &(a, b)) in &split_edges {
-            let edge = &self.edges[*index];
+            let edge = self.edge(*index).unwrap();
             if edge.is_boundary() {
                 continue;
             }
             let adjacent_edge = edge.adjacent.unwrap();
             let (b_adjacent, a_adjacent) = split_edges[&adjacent_edge];
-            mesh.edges[a].adjacent = Some(a_adjacent);
-            mesh.edges[b].adjacent = Some(b_adjacent);
+            mesh.edge_mut(a).unwrap().adjacent = Some(a_adjacent);
+            mesh.edge_mut(b).unwrap().adjacent = Some(b_adjacent);
         }
 
         mesh
@@ -187,16 +187,16 @@ impl Dual for Mesh {
     #[cfg_attr(feature = "cargo-clippy", allow(should_assert_eq))]
     fn generate_dual(&self) -> Mesh {
         fn next_face_around_position(mesh: &Mesh, pi: PositionIndex, ei0: EdgeIndex) -> FaceIndex {
-            let e0 = &mesh.edges[ei0];
-            let e1 = &mesh.edges[e0.next];
-            let e2 = &mesh.edges[e1.next];
+            let e0 = mesh.edge(ei0).unwrap();
+            let e1 = mesh.edge(e0.next).unwrap();
+            let e2 = mesh.edge(e1.next).unwrap();
 
             debug_assert_eq!(e0.position, pi);
             debug_assert_eq!(e2.next, ei0);
 
             debug_assert!(!e2.is_boundary());
 
-            let adjacent_edge = &mesh.edges[e2.adjacent.unwrap()];
+            let adjacent_edge = mesh.edge(e2.adjacent.unwrap()).unwrap();
             adjacent_edge.face
         }
 
@@ -212,19 +212,21 @@ impl Dual for Mesh {
         let mut mesh = Mesh::empty();
 
         for (face_index, point_indices) in self.triangles().enumerate() {
+            let face_index = FaceIndex(face_index);
+
             face_cache.entry(point_indices[0]).or_insert(face_index);
             face_cache.entry(point_indices[1]).or_insert(face_index);
             face_cache.entry(point_indices[2]).or_insert(face_index);
 
-            let face_positions = [self.positions[point_indices[0]],
-                                  self.positions[point_indices[1]],
-                                  self.positions[point_indices[2]]];
+            let face_positions = [*self.position(point_indices[0]).unwrap(),
+                                  *self.position(point_indices[1]).unwrap(),
+                                  *self.position(point_indices[2]).unwrap()];
 
             let centroid_index = mesh.add_position(Position::centroid(&face_positions));
             centroid_cache.insert(face_index, centroid_index);
         }
 
-        for pi in 0..self.positions.len() {
+        for pi in (0..self.positions.len()).map(PositionIndex) {
             let fi0 = *face_cache
                            .get(&pi)
                            .expect("Position in Mesh without any connected faces!?");
@@ -234,23 +236,23 @@ impl Dual for Mesh {
             let mut centroid_indices = Vec::with_capacity(6);
 
             loop {
-                let current_face = &self.faces[current_face_index];
+                let current_face = self.face(current_face_index).unwrap();
                 let centroid_index = centroid_cache[&current_face_index];
 
                 centroid_indices.push(centroid_index);
-                centroids.push(mesh.positions[centroid_index]);
+                centroids.push(*mesh.position(centroid_index).unwrap());
 
                 let ei = {
-                    let e0 = &self.edges[current_face.root];
+                    let e0 = self.edge(current_face.root).unwrap();
                     if e0.position == pi {
                         current_face.root
                     } else {
-                        let e1 = &self.edges[e0.next];
+                        let e1 = self.edge(e0.next).unwrap();
                         if e1.position == pi {
                             e0.next
                         } else {
-                            assert!(pi == self.edges[e1.next].position,
-                                    "Unable to find outgoing edge for position {}",
+                            assert!(pi == self.edge(e1.next).unwrap().position,
+                                    "Unable to find outgoing edge for {:?}",
                                     pi);
                             e1.next
                         }

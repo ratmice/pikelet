@@ -15,10 +15,15 @@ pub mod mesh;
 pub mod algorithms;
 pub mod primitives;
 
-pub type EdgeIndex = usize;
-pub type PositionIndex = usize;
-pub type FaceIndex = usize;
-pub type VertexIndex = usize;
+#[derive(Copy, Clone, Debug, Hash, PartialEq, PartialOrd, Eq, Ord)]
+pub struct EdgeIndex(pub usize);
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, PartialOrd, Eq, Ord)]
+pub struct PositionIndex(pub usize);
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, PartialOrd, Eq, Ord)]
+pub struct FaceIndex(pub usize);
+
 pub type Position = Point3<f32>;
 
 pub fn midpoint_arc(radius: f32, p0: Point3<f32>, p1: Point3<f32>) -> Point3<f32> {
@@ -129,29 +134,28 @@ mod tests {
     use cgmath::prelude::*;
     use cgmath::Point3;
 
-    use math;
-    use super::{Mesh, Edge, EdgeIndex};
+    use super::{Mesh, Edge, EdgeIndex, FaceIndex};
     use super::primitives;
     use super::algorithms::*;
 
     fn assert_congruent_adjacenct_positions(e0: &Edge, e1: &Edge, mesh: &Mesh) {
         let e0p0 = e0.position;
-        let e0p1 = mesh.edges[e0.next].position;
+        let e0p1 = mesh.edge(e0.next).unwrap().position;
 
         let e1p0 = e1.position;
-        let e1p1 = mesh.edges[e1.next].position;
+        let e1p1 = mesh.edge(e1.next).unwrap().position;
 
         assert_eq!(e0p0, e1p1);
         assert_eq!(e0p1, e1p0);
     }
 
-    fn assert_congruent_adjacency(index: &EdgeIndex, edge: &Edge, mesh: &Mesh) {
+    fn assert_congruent_adjacency(index: EdgeIndex, edge: &Edge, mesh: &Mesh) {
         let adjacent_index = edge.adjacent.unwrap();
-        let adjacent_edge = &mesh.edges[adjacent_index];
+        let adjacent_edge = mesh.edge(adjacent_index).unwrap();
         assert!(adjacent_edge.adjacent.is_some());
 
         let expected_index = adjacent_edge.adjacent.unwrap();
-        assert_eq!(*index, expected_index);
+        assert_eq!(index, expected_index);
 
         assert_congruent_adjacenct_positions(edge, adjacent_edge, mesh);
     }
@@ -160,7 +164,7 @@ mod tests {
     fn assert_congruent_nonboundary_mesh(mesh: &Mesh) {
         for (index, edge) in mesh.edges.iter().enumerate() {
             assert!(edge.adjacent.is_some());
-            assert_congruent_adjacency(&index, edge, mesh);
+            assert_congruent_adjacency(EdgeIndex(index), edge, mesh);
         }
     }
 
@@ -170,7 +174,7 @@ mod tests {
             if edge.adjacent.is_none() {
                 continue;
             }
-            assert_congruent_adjacency(&index, edge, mesh);
+            assert_congruent_adjacency(EdgeIndex(index), edge, mesh);
         }
     }
 
@@ -179,8 +183,9 @@ mod tests {
         for (fi, face) in mesh.faces.iter().enumerate() {
             let ei0 = face.root;
             let mut ei_n = ei0;
+            let fi = FaceIndex(fi);
             loop {
-                let edge = &mesh.edges[ei_n];
+                let edge = mesh.edge(ei_n).unwrap();
                 assert_eq!(edge.face, fi);
 
                 ei_n = edge.next;
@@ -235,7 +240,7 @@ mod tests {
         let icosahedron = primitives::icosahedron(planet_radius);
         let mesh =
             icosahedron.subdivide(subdivisions,
-                                  &|a, b| math::midpoint_arc(planet_radius, a, b));
+                                  &|a, b| super::midpoint_arc(planet_radius, a, b));
         assert_congruent_nonboundary_mesh(&mesh);
         assert_face_associations(&mesh);
     }
