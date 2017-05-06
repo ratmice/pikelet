@@ -7,7 +7,7 @@ use super::*;
 /// The central bucket of attributes and connectivity information
 ///
 #[derive(Clone, Debug)]
-pub struct Mesh {
+pub struct Mesh<Position> {
     /// Points in Spaaaaaaacccceeee!
     pub positions: Vec<Position>,
 
@@ -18,9 +18,9 @@ pub struct Mesh {
     pub edges: Vec<Edge>,
 }
 
-impl Mesh {
+impl<Position: Copy> Mesh<Position> {
     /// Create a new empty `Mesh`
-    pub fn empty() -> Mesh {
+    pub fn empty() -> Mesh<Position> {
         Mesh {
             positions: Vec::new(),
             faces: Vec::new(),
@@ -29,7 +29,7 @@ impl Mesh {
     }
 
     /// Create a new empty `Mesh` with the speified capacity
-    pub fn with_capacity(capacity: usize) -> Mesh {
+    pub fn with_capacity(capacity: usize) -> Mesh<Position> {
         Mesh {
             positions: Vec::with_capacity(capacity),
             faces: Vec::with_capacity(capacity),
@@ -142,7 +142,7 @@ impl Mesh {
 
     /// Iterate through the faces, yielding point indices as if each face
     /// were a triangle.
-    pub fn triangles(&self) -> Triangles {
+    pub fn triangles(&self) -> Triangles<Position> {
         Triangles {
             mesh: self,
             iter: self.faces.iter(),
@@ -150,12 +150,12 @@ impl Mesh {
     }
 }
 
-pub struct Triangles<'a> {
-    mesh: &'a Mesh,
+pub struct Triangles<'a, Position: 'a> {
+    mesh: &'a Mesh<Position>,
     iter: SliceIter<'a, Face>,
 }
 
-impl<'a> Iterator for Triangles<'a> {
+impl<'a, Position: Copy> Iterator for Triangles<'a, Position> {
     type Item = [PositionIndex; 3];
 
     fn next(&mut self) -> Option<[PositionIndex; 3]> {

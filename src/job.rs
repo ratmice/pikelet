@@ -1,18 +1,18 @@
 use cgmath::conv::*;
+use cgmath::Point3;
 use engine::render::{ResourceEvent, Vertex, Indices};
 use geom::{self, primitives, Mesh};
-use geom::algorithms::{Subdivide, Dual};
 use geomath::GeoPoint;
 use rand::{self, Rng};
 use std::sync::mpsc::Sender;
 
-fn generate_planet_mesh(subdivs: usize) -> Mesh {
+fn generate_planet_mesh(subdivs: usize) -> Mesh<Point3<f32>> {
     primitives::icosahedron(1.0)
         .subdivide(subdivs, &|a, b| geom::midpoint_arc(1.0, a, b))
         .generate_dual()
 }
 
-fn create_vertices(mesh: &Mesh) -> Vec<Vertex> {
+fn create_vertices(mesh: &Mesh<Point3<f32>>) -> Vec<Vertex> {
     const VERTICES_PER_FACE: usize = 3;
 
     let mut vertices = Vec::with_capacity(mesh.faces.len() * VERTICES_PER_FACE);

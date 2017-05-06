@@ -24,8 +24,6 @@ pub struct PositionIndex(pub usize);
 #[derive(Copy, Clone, Debug, Hash, PartialEq, PartialOrd, Eq, Ord)]
 pub struct FaceIndex(pub usize);
 
-pub type Position = Point3<f32>;
-
 pub fn midpoint_arc(radius: f32, p0: Point3<f32>, p1: Point3<f32>) -> Point3<f32> {
     set_radius(Point3::midpoint(p0, p1), radius)
 }
@@ -136,9 +134,8 @@ mod tests {
 
     use super::{Mesh, Edge, EdgeIndex, FaceIndex};
     use super::primitives;
-    use super::algorithms::*;
 
-    fn assert_congruent_adjacenct_positions(e0: &Edge, e1: &Edge, mesh: &Mesh) {
+    fn assert_congruent_adjacent_positions(e0: &Edge, e1: &Edge, mesh: &Mesh<Point3<f32>>) {
         let e0p0 = e0.position;
         let e0p1 = mesh.edge(e0.next).unwrap().position;
 
@@ -149,7 +146,7 @@ mod tests {
         assert_eq!(e0p1, e1p0);
     }
 
-    fn assert_congruent_adjacency(index: EdgeIndex, edge: &Edge, mesh: &Mesh) {
+    fn assert_congruent_adjacency(index: EdgeIndex, edge: &Edge, mesh: &Mesh<Point3<f32>>) {
         let adjacent_index = edge.adjacent.unwrap();
         let adjacent_edge = mesh.edge(adjacent_index).unwrap();
         assert!(adjacent_edge.adjacent.is_some());
@@ -161,7 +158,7 @@ mod tests {
     }
 
     // used to test meshes that should have no boundary edges
-    fn assert_congruent_nonboundary_mesh(mesh: &Mesh) {
+    fn assert_congruent_nonboundary_mesh(mesh: &Mesh<Point3<f32>>) {
         for (index, edge) in mesh.edges.iter().enumerate() {
             assert!(edge.adjacent.is_some());
             assert_congruent_adjacency(EdgeIndex(index), edge, mesh);
@@ -169,7 +166,7 @@ mod tests {
     }
 
     // used to test meshes which are allowed to have boundary edges
-    fn assert_congruent_mesh(mesh: &Mesh) {
+    fn assert_congruent_mesh(mesh: &Mesh<Point3<f32>>) {
         for (index, edge) in mesh.edges.iter().enumerate() {
             if edge.adjacent.is_none() {
                 continue;
@@ -178,7 +175,7 @@ mod tests {
         }
     }
 
-    fn assert_face_associations(mesh: &Mesh) {
+    fn assert_face_associations(mesh: &Mesh<Point3<f32>>) {
         let mut cycle_check = 0;
         for (fi, face) in mesh.faces.iter().enumerate() {
             let ei0 = face.root;

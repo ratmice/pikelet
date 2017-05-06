@@ -5,7 +5,7 @@ use EdgeIndex as Ei;
 use FaceIndex as Fi;
 use PositionIndex as Pi;
 
-pub fn triangle(scale: f32) -> Mesh {
+pub fn triangle(scale: f32) -> Mesh<Point3<f32>> {
     let extent = scale / 2.0;
     let positions = vec![Point3::new(0.0, extent, 0.0),
                          Point3::new(-extent, -extent, 0.0),
@@ -24,7 +24,7 @@ pub fn triangle(scale: f32) -> Mesh {
     }
 }
 
-pub fn plane(scale: f32) -> Mesh {
+pub fn plane(scale: f32) -> Mesh<Point3<f32>> {
     let extent = scale / 2.0;
     let positions = vec![Point3::new(-extent, extent, 0.0),
                          Point3::new(-extent, -extent, 0.0),
@@ -47,7 +47,7 @@ pub fn plane(scale: f32) -> Mesh {
     }
 }
 
-pub fn tetrahedron(scale: f32) -> Mesh {
+pub fn tetrahedron(scale: f32) -> Mesh<Point3<f32>> {
     let extent = scale / 2.0;
 
     let positions = vec![Point3::new(extent, extent, extent),
@@ -84,7 +84,7 @@ pub fn tetrahedron(scale: f32) -> Mesh {
     }
 }
 
-pub fn icosahedron(radius: f32) -> Mesh {
+pub fn icosahedron(radius: f32) -> Mesh<Point3<f32>> {
     // The coordinates of the iocosahedron are are described by the
     // cyclic permutations of (±ϕ, ±1, 0), where ϕ is the [Golden Ratio]
     // (https://en.wikipedia.org/wiki/Golden_ratio).

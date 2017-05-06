@@ -2,59 +2,52 @@
 //! algorithm that can be understood as a Function `Mesh -> Mesh`.
 
 use cgmath::prelude::*;
+use cgmath::Point3;
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 use fnv::FnvHasher;
 
-use {EdgeIndex, FaceIndex, Mesh, Position, PositionIndex};
+use {EdgeIndex, FaceIndex, Mesh, PositionIndex};
 
-type MidpointCache = HashMap<EdgeIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
-type SplitEdgeCache = HashMap<EdgeIndex, (EdgeIndex, EdgeIndex), BuildHasherDefault<FnvHasher>>;
-
-/// Trait for types that support being subdivided.
-pub trait Subdivide {
+impl<Position: Copy> Mesh<Position> {
     /// Applies `subdivide_once` the specified number of times.
-    fn subdivide<F>(&self, count: usize, midpoint_fn: &F) -> Mesh
-        where F: Fn(Position, Position) -> Position;
-    /// The actual subdivision implementation.
-    fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh where F: Fn(Position, Position) -> Position;
-}
-
-
-/// Implements Class I subdivision on `geom::Mesh` objects:
-///
-/// ```text
-///           v0         |  v0 ____v5____ v2
-///           /\         |    \    /\    /
-///          /  \        |     \  /  \  /
-///     v3  /____\  v5   |   v3 \/____\/ v4
-///        /\    /\      |       \    /
-///       /  \  /  \     |        \  /
-///      /____\/____\    |         \/
-///    v1     v4     v2  |         v1
-/// ```
-///
-/// # Note
-///
-/// This method will panic if the Mesh has non-triangle faces.
-///
-impl Subdivide for Mesh {
-    fn subdivide<F>(&self, count: usize, midpoint_fn: &F) -> Mesh
+    pub fn subdivide<F>(&self, count: usize, midpoint_fn: &F) -> Mesh<Position>
         where F: Fn(Position, Position) -> Position
     {
         (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(&midpoint_fn))
     }
 
-    fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh
+    /// Implements Class I subdivision on `geom::Mesh` objects:
+    ///
+    /// ```text
+    ///           v0         |  v0 ____v5____ v2
+    ///           /\         |    \    /\    /
+    ///          /  \        |     \  /  \  /
+    ///     v3  /____\  v5   |   v3 \/____\/ v4
+    ///        /\    /\      |       \    /
+    ///       /  \  /  \     |        \  /
+    ///      /____\/____\    |         \/
+    ///    v1     v4     v2  |         v1
+    /// ```
+    ///
+    /// # Note
+    ///
+    /// This method will panic if the Mesh has non-triangle faces.
+    ///
+    pub fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh<Position>
         where F: Fn(Position, Position) -> Position
     {
-        fn calc_and_cache_midpoint<F>(index: EdgeIndex,
-                                      in_mesh: &Mesh,
-                                      out_mesh: &mut Mesh,
+        type MidpointCache = HashMap<EdgeIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
+        type SplitEdgeCache = HashMap<EdgeIndex, (EdgeIndex, EdgeIndex), BuildHasherDefault<FnvHasher>>;
+
+        fn calc_and_cache_midpoint<Position, F>(index: EdgeIndex,
+                                      in_mesh: &Mesh<Position>,
+                                      out_mesh: &mut Mesh<Position>,
                                       cache: &mut MidpointCache,
                                       midpoint_fn: &F)
                                       -> PositionIndex
-            where F: Fn(Position, Position) -> Position
+            where Position: Copy,
+            F: Fn(Position, Position) -> Position
         {
             let edge = in_mesh.edge(index).unwrap();
             let mp_index = out_mesh.add_position(in_mesh.edge_midpoint(edge, midpoint_fn));
@@ -156,17 +149,13 @@ impl Subdivide for Mesh {
     }
 }
 
-type CentroidCache = HashMap<FaceIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
-type FaceMembershipCache = HashMap<PositionIndex, FaceIndex, BuildHasherDefault<FnvHasher>>;
-
-pub trait Dual {
-    fn generate_dual(&self) -> Mesh;
-}
-
-impl Dual for Mesh {
+impl Mesh<Point3<f32>> {
     #[cfg_attr(feature = "cargo-clippy", allow(should_assert_eq))]
-    fn generate_dual(&self) -> Mesh {
-        fn next_face_around_position(mesh: &Mesh, pi: PositionIndex, ei0: EdgeIndex) -> FaceIndex {
+    pub fn generate_dual(&self) -> Mesh<Point3<f32>> {
+        type CentroidCache = HashMap<FaceIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
+        type FaceMembershipCache = HashMap<PositionIndex, FaceIndex, BuildHasherDefault<FnvHasher>>;
+
+        fn next_face_around_position(mesh: &Mesh<Point3<f32>>, pi: PositionIndex, ei0: EdgeIndex) -> FaceIndex {
             let e0 = mesh.edge(ei0).unwrap();
             let e1 = mesh.edge(e0.next).unwrap();
             let e2 = mesh.edge(e1.next).unwrap();
@@ -202,7 +191,7 @@ impl Dual for Mesh {
                                   *self.position(point_indices[1]).unwrap(),
                                   *self.position(point_indices[2]).unwrap()];
 
-            let centroid_index = mesh.add_position(Position::centroid(&face_positions));
+            let centroid_index = mesh.add_position(Point3::centroid(&face_positions));
             centroid_cache.insert(face_index, centroid_index);
         }
 
@@ -247,7 +236,7 @@ impl Dual for Mesh {
                 assert!(centroids.len() <= 6, "Infinite loop detected!");
             }
 
-            let centroid = Position::centroid(&centroids);
+            let centroid = Point3::centroid(&centroids);
             let centroid_index = mesh.add_position(centroid);
 
             match centroids.len() {
@@ -266,7 +255,7 @@ impl Dual for Mesh {
                     mesh.add_triangle(centroid_index, centroid_indices[3], centroid_indices[4]);
                     mesh.add_triangle(centroid_index, centroid_indices[4], centroid_indices[0]);
                 },
-                n => panic!("Incorrect number of centroids: {:?}!", n),
+                _ => panic!("Incorrect number of centroids: {:?}!", centroids.len()),
             }
         }
 
