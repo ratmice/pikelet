@@ -124,7 +124,7 @@ pub fn run<T: Application>() {
     thread::spawn(move || {
         let mut game = T::init(metrics, resources_ref);
 
-        for event in update_rx.iter() {
+        for event in update_rx {
             let loop_result = match event {
                 UpdateEvent::FrameRequested(metrics) => {
                     // We send the data for the last frame so that the renderer
