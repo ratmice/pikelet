@@ -56,7 +56,7 @@ impl Job {
                 let vertices = create_vertices(&mesh);
 
                 resources_ref
-                    .upload_buffer("planet".to_string(), vertices, Indices::TrianglesList)
+                    .upload_buffer("planet", vertices, Indices::TrianglesList)
                     .unwrap();
             },
             Job::Stars { index, count } => {

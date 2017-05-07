@@ -9,6 +9,7 @@ use glium::index::{PrimitiveType, NoIndices};
 use imgui::ImGui;
 use self::imgui_glium_renderer::{Renderer as UiRenderer, RendererError as UiRendererError};
 use self::rusttype::{Font, FontCollection};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
@@ -84,16 +85,19 @@ impl Indices {
 
 enum ResourceEvent {
     UploadBuffer {
-        name: String,
+        name: Cow<'static, str>,
         vertices: Vec<Vertex>,
         indices: Indices,
     },
     CompileProgram {
-        name: String,
+        name: Cow<'static, str>,
         vertex_shader: String,
         fragment_shader: String,
     },
-    UploadFont { name: String, data: Vec<u8> },
+    UploadFont {
+        name: Cow<'static, str>,
+        data: Vec<u8>,
+    },
 }
 
 impl fmt::Debug for ResourceEvent {
@@ -133,37 +137,46 @@ pub struct ResourcesRef {
 }
 
 impl ResourcesRef {
-    pub fn upload_buffer(&self,
-                         name: String,
-                         vertices: Vec<Vertex>,
-                         indices: Indices)
-                         -> Result<(), ()> {
+    pub fn upload_buffer<S>(&self,
+                            name: S,
+                            vertices: Vec<Vertex>,
+                            indices: Indices)
+                            -> Result<(), ()>
+        where S: Into<Cow<'static, str>>
+    {
         self.tx
             .send(ResourceEvent::UploadBuffer {
-                      name,
+                      name: name.into(),
                       vertices,
                       indices,
                   })
             .map_err(|_| ())
     }
 
-    pub fn compile_program(&self,
-                           name: String,
-                           vertex_shader: String,
-                           fragment_shader: String)
-                           -> Result<(), ()> {
+    pub fn compile_program<S>(&self,
+                              name: S,
+                              vertex_shader: String,
+                              fragment_shader: String)
+                              -> Result<(), ()>
+        where S: Into<Cow<'static, str>>
+    {
         self.tx
             .send(ResourceEvent::CompileProgram {
-                      name,
+                      name: name.into(),
                       vertex_shader,
                       fragment_shader,
                   })
             .map_err(|_| ())
     }
 
-    pub fn upload_font(&self, name: String, data: Vec<u8>) -> Result<(), ()> {
+    pub fn upload_font<S>(&self, name: S, data: Vec<u8>) -> Result<(), ()>
+        where S: Into<Cow<'static, str>>
+    {
         self.tx
-            .send(ResourceEvent::UploadFont { name, data })
+            .send(ResourceEvent::UploadFont {
+                      name: name.into(),
+                      data,
+                  })
             .map_err(|_| ())
     }
 }
@@ -243,7 +256,7 @@ impl Renderer {
                 let vbo = VertexBuffer::new(&self.context, &vertices).unwrap();
                 let ibo = indices.to_no_indices();
 
-                self.buffers.insert(name, (vbo, ibo));
+                self.buffers.insert(name.into_owned(), (vbo, ibo));
             },
             ResourceEvent::CompileProgram {
                 name,
@@ -254,13 +267,13 @@ impl Renderer {
                     Program::from_source(&self.context, &vertex_shader, &fragment_shader, None)
                         .unwrap();
 
-                self.programs.insert(name, program);
+                self.programs.insert(name.into_owned(), program);
             },
             ResourceEvent::UploadFont { name, data } => {
                 let font_collection = FontCollection::from_bytes(data);
                 let font = font_collection.into_font().unwrap();
 
-                self.fonts.insert(name, font);
+                self.fonts.insert(name.into_owned(), font);
             },
         }
     }

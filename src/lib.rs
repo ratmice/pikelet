@@ -217,19 +217,19 @@ fn init_resources(resources: ResourcesRef) {
     }
 
     resources
-        .compile_program("flat_shaded".to_string(),
+        .compile_program("flat_shaded",
                          load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
                          load_shader(&assets.join("shaders/flat_shaded.f.glsl")).unwrap())
         .unwrap();
 
     resources
-        .compile_program("text".to_string(),
+        .compile_program("text",
                          load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
                          load_shader(&assets.join("shaders/text.f.glsl")).unwrap())
         .unwrap();
 
     resources
-        .compile_program("unshaded".to_string(),
+        .compile_program("unshaded",
                          load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
                          load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap())
         .unwrap();
@@ -243,7 +243,7 @@ fn init_resources(resources: ResourcesRef) {
     }
 
     resources
-        .upload_font("blogger_sans".to_string(),
+        .upload_font("blogger_sans",
                      load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap())
         .unwrap();
 }
