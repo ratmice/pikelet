@@ -38,16 +38,18 @@ impl<Position: Copy> Mesh<Position> {
         where F: Fn(Position, Position) -> Position
     {
         type MidpointCache = HashMap<EdgeIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
-        type SplitEdgeCache = HashMap<EdgeIndex, (EdgeIndex, EdgeIndex), BuildHasherDefault<FnvHasher>>;
+        type SplitEdgeCache = HashMap<EdgeIndex,
+                                      (EdgeIndex, EdgeIndex),
+                                      BuildHasherDefault<FnvHasher>>;
 
         fn calc_and_cache_midpoint<Position, F>(index: EdgeIndex,
-                                      in_mesh: &Mesh<Position>,
-                                      out_mesh: &mut Mesh<Position>,
-                                      cache: &mut MidpointCache,
-                                      midpoint_fn: &F)
-                                      -> PositionIndex
+                                                in_mesh: &Mesh<Position>,
+                                                out_mesh: &mut Mesh<Position>,
+                                                cache: &mut MidpointCache,
+                                                midpoint_fn: &F)
+                                                -> PositionIndex
             where Position: Copy,
-            F: Fn(Position, Position) -> Position
+                  F: Fn(Position, Position) -> Position
         {
             let edge = in_mesh.edge(index).unwrap();
             let mp_index = out_mesh.add_position(in_mesh.edge_midpoint(edge, midpoint_fn));
@@ -155,7 +157,10 @@ impl Mesh<Point3<f32>> {
         type CentroidCache = HashMap<FaceIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
         type FaceMembershipCache = HashMap<PositionIndex, FaceIndex, BuildHasherDefault<FnvHasher>>;
 
-        fn next_face_around_position(mesh: &Mesh<Point3<f32>>, pi: PositionIndex, ei0: EdgeIndex) -> FaceIndex {
+        fn next_face_around_position(mesh: &Mesh<Point3<f32>>,
+                                     pi: PositionIndex,
+                                     ei0: EdgeIndex)
+                                     -> FaceIndex {
             let e0 = mesh.edge(ei0).unwrap();
             let e1 = mesh.edge(e0.next).unwrap();
             let e2 = mesh.edge(e1.next).unwrap();

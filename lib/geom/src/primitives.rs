@@ -55,7 +55,10 @@ pub fn tetrahedron(scale: f32) -> Mesh<Point3<f32>> {
                          Point3::new(-extent, extent, -extent),
                          Point3::new(-extent, -extent, extent)];
 
-    let faces = vec![Face::new(Ei(0)), Face::new(Ei(3)), Face::new(Ei(6)), Face::new(Ei(9))];
+    let faces = vec![Face::new(Ei(0)),
+                     Face::new(Ei(3)),
+                     Face::new(Ei(6)),
+                     Face::new(Ei(9))];
 
     let edges = vec![
         //        point,  face,   next,     adj,

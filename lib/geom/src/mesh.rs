@@ -42,7 +42,8 @@ impl<Position: Copy> Mesh<Position> {
         where F: Fn(Position, Position) -> Position
     {
         let p0 = self.position(edge.position).unwrap();
-        let p1 = self.position(self.edge(edge.next).unwrap().position).unwrap();
+        let p1 = self.position(self.edge(edge.next).unwrap().position)
+            .unwrap();
         midpoint_fn(*p0, *p1)
     }
 

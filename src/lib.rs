@@ -217,28 +217,27 @@ fn init_resources(resource_tx: Sender<ResourceEvent>) {
     }
 
     resource_tx
-        .send((ResourceEvent::CompileProgram {
-                   name: "flat_shaded".to_string(),
-                   vertex_shader: load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
-                   fragment_shader: load_shader(&assets.join("shaders/flat_shaded.f.glsl"))
-                       .unwrap(),
-               }))
+        .send(ResourceEvent::CompileProgram {
+                  name: "flat_shaded".to_string(),
+                  vertex_shader: load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
+                  fragment_shader: load_shader(&assets.join("shaders/flat_shaded.f.glsl")).unwrap(),
+              })
         .unwrap();
 
     resource_tx
-        .send((ResourceEvent::CompileProgram {
-                   name: "text".to_string(),
-                   vertex_shader: load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
-                   fragment_shader: load_shader(&assets.join("shaders/text.f.glsl")).unwrap(),
-               }))
+        .send(ResourceEvent::CompileProgram {
+                  name: "text".to_string(),
+                  vertex_shader: load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
+                  fragment_shader: load_shader(&assets.join("shaders/text.f.glsl")).unwrap(),
+              })
         .unwrap();
 
     resource_tx
-        .send((ResourceEvent::CompileProgram {
-                   name: "unshaded".to_string(),
-                   vertex_shader: load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
-                   fragment_shader: load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap(),
-               }))
+        .send(ResourceEvent::CompileProgram {
+                  name: "unshaded".to_string(),
+                  vertex_shader: load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
+                  fragment_shader: load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap(),
+              })
         .unwrap();
 
     fn load_font(path: &Path) -> io::Result<Vec<u8>> {
@@ -250,10 +249,10 @@ fn init_resources(resource_tx: Sender<ResourceEvent>) {
     }
 
     resource_tx
-        .send((ResourceEvent::UploadFont {
-                   name: "blogger_sans".to_string(),
-                   data: load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap(),
-               }))
+        .send(ResourceEvent::UploadFont {
+                  name: "blogger_sans".to_string(),
+                  data: load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap(),
+              })
         .unwrap();
 }
 
