@@ -295,13 +295,9 @@ impl Application for Game {
             SetWireframe(value) => self.state.is_wireframe = value,
             ToggleUi => self.state.is_ui_enabled = !self.state.is_ui_enabled,
             ResetState => self.state.reset(),
-            DragStart => {
-                if !self.state.is_ui_capturing_mouse {
-                    self.state.is_dragging = true
-                }
-            },
+            DragStart => self.state.is_dragging = !self.state.is_ui_capturing_mouse,
             DragEnd => self.state.is_dragging = false,
-            ZoomStart => self.state.is_zooming = true,
+            ZoomStart => self.state.is_zooming = !self.state.is_ui_capturing_mouse,
             ZoomEnd => self.state.is_zooming = false,
             MousePosition(position) => self.handle_mouse_update(position),
             NoOp => {},
