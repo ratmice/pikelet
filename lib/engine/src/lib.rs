@@ -105,7 +105,7 @@ pub fn run<T: Application>() {
     use std::sync::mpsc;
     use std::thread;
 
-    use render::Resources;
+    use render::Renderer;
 
     let display = WindowBuilder::new()
         .with_title("Voyager!")
@@ -143,7 +143,7 @@ pub fn run<T: Application>() {
         }
     });
 
-    let mut resources = Resources::new(&display);
+    let mut resources = Renderer::new(&display);
 
     'main: for time in times::in_seconds() {
         // Swap frames with update thread

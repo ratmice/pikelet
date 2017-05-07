@@ -126,7 +126,7 @@ impl fmt::Debug for ResourceEvent {
 
 pub type Buffer = (VertexBuffer<Vertex>, NoIndices);
 
-pub struct Resources {
+pub struct Renderer {
     context: Rc<Context>,
 
     ui_renderer: UiRenderer,
@@ -141,13 +141,13 @@ pub struct Resources {
     text_index_buffer: IndexBuffer<u8>,
 }
 
-impl Resources {
-    pub fn new<F: Facade>(facade: &F) -> Resources {
+impl Renderer {
+    pub fn new<F: Facade>(facade: &F) -> Renderer {
         let mut imgui = ImGui::init();
         let ui_renderer = UiRenderer::init(&mut imgui, facade).unwrap();
         let ui_context = UiContext::new(imgui);
 
-        Resources {
+        Renderer {
             context: facade.get_context().clone(),
 
             ui_renderer: ui_renderer,
