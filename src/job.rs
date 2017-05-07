@@ -1,10 +1,9 @@
 use cgmath::conv::*;
 use cgmath::Point3;
-use engine::render::{ResourceEvent, Vertex, Indices};
+use engine::render::{ResourcesRef, Vertex, Indices};
 use geom::{self, primitives, Mesh};
 use geomath::GeoPoint;
 use rand::{self, Rng};
-use std::sync::mpsc::Sender;
 
 fn generate_planet_mesh(subdivs: usize) -> Mesh<Point3<f32>> {
     primitives::icosahedron(1.0)
@@ -50,27 +49,21 @@ pub enum Job {
 }
 
 impl Job {
-    pub fn process(self, resource_tx: &Sender<ResourceEvent>) {
+    pub fn process(self, resources_ref: &ResourcesRef) {
         match self {
             Job::Planet { subdivs } => {
                 let mesh = generate_planet_mesh(subdivs);
                 let vertices = create_vertices(&mesh);
 
-                resource_tx
-                    .send(ResourceEvent::UploadBuffer {
-                              name: "planet".to_string(),
-                              vertices: vertices,
-                              indices: Indices::TrianglesList,
-                          })
+                resources_ref
+                    .upload_buffer("planet".to_string(), vertices, Indices::TrianglesList)
                     .unwrap();
             },
             Job::Stars { index, count } => {
-                resource_tx
-                    .send(ResourceEvent::UploadBuffer {
-                              name: format!("stars{}", index),
-                              vertices: create_star_vertices(count),
-                              indices: Indices::Points,
-                          })
+                resources_ref
+                    .upload_buffer(format!("stars{}", index),
+                                   create_star_vertices(count),
+                                   Indices::Points)
                     .unwrap();
             },
         }

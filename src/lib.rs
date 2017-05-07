@@ -25,7 +25,7 @@ use engine::camera::{Camera, ComputedCamera};
 use engine::color;
 use engine::input::Event as InputEvent;
 use engine::math::Size2;
-use engine::render::{CommandList, ResourceEvent};
+use engine::render::{CommandList, ResourcesRef};
 
 use self::debug_controls::DebugControls;
 use self::job::Job;
@@ -198,7 +198,7 @@ pub struct Game {
     job_tx: Sender<Job>,
 }
 
-fn init_resources(resource_tx: Sender<ResourceEvent>) {
+fn init_resources(resources: ResourcesRef) {
     use std::fs::File;
     use std::io;
     use std::io::prelude::*;
@@ -216,28 +216,22 @@ fn init_resources(resource_tx: Sender<ResourceEvent>) {
         Ok(buffer)
     }
 
-    resource_tx
-        .send(ResourceEvent::CompileProgram {
-                  name: "flat_shaded".to_string(),
-                  vertex_shader: load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
-                  fragment_shader: load_shader(&assets.join("shaders/flat_shaded.f.glsl")).unwrap(),
-              })
+    resources
+        .compile_program("flat_shaded".to_string(),
+                         load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
+                         load_shader(&assets.join("shaders/flat_shaded.f.glsl")).unwrap())
         .unwrap();
 
-    resource_tx
-        .send(ResourceEvent::CompileProgram {
-                  name: "text".to_string(),
-                  vertex_shader: load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
-                  fragment_shader: load_shader(&assets.join("shaders/text.f.glsl")).unwrap(),
-              })
+    resources
+        .compile_program("text".to_string(),
+                         load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
+                         load_shader(&assets.join("shaders/text.f.glsl")).unwrap())
         .unwrap();
 
-    resource_tx
-        .send(ResourceEvent::CompileProgram {
-                  name: "unshaded".to_string(),
-                  vertex_shader: load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
-                  fragment_shader: load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap(),
-              })
+    resources
+        .compile_program("unshaded".to_string(),
+                         load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
+                         load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap())
         .unwrap();
 
     fn load_font(path: &Path) -> io::Result<Vec<u8>> {
@@ -248,27 +242,25 @@ fn init_resources(resource_tx: Sender<ResourceEvent>) {
         Ok(buffer)
     }
 
-    resource_tx
-        .send(ResourceEvent::UploadFont {
-                  name: "blogger_sans".to_string(),
-                  data: load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap(),
-              })
+    resources
+        .upload_font("blogger_sans".to_string(),
+                     load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap())
         .unwrap();
 }
 
 impl Application for Game {
     type Event = Event;
 
-    fn init(frame_metrics: FrameMetrics, resource_tx: Sender<ResourceEvent>) -> Game {
+    fn init(frame_metrics: FrameMetrics, resources: ResourcesRef) -> Game {
         let game = Game {
             state: State::new(frame_metrics),
             job_tx: {
-                let resource_tx = resource_tx.clone();
-                job_queue::spawn(move |job| Job::process(job, &resource_tx))
+                let resources = resources.clone();
+                job_queue::spawn(move |job| Job::process(job, &resources))
             },
         };
 
-        init_resources(resource_tx);
+        init_resources(resources);
         game.queue_regenete_stars_jobs();
         game.queue_regenete_planet_job();
 

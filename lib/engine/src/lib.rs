@@ -8,11 +8,10 @@ extern crate imgui;
 extern crate quick_error;
 extern crate time;
 
-use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 use math::Size2;
-use render::{CommandList, ResourceEvent};
+use render::{CommandList, ResourcesRef};
 
 pub mod camera;
 pub mod color;
@@ -92,7 +91,7 @@ macro_rules! try_or {
 pub trait Application {
     type Event: Send + From<glium::glutin::Event> + 'static;
 
-    fn init(metrics: FrameMetrics, resource_tx: Sender<ResourceEvent>) -> Self;
+    fn init(metrics: FrameMetrics, resources: ResourcesRef) -> Self;
     fn handle_frame_request(&mut self, metrics: FrameMetrics) -> Loop;
     fn handle_input(&mut self, event: Self::Event) -> Loop;
     fn render(&self) -> RenderData<Self::Event>;
@@ -118,10 +117,12 @@ pub fn run<T: Application>() {
 
     let (render_tx, render_rx) = mpsc::sync_channel(1);
     let (update_tx, update_rx) = mpsc::channel();
-    let (resource_tx, resource_rx) = mpsc::channel();
+
+    let mut renderer = Renderer::new(&display);
+    let resources_ref = renderer.resources().clone();
 
     thread::spawn(move || {
-        let mut game = T::init(metrics, resource_tx);
+        let mut game = T::init(metrics, resources_ref);
 
         for event in update_rx.iter() {
             let loop_result = match event {
@@ -143,7 +144,6 @@ pub fn run<T: Application>() {
         }
     });
 
-    let mut resources = Renderer::new(&display);
 
     'main: for time in times::in_seconds() {
         // Swap frames with update thread
@@ -157,20 +157,18 @@ pub fn run<T: Application>() {
 
         // Get user input
         for event in display.poll_events() {
-            resources.handle_ui_event(event.clone());
+            renderer.handle_ui_event(event.clone());
             let update_event = UpdateEvent::Input(event.into());
             try_or!(update_tx.send(update_event), break 'main);
         }
 
-        // Update resources
-        while let Ok(event) = resource_rx.try_recv() {
-            resources.handle_resource_event(event);
-        }
+        // Update renderer
+        renderer.poll();
 
         // Render frame
         let mut frame = display.draw();
 
-        resources
+        renderer
             .draw(&mut frame,
                   render_data.metrics,
                   render_data.command_list,

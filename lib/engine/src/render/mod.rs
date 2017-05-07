@@ -12,6 +12,7 @@ use self::rusttype::{Font, FontCollection};
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
+use std::sync::mpsc;
 
 use FrameMetrics;
 use self::command::DrawCommand;
@@ -81,7 +82,7 @@ impl Indices {
     }
 }
 
-pub enum ResourceEvent {
+enum ResourceEvent {
     UploadBuffer {
         name: String,
         vertices: Vec<Vertex>,
@@ -126,12 +127,56 @@ impl fmt::Debug for ResourceEvent {
 
 pub type Buffer = (VertexBuffer<Vertex>, NoIndices);
 
+#[derive(Clone)]
+pub struct ResourcesRef {
+    tx: mpsc::Sender<ResourceEvent>,
+}
+
+impl ResourcesRef {
+    pub fn upload_buffer(&self,
+                         name: String,
+                         vertices: Vec<Vertex>,
+                         indices: Indices)
+                         -> Result<(), ()> {
+        self.tx
+            .send(ResourceEvent::UploadBuffer {
+                      name,
+                      vertices,
+                      indices,
+                  })
+            .map_err(|_| ())
+    }
+
+    pub fn compile_program(&self,
+                           name: String,
+                           vertex_shader: String,
+                           fragment_shader: String)
+                           -> Result<(), ()> {
+        self.tx
+            .send(ResourceEvent::CompileProgram {
+                      name,
+                      vertex_shader,
+                      fragment_shader,
+                  })
+            .map_err(|_| ())
+    }
+
+    pub fn upload_font(&self, name: String, data: Vec<u8>) -> Result<(), ()> {
+        self.tx
+            .send(ResourceEvent::UploadFont { name, data })
+            .map_err(|_| ())
+    }
+}
+
 pub struct Renderer {
     context: Rc<Context>,
 
     ui_renderer: UiRenderer,
     ui_context: UiContext,
     ui_was_rendered: bool,
+
+    resources_ref: ResourcesRef,
+    resources_rx: mpsc::Receiver<ResourceEvent>,
 
     buffers: HashMap<String, Buffer>,
     programs: HashMap<String, Program>,
@@ -144,15 +189,19 @@ pub struct Renderer {
 impl Renderer {
     pub fn new<F: Facade>(facade: &F) -> Renderer {
         let mut imgui = ImGui::init();
-        let ui_renderer = UiRenderer::init(&mut imgui, facade).unwrap();
-        let ui_context = UiContext::new(imgui);
 
-        Renderer {
+        let (resources_tx, resources_rx) = mpsc::channel();
+        let resources_ref = ResourcesRef { tx: resources_tx };
+
+        let renderer = Renderer {
             context: facade.get_context().clone(),
 
-            ui_renderer: ui_renderer,
-            ui_context: ui_context,
+            ui_renderer: UiRenderer::init(&mut imgui, facade).unwrap(),
+            ui_context: UiContext::new(imgui),
             ui_was_rendered: false,
+
+            resources_ref,
+            resources_rx,
 
             buffers: HashMap::new(),
             programs: HashMap::new(),
@@ -163,6 +212,18 @@ impl Renderer {
                                                 PrimitiveType::TrianglesList,
                                                 &text::TEXTURE_INDICES)
                     .unwrap(),
+        };
+
+        renderer
+    }
+
+    pub fn resources(&self) -> &ResourcesRef {
+        &self.resources_ref
+    }
+
+    pub fn poll(&mut self) {
+        while let Ok(event) = self.resources_rx.try_recv() {
+            self.handle_resource_event(event);
         }
     }
 
@@ -172,7 +233,7 @@ impl Renderer {
         }
     }
 
-    pub fn handle_resource_event(&mut self, event: ResourceEvent) {
+    fn handle_resource_event(&mut self, event: ResourceEvent) {
         match event {
             ResourceEvent::UploadBuffer {
                 name,
