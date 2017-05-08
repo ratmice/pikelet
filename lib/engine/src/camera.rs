@@ -2,6 +2,7 @@ use cgmath::{Matrix4, Point3, Vector3, PerspectiveFov};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Camera {
+    pub up: Vector3<f32>,
     pub target: Point3<f32>,
     pub position: Point3<f32>,
     pub projection: PerspectiveFov<f32>,
@@ -9,7 +10,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn compute_view_matrix(&self) -> Matrix4<f32> {
-        Matrix4::look_at(self.position, self.target, Vector3::unit_y())
+        Matrix4::look_at(self.position, self.target, self.up)
     }
 
     pub fn compute_projection_matrix(&self) -> Matrix4<f32> {

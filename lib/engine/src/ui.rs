@@ -121,6 +121,20 @@ pub fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool
     }
 }
 
+pub fn combo(ui: &Ui,
+             label: imgui::ImStr,
+             current_item: i32,
+             items: &[imgui::ImStr],
+             height_in_items: i32)
+             -> Option<i32> {
+    let mut current_item = current_item;
+    if ui.combo(label, &mut current_item, items, height_in_items) {
+        Some(current_item)
+    } else {
+        None
+    }
+}
+
 pub fn slider_float(ui: &Ui,
                     text: imgui::ImStr,
                     initial_value: f32,

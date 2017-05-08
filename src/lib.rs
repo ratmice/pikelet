@@ -16,20 +16,23 @@ extern crate geomath;
 extern crate job_queue;
 
 use cgmath::prelude::*;
-use cgmath::{Matrix4, PerspectiveFov, Point2, Point3, Rad, Vector3};
+use cgmath::{Matrix4, Point2, Rad, Vector3};
 use find_folder::Search as FolderSearch;
+use geomath::GeoPoint;
 use std::sync::mpsc::Sender;
 
 use engine::{Application, FrameMetrics, Loop, RenderData};
-use engine::camera::{Camera, ComputedCamera};
+use engine::camera::ComputedCamera;
 use engine::color;
 use engine::input::Event as InputEvent;
 use engine::math::Size2;
 use engine::render::{CommandList, ResourcesRef};
 
+use self::camera::{FirstPersonCamera, TurntableCamera};
 use self::debug_controls::DebugControls;
 use self::job::Job;
 
+mod camera;
 mod job;
 mod debug_controls;
 
@@ -37,6 +40,7 @@ mod debug_controls;
 pub enum Event {
     Close,
     SetLimitingFps(bool),
+    SetCameraMode(CameraMode),
     SetPlanetRadius(f32),
     SetPlanetSubdivisions(usize),
     SetShowingStarField(bool),
@@ -74,46 +78,19 @@ impl From<InputEvent> for Event {
     }
 }
 
-#[derive(Debug, Clone)]
-struct TurntableCamera {
-    rotation: Rad<f32>,
-    rotation_delta: Rad<f32>,
-    xz_radius: f32,
-    y_height: f32,
-    near: f32,
-    far: f32,
-    zoom_factor: f32,
-    drag_factor: f32,
-}
-
-impl TurntableCamera {
-    fn compute(&self, aspect_ratio: f32) -> ComputedCamera {
-        let camera = Camera {
-            position: Point3 {
-                x: Rad::sin(self.rotation) * self.xz_radius,
-                y: self.y_height,
-                z: Rad::cos(self.rotation) * self.xz_radius,
-            },
-            target: Point3::origin(),
-            projection: PerspectiveFov {
-                aspect: aspect_ratio,
-                fovy: Rad::full_turn() / 6.0,
-                near: self.near,
-                far: self.far,
-            },
-        };
-
-        camera.compute()
-    }
-}
-
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 struct StarField {
     count: usize,
     size: f32,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum CameraMode {
+    Turntable,
+    FirstPerson,
+}
+
+#[derive(Clone, Debug)]
 struct State {
     is_dragging: bool,
     is_limiting_fps: bool,
@@ -128,7 +105,9 @@ struct State {
 
     light_dir: Vector3<f32>,
 
-    camera: TurntableCamera,
+    scene_camera_mode: CameraMode,
+    turntable_camera: TurntableCamera,
+    first_person_camera: FirstPersonCamera,
 
     star_field_radius: f32,
     stars0: StarField,
@@ -141,6 +120,8 @@ struct State {
 
 impl State {
     fn new(frame_metrics: FrameMetrics) -> State {
+        let planet_radius = 1.0;
+
         State {
             is_dragging: false,
             is_limiting_fps: true,
@@ -155,7 +136,8 @@ impl State {
             frame_metrics: frame_metrics,
             mouse_position: Point2::origin(),
 
-            camera: TurntableCamera {
+            scene_camera_mode: CameraMode::Turntable,
+            turntable_camera: TurntableCamera {
                 rotation: Rad(0.0),
                 rotation_delta: Rad(0.0),
                 xz_radius: 2.0,
@@ -164,6 +146,13 @@ impl State {
                 far: 1000.0,
                 zoom_factor: 10.0,
                 drag_factor: 10.0,
+            },
+            first_person_camera: FirstPersonCamera {
+                location: GeoPoint::north(),
+                height: 0.1,
+                radius: planet_radius,
+                near: 0.1,
+                far: 1000.0,
             },
 
             star_field_radius: 10.0,
@@ -180,7 +169,7 @@ impl State {
                 count: 1000,
             },
 
-            planet_radius: 1.0,
+            planet_radius,
             planet_subdivs: 3,
         }
     }
@@ -190,7 +179,16 @@ impl State {
     }
 
     fn create_scene_camera(&self) -> ComputedCamera {
-        self.camera.compute(self.frame_metrics.aspect_ratio())
+        match self.scene_camera_mode {
+            CameraMode::Turntable => {
+                self.turntable_camera
+                    .compute(self.frame_metrics.aspect_ratio())
+            },
+            CameraMode::FirstPerson => {
+                self.first_person_camera
+                    .compute(self.frame_metrics.aspect_ratio())
+            },
+        }
     }
 
     fn create_hud_camera(&self) -> Matrix4<f32> {
@@ -299,10 +297,10 @@ impl Application for Game {
 
     fn handle_frame_request(&mut self, frame_metrics: FrameMetrics) -> Loop {
         self.state.frame_metrics = frame_metrics;
-        self.state.camera.rotation -= self.state.camera.rotation_delta;
+        self.state.turntable_camera.rotation -= self.state.turntable_camera.rotation_delta;
 
-        if self.state.is_dragging {
-            self.state.camera.rotation_delta = Rad(0.0);
+        if self.state.is_dragging || self.state.scene_camera_mode != CameraMode::Turntable {
+            self.state.turntable_camera.rotation_delta = Rad(0.0);
         }
 
         Loop::Continue
@@ -322,6 +320,7 @@ impl Application for Game {
             },
             SetShowingStarField(value) => self.state.is_showing_star_field = value,
             SetStarFieldRadius(value) => self.state.star_field_radius = value,
+            SetCameraMode(value) => self.state.scene_camera_mode = value,
             SetUiCapturingMouse(value) => self.state.is_ui_capturing_mouse = value,
             SetWireframe(value) => self.state.is_wireframe = value,
             ToggleUi => self.state.is_ui_enabled = !self.state.is_ui_enabled,
@@ -331,22 +330,25 @@ impl Application for Game {
             ZoomStart => self.state.is_zooming = !self.state.is_ui_capturing_mouse,
             ZoomEnd => self.state.is_zooming = false,
             MousePosition(new_position) => {
+                use self::CameraMode::*;
+
                 let old_position = mem::replace(&mut self.state.mouse_position, new_position);
                 let mouse_delta = new_position - old_position;
 
-                if !self.state.is_ui_capturing_mouse {
-                    if self.state.is_dragging {
+                match self.state.scene_camera_mode {
+                    Turntable if self.state.is_dragging => {
                         let size_points = self.state.frame_metrics.size_points;
                         let rps = (mouse_delta.x as f32 / size_points.width as f32) *
-                                  self.state.camera.drag_factor;
-                        self.state.camera.rotation_delta = Rad::full_turn() * rps *
-                                                           self.state.frame_metrics.delta_time;
-                    }
-
-                    if self.state.is_zooming {
+                                  self.state.turntable_camera.drag_factor;
+                        self.state.turntable_camera.rotation_delta =
+                            Rad::full_turn() * rps * self.state.frame_metrics.delta_time;
+                    },
+                    Turntable if self.state.is_zooming => {
                         let zoom_delta = mouse_delta.y as f32 * self.state.frame_metrics.delta_time;
-                        self.state.camera.xz_radius -= zoom_delta * self.state.camera.zoom_factor;
-                    }
+                        self.state.turntable_camera.xz_radius -=
+                            zoom_delta * self.state.turntable_camera.zoom_factor;
+                    },
+                    _ => {},
                 }
             },
             NoOp => {},
@@ -419,6 +421,7 @@ impl Application for Game {
                 is_showing_star_field: self.state.is_showing_star_field,
                 is_limiting_fps: self.state.is_limiting_fps,
                 is_ui_capturing_mouse: self.state.is_ui_capturing_mouse,
+                camera_mode: self.state.scene_camera_mode,
                 planet_subdivs: self.state.planet_subdivs as i32,
                 planet_radius: self.state.planet_radius,
                 star_field_radius: self.state.star_field_radius,

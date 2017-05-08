@@ -1,6 +1,6 @@
 use imgui::{self, Ui};
 
-use Event;
+use {Event, CameraMode};
 use engine::ui;
 
 pub struct DebugControls {
@@ -8,6 +8,7 @@ pub struct DebugControls {
     pub is_showing_star_field: bool,
     pub is_limiting_fps: bool,
     pub is_ui_capturing_mouse: bool,
+    pub camera_mode: CameraMode,
     pub planet_subdivs: i32,
     pub planet_radius: f32,
     pub star_field_radius: f32,
@@ -27,6 +28,25 @@ impl DebugControls {
                     .map(|v| events.push(Event::SetShowingStarField(v)));
                 ui::checkbox(ui, im_str!("Limit FPS"), self.is_limiting_fps)
                     .map(|v| events.push(Event::SetLimitingFps(v)));
+
+                ui::combo(ui,
+                          im_str!("Camera mode"),
+                          match self.camera_mode {
+                              CameraMode::Turntable => 0,
+                              CameraMode::FirstPerson => 1,
+                          },
+                          &[im_str!("Turntable"), im_str!("First Person")],
+                          2)
+                        .map(|v| {
+                            let mode = match v {
+                                0 => CameraMode::Turntable,
+                                1 => CameraMode::FirstPerson,
+                                v => panic!("Unexpected combo index: {:?}", v),
+                            };
+
+                            events.push(Event::SetCameraMode(mode));
+                        });
+
                 ui::slider_int(ui,
                                im_str!("Planet subdivisions"),
                                self.planet_subdivs,
