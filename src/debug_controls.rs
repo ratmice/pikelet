@@ -29,23 +29,20 @@ impl DebugControls {
                 ui::checkbox(ui, im_str!("Limit FPS"), self.is_limiting_fps)
                     .map(|v| events.push(Event::SetLimitingFps(v)));
 
-                ui::combo(ui,
-                          im_str!("Camera mode"),
-                          match self.camera_mode {
-                              CameraMode::Turntable => 0,
-                              CameraMode::FirstPerson => 1,
-                          },
-                          &[im_str!("Turntable"), im_str!("First Person")],
-                          2)
-                        .map(|v| {
-                            let mode = match v {
-                                0 => CameraMode::Turntable,
-                                1 => CameraMode::FirstPerson,
-                                v => panic!("Unexpected combo index: {:?}", v),
-                            };
+                let camera_options = &[im_str!("Turntable"), im_str!("First Person")];
+                let camera_index = match self.camera_mode {
+                    CameraMode::Turntable => 0,
+                    CameraMode::FirstPerson => 1,
+                };
+                ui::combo(ui, im_str!("Camera mode"), camera_index, camera_options, 2).map(|v| {
+                    let mode = match v {
+                        0 => CameraMode::Turntable,
+                        1 => CameraMode::FirstPerson,
+                        v => panic!("Unexpected combo index: {:?}", v),
+                    };
 
-                            events.push(Event::SetCameraMode(mode));
-                        });
+                    events.push(Event::SetCameraMode(mode));
+                });
 
                 ui::slider_int(ui,
                                im_str!("Planet subdivisions"),
