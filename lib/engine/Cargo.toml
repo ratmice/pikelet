@@ -5,7 +5,7 @@ version = "0.0.1"
 publish = false
 
 [dependencies]
-cgmath = "0.14.0"
+cgmath = { version = "0.14.0", features = ["use_simd"] }
 glium = "0.16.0"
 imgui = "0.0.13"
 imgui-glium-renderer = "0.0.13"
