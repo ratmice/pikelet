@@ -3,7 +3,7 @@ extern crate rand;
 
 use cgmath::prelude::*;
 use cgmath::BaseFloat;
-use cgmath::{Point3, Rad, Vector3};
+use cgmath::{Point3, Quaternion, Rad, Vector3};
 use rand::{Rand, Rng};
 use rand::distributions::range::SampleRange;
 use std::iter;
@@ -83,6 +83,11 @@ pub struct GeoPoint<T> {
 
 impl<T: BaseFloat> GeoPoint<T> {
     #[inline]
+    pub fn from_up(up: Vector3<T>) -> GeoPoint<T> {
+        GeoPoint { up: up.normalize() }
+    }
+
+    #[inline]
     pub fn north() -> GeoPoint<T> {
         GeoPoint { up: Vector3::unit_x() }
     }
@@ -118,6 +123,24 @@ impl<T: BaseFloat> GeoPoint<T> {
     }
 }
 
+impl<T: BaseFloat> Add<GeoVector<T>> for GeoPoint<T> {
+    type Output = GeoPoint<T>;
+
+    #[inline]
+    fn add(self, other: GeoVector<T>) -> GeoPoint<T> {
+        GeoPoint { up: other.rotation * self.up }
+    }
+}
+
+impl<T: BaseFloat> Sub for GeoPoint<T> {
+    type Output = GeoVector<T>;
+
+    #[inline]
+    fn sub(self, other: GeoPoint<T>) -> GeoVector<T> {
+        GeoVector { rotation: Quaternion::from_arc(other.up, self.up, None) }
+    }
+}
+
 impl<T: BaseFloat> Rand for GeoPoint<T>
     where T: Rand + SampleRange
 {
@@ -130,13 +153,13 @@ impl<T: BaseFloat> Rand for GeoPoint<T>
 /// A tangent vector on the unit sphere
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GeoVector<T> {
-    forward: Vector3<T>,
+    rotation: Quaternion<T>,
 }
 
 impl<T: BaseFloat> GeoVector<T> {
     #[inline]
-    pub fn forward(self) -> Vector3<T> {
-        self.forward
+    pub fn rotation(self) -> Quaternion<T> {
+        self.rotation
     }
 }
 
@@ -145,7 +168,7 @@ impl<T: BaseFloat> Add for GeoVector<T> {
 
     #[inline]
     fn add(self, other: GeoVector<T>) -> GeoVector<T> {
-        GeoVector { forward: self.forward + other.forward }
+        GeoVector { rotation: self.rotation + other.rotation }
     }
 }
 
@@ -154,7 +177,7 @@ impl<T: BaseFloat> Sub for GeoVector<T> {
 
     #[inline]
     fn sub(self, other: GeoVector<T>) -> GeoVector<T> {
-        GeoVector { forward: self.forward - other.forward }
+        GeoVector { rotation: self.rotation - other.rotation }
     }
 }
 
@@ -163,7 +186,7 @@ impl<T: BaseFloat> Neg for GeoVector<T> {
 
     #[inline]
     fn neg(self) -> GeoVector<T> {
-        GeoVector { forward: -self.forward }
+        GeoVector { rotation: -self.rotation }
     }
 }
 
@@ -172,7 +195,7 @@ impl<T: BaseFloat> Mul<T> for GeoVector<T> {
 
     #[inline]
     fn mul(self, other: T) -> GeoVector<T> {
-        GeoVector { forward: self.forward * other }
+        GeoVector { rotation: self.rotation * other }
     }
 }
 
@@ -181,7 +204,7 @@ impl<T: BaseFloat> Div<T> for GeoVector<T> {
 
     #[inline]
     fn div(self, other: T) -> GeoVector<T> {
-        GeoVector { forward: self.forward / other }
+        GeoVector { rotation: self.rotation / other }
     }
 }
 
@@ -190,19 +213,19 @@ impl<T: BaseFloat> Rem<T> for GeoVector<T> {
 
     #[inline]
     fn rem(self, other: T) -> GeoVector<T> {
-        GeoVector { forward: self.forward % other }
+        GeoVector { rotation: self.rotation % other }
     }
 }
 
 impl<T: BaseFloat> Zero for GeoVector<T> {
     #[inline]
     fn is_zero(&self) -> bool {
-        self.forward.is_zero()
+        self.rotation.is_zero()
     }
 
     #[inline]
     fn zero() -> GeoVector<T> {
-        GeoVector { forward: Vector3::zero() }
+        GeoVector { rotation: Quaternion::<T>::zero() }
     }
 }
 

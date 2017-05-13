@@ -150,9 +150,12 @@ impl State {
             },
             first_person_camera: FirstPersonCamera {
                 location: GeoPoint::north(),
-                height: 0.1,
+                direction: GeoPoint::north() -
+                           GeoPoint::from_up(GeoPoint::north().up() + Vector3::unit_y()),
+                speed: 0.0,
+                height: 0.01,
                 radius: planet_radius,
-                near: 0.1,
+                near: 0.0001,
                 far: 1000.0,
             },
 

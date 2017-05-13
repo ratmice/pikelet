@@ -1,7 +1,7 @@
 use cgmath::prelude::*;
 use cgmath::{PerspectiveFov, Point3, Rad, Vector3};
 use engine::camera::{Camera, ComputedCamera};
-use geomath::GeoPoint;
+use geomath::{GeoPoint, GeoVector, GreatCircle};
 
 #[derive(Clone, Debug)]
 pub struct TurntableCamera {
@@ -51,6 +51,8 @@ impl TurntableCamera {
 #[derive(Clone, Debug)]
 pub struct FirstPersonCamera {
     pub location: GeoPoint<f32>,
+    pub direction: GeoVector<f32>,
+    pub speed: f32,
     pub radius: f32,
     pub height: f32,
     pub near: f32,
@@ -58,16 +60,29 @@ pub struct FirstPersonCamera {
 }
 
 impl FirstPersonCamera {
-    pub fn update(&mut self, _delta_time: f32) {}
+    pub fn update(&mut self, _delta_time: f32) {
+        self.location = self.location + (self.direction * self.speed);
+    }
 
-    pub fn reset_motion(&mut self) {}
+    pub fn reset_motion(&mut self) {
+        self.speed = 0.0;
+    }
 
     pub fn compute(&self, aspect_ratio: f32) -> ComputedCamera {
+        let up = self.location.up();
+        let position = self.location.to_point(self.radius + self.height);
+        let target = {
+            let end_point = self.location + self.direction;
+            let great_circle = GreatCircle::from_points(self.location, end_point);
+            let tangent = Vector3::cross(up, great_circle.normal());
+
+            position + tangent
+        };
+
         let camera = Camera {
-            up: self.location.up(),
-            position: self.location.to_point(self.radius + self.height),
-            // TODO: Should keep track of this!
-            target: Point3::origin(),
+            up,
+            position,
+            target,
             projection: PerspectiveFov {
                 aspect: aspect_ratio,
                 fovy: Rad::full_turn() / 6.0,
