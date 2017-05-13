@@ -147,14 +147,12 @@ impl State {
                 y_height: 1.0,
                 near: 0.1,
                 far: 1000.0,
-                zoom_factor: 1.0,
-                drag_factor: -10.0,
             },
             first_person_camera: FirstPersonCamera {
                 location: GeoPoint::north(),
                 direction: GeoPoint::north() -
                            GeoPoint::from_up(GeoPoint::north().up() + Vector3::unit_y()),
-                speed: 0.1,
+                speed: 1.0,
                 height: 0.01,
                 radius: planet_radius,
                 near: 0.0001,
@@ -305,7 +303,7 @@ impl Application for Game {
                 if self.state.is_dragging {
                     let size_points = frame_metrics.size_points;
                     let rps = self.state.mouse_delta.x as f32 / size_points.width as f32;
-                    self.state.turntable_camera.rotation_delta = Rad::full_turn() * rps;
+                    self.state.turntable_camera.rotation_delta = Rad::full_turn() * rps * -10.0;
                 }
                 if self.state.is_zooming {
                     self.state.turntable_camera.zoom_delta = self.state.mouse_delta.y as f32;

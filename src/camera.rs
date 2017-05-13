@@ -12,14 +12,12 @@ pub struct TurntableCamera {
     pub y_height: f32,
     pub near: f32,
     pub far: f32,
-    pub zoom_factor: f32,
-    pub drag_factor: f32,
 }
 
 impl TurntableCamera {
     pub fn update(&mut self, delta_time: f32) {
-        self.rotation += self.rotation_delta * self.drag_factor * delta_time;
-        self.xz_radius += self.zoom_delta * self.zoom_factor * delta_time;
+        self.rotation += self.rotation_delta * delta_time;
+        self.xz_radius += self.zoom_delta * delta_time;
     }
 
     pub fn reset_motion(&mut self) {
@@ -60,8 +58,8 @@ pub struct FirstPersonCamera {
 }
 
 impl FirstPersonCamera {
-    pub fn update(&mut self, _delta_time: f32) {
-        self.location = self.location + (self.direction * self.speed);
+    pub fn update(&mut self, delta_time: f32) {
+        self.location = self.location + (self.direction * self.speed * delta_time);
     }
 
     pub fn reset_motion(&mut self) {
