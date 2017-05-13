@@ -69,18 +69,17 @@ impl FirstPersonCamera {
     }
 
     pub fn compute(&self, aspect_ratio: f32) -> ComputedCamera {
-        let up = self.location.up();
         let position = self.location.to_point(self.radius + self.height);
         let target = {
             let end_point = self.location + self.direction;
             let great_circle = GreatCircle::from_points(self.location, end_point);
-            let tangent = Vector3::cross(up, great_circle.normal());
+            let forward = Vector3::cross(great_circle.normal(), self.location.up());
 
-            position + tangent
+            position + forward
         };
 
         let camera = Camera {
-            up,
+            up: self.location.up(),
             position,
             target,
             projection: PerspectiveFov {

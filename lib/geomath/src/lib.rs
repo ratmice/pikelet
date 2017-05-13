@@ -84,7 +84,7 @@ pub struct GeoPoint<T> {
 impl<T: BaseFloat> GeoPoint<T> {
     #[inline]
     pub fn from_up(up: Vector3<T>) -> GeoPoint<T> {
-        GeoPoint { up: up.normalize() }
+        GeoPoint { up: Vector3::normalize(up) }
     }
 
     #[inline]
@@ -128,7 +128,7 @@ impl<T: BaseFloat> Add<GeoVector<T>> for GeoPoint<T> {
 
     #[inline]
     fn add(self, other: GeoVector<T>) -> GeoPoint<T> {
-        GeoPoint { up: other.rotation * self.up }
+        GeoPoint::from_up(other.rotation * self.up)
     }
 }
 

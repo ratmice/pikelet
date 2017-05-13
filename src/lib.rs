@@ -38,6 +38,7 @@ mod job;
 pub enum Event {
     Close,
     SetLimitingFps(bool),
+    ToggleCameraMode,
     SetCameraMode(CameraMode),
     SetPlanetRadius(f32),
     SetPlanetSubdivisions(usize),
@@ -63,9 +64,10 @@ impl From<InputEvent> for Event {
 
         match src {
             InputEvent::Closed |
-            InputEvent::KeyboardInput(Pressed, _, Some(Key::Escape)) => Event::Close,
+            InputEvent::KeyboardInput(Pressed, _, Some(Key::C)) => Event::ToggleCameraMode,
             InputEvent::KeyboardInput(Pressed, _, Some(Key::R)) => Event::ResetState,
             InputEvent::KeyboardInput(Pressed, _, Some(Key::U)) => Event::ToggleUi,
+            InputEvent::KeyboardInput(Pressed, _, Some(Key::Escape)) => Event::Close,
             InputEvent::MouseInput(Pressed, MouseButton::Left) => Event::DragStart,
             InputEvent::MouseInput(Released, MouseButton::Left) => Event::DragEnd,
             InputEvent::MouseInput(Pressed, MouseButton::Right) => Event::ZoomStart,
@@ -152,7 +154,7 @@ impl State {
                 location: GeoPoint::north(),
                 direction: GeoPoint::north() -
                            GeoPoint::from_up(GeoPoint::north().up() + Vector3::unit_y()),
-                speed: 0.0,
+                speed: 0.1,
                 height: 0.01,
                 radius: planet_radius,
                 near: 0.0001,
@@ -345,6 +347,13 @@ impl Application for Game {
             },
             SetShowingStarField(value) => self.state.is_showing_star_field = value,
             SetStarFieldRadius(value) => self.state.star_field_radius = value,
+            ToggleCameraMode => {
+                let new_mode = match self.state.camera_mode {
+                    CameraMode::Turntable => CameraMode::FirstPerson,
+                    CameraMode::FirstPerson => CameraMode::Turntable,
+                };
+                self.handle_input(SetCameraMode(new_mode));
+            },
             SetCameraMode(mode) => {
                 match self.state.camera_mode {
                     CameraMode::Turntable => self.state.turntable_camera.reset_motion(),
@@ -429,14 +438,17 @@ impl Application for Game {
                               position,
                               screen_matrix);
 
-            let is_wireframe = self.state.is_wireframe;
-            let is_showing_star_field = self.state.is_showing_star_field;
-            let is_limiting_fps = self.state.is_limiting_fps;
-            let is_ui_capturing_mouse = self.state.is_ui_capturing_mouse;
-            let camera_mode = self.state.camera_mode;
-            let planet_subdivs = self.state.planet_subdivs as i32;
-            let planet_radius = self.state.planet_radius;
-            let star_field_radius = self.state.star_field_radius;
+            let State {
+                is_wireframe,
+                is_showing_star_field,
+                is_limiting_fps,
+                is_ui_capturing_mouse,
+                camera_mode,
+                planet_subdivs,
+                planet_radius,
+                star_field_radius,
+                ..
+            } = self.state;
 
             command_list.ui(move |ui| {
                 use engine::ui;
@@ -470,8 +482,12 @@ impl Application for Game {
                                 events.push(Event::SetCameraMode(mode));
                             });
 
-                        ui::slider_int(ui, im_str!("Planet subdivisions"), planet_subdivs, 1, 8)
-                            .map(|v| events.push(Event::SetPlanetSubdivisions(v as usize)));
+                        ui::slider_int(ui,
+                                       im_str!("Planet subdivisions"),
+                                       planet_subdivs as i32,
+                                       1,
+                                       8)
+                                .map(|v| events.push(Event::SetPlanetSubdivisions(v as usize)));
                         ui::slider_float(ui, im_str!("Planet radius"), planet_radius, 0.0, 2.0)
                             .map(|v| events.push(Event::SetPlanetRadius(v)));
                         ui::slider_float(ui,
