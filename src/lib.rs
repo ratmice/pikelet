@@ -64,10 +64,10 @@ impl From<InputEvent> for Event {
 
         match src {
             InputEvent::Closed |
+            InputEvent::KeyboardInput(Pressed, _, Some(Key::Escape)) => Event::Close,
             InputEvent::KeyboardInput(Pressed, _, Some(Key::C)) => Event::ToggleCameraMode,
             InputEvent::KeyboardInput(Pressed, _, Some(Key::R)) => Event::ResetState,
             InputEvent::KeyboardInput(Pressed, _, Some(Key::U)) => Event::ToggleUi,
-            InputEvent::KeyboardInput(Pressed, _, Some(Key::Escape)) => Event::Close,
             InputEvent::MouseInput(Pressed, MouseButton::Left) => Event::DragStart,
             InputEvent::MouseInput(Released, MouseButton::Left) => Event::DragEnd,
             InputEvent::MouseInput(Pressed, MouseButton::Right) => Event::ZoomStart,
