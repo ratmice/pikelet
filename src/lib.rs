@@ -29,12 +29,10 @@ use engine::math::Size2;
 use engine::render::{CommandList, ResourcesRef};
 
 use self::camera::{FirstPersonCamera, TurntableCamera};
-use self::debug_controls::DebugControls;
 use self::job::Job;
 
 mod camera;
 mod job;
-mod debug_controls;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Event {
@@ -428,18 +426,69 @@ impl Application for Game {
                               position,
                               screen_matrix);
 
-            let debug_controls = DebugControls {
-                is_wireframe: self.state.is_wireframe,
-                is_showing_star_field: self.state.is_showing_star_field,
-                is_limiting_fps: self.state.is_limiting_fps,
-                is_ui_capturing_mouse: self.state.is_ui_capturing_mouse,
-                camera_mode: self.state.camera_mode,
-                planet_subdivs: self.state.planet_subdivs as i32,
-                planet_radius: self.state.planet_radius,
-                star_field_radius: self.state.star_field_radius,
-            };
+            let is_wireframe = self.state.is_wireframe;
+            let is_showing_star_field = self.state.is_showing_star_field;
+            let is_limiting_fps = self.state.is_limiting_fps;
+            let is_ui_capturing_mouse = self.state.is_ui_capturing_mouse;
+            let camera_mode = self.state.camera_mode;
+            let planet_subdivs = self.state.planet_subdivs as i32;
+            let planet_radius = self.state.planet_radius;
+            let star_field_radius = self.state.star_field_radius;
 
-            command_list.ui(move |ui| debug_controls.render(ui));
+            command_list.ui(move |ui| {
+                use engine::ui;
+
+                let mut events = Vec::new();
+
+                ui.window(im_str!("State"))
+                    .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
+                    .size((300.0, 250.0), imgui::ImGuiSetCond_FirstUseEver)
+                    .build(|| {
+                        ui::checkbox(ui, im_str!("Wireframe"), is_wireframe)
+                    .map(|v| events.push(Event::SetWireframe(v)));
+                        ui::checkbox(ui, im_str!("Show star field"), is_showing_star_field)
+                            .map(|v| events.push(Event::SetShowingStarField(v)));
+                        ui::checkbox(ui, im_str!("Limit FPS"), is_limiting_fps)
+                    .map(|v| events.push(Event::SetLimitingFps(v)));
+
+                        let camera_options = &[im_str!("Turntable"), im_str!("First Person")];
+                        let camera_index = match camera_mode {
+                            CameraMode::Turntable => 0,
+                            CameraMode::FirstPerson => 1,
+                        };
+                        ui::combo(ui, im_str!("Camera mode"), camera_index, camera_options, 2)
+                            .map(|v| {
+                                let mode = match v {
+                                    0 => CameraMode::Turntable,
+                                    1 => CameraMode::FirstPerson,
+                                    v => panic!("Unexpected combo index: {:?}", v),
+                                };
+
+                                events.push(Event::SetCameraMode(mode));
+                            });
+
+                        ui::slider_int(ui, im_str!("Planet subdivisions"), planet_subdivs, 1, 8)
+                            .map(|v| events.push(Event::SetPlanetSubdivisions(v as usize)));
+                        ui::slider_float(ui, im_str!("Planet radius"), planet_radius, 0.0, 2.0)
+                            .map(|v| events.push(Event::SetPlanetRadius(v)));
+                        ui::slider_float(ui,
+                                         im_str!("Star field radius"),
+                                         star_field_radius,
+                                         0.0,
+                                         20.0)
+                                .map(|v| events.push(Event::SetStarFieldRadius(v)));
+
+                        if ui.small_button(im_str!("Reset state")) {
+                            events.push(Event::ResetState);
+                        }
+                    });
+
+                if ui.want_capture_mouse() != is_ui_capturing_mouse {
+                    events.push(Event::SetUiCapturingMouse(ui.want_capture_mouse()));
+                }
+
+                events
+            });
         }
 
         RenderData {

@@ -36,20 +36,23 @@ pub struct FrameMetrics {
 
 impl FrameMetrics {
     pub fn frames_per_second(&self) -> f32 {
-        match self.delta_time {
-            0.0 => 0.0,
-            delta_time => 1.0 / delta_time,
+        if self.delta_time == 0.0 {
+            0.0
+        } else {
+            1.0 / self.delta_time
         }
     }
 
     pub fn framebuffer_scale(&self) -> (f32, f32) {
-        (match self.size_points.width {
-             0 => 0.0,
-             width => self.size_pixels.width as f32 / width as f32,
+        (if self.size_points.width == 0 {
+             0.0
+         } else {
+             self.size_pixels.width as f32 / self.size_points.width as f32
          },
-         match self.size_points.height {
-             0 => 0.0,
-             height => self.size_pixels.height as f32 / height as f32,
+         if self.size_points.height == 0 {
+             0.0
+         } else {
+             self.size_pixels.height as f32 / self.size_points.height as f32
          })
     }
 
