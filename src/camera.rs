@@ -7,6 +7,7 @@ use geomath::GeoPoint;
 pub struct TurntableCamera {
     pub rotation: Rad<f32>,
     pub rotation_delta: Rad<f32>,
+    pub zoom_delta: f32,
     pub xz_radius: f32,
     pub y_height: f32,
     pub near: f32,
@@ -16,6 +17,16 @@ pub struct TurntableCamera {
 }
 
 impl TurntableCamera {
+    pub fn update(&mut self, delta_time: f32) {
+        self.rotation += self.rotation_delta * self.drag_factor * delta_time;
+        self.xz_radius += self.zoom_delta * self.zoom_factor * delta_time;
+    }
+
+    pub fn reset_motion(&mut self) {
+        self.rotation_delta = Rad(0.0);
+        self.zoom_delta = 0.0;
+    }
+
     pub fn compute(&self, aspect_ratio: f32) -> ComputedCamera {
         let camera = Camera {
             up: Vector3::unit_y(),
@@ -47,6 +58,10 @@ pub struct FirstPersonCamera {
 }
 
 impl FirstPersonCamera {
+    pub fn update(&mut self, _delta_time: f32) {}
+
+    pub fn reset_motion(&mut self) {}
+
     pub fn compute(&self, aspect_ratio: f32) -> ComputedCamera {
         let camera = Camera {
             up: self.location.up(),
