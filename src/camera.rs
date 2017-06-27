@@ -25,7 +25,7 @@ impl TurntableCamera {
         self.zoom_delta = 0.0;
     }
 
-    pub fn compute(&self, aspect_ratio: f32) -> ComputedCamera {
+    pub fn compute(&self, aspect: f32) -> ComputedCamera {
         let camera = Camera {
             up: Vector3::unit_y(),
             position: Point3 {
@@ -35,7 +35,7 @@ impl TurntableCamera {
             },
             target: Point3::origin(),
             projection: PerspectiveFov {
-                aspect: aspect_ratio,
+                aspect,
                 fovy: Rad::full_turn() / 6.0,
                 near: self.near,
                 far: self.far,
@@ -50,6 +50,7 @@ impl TurntableCamera {
 pub struct FirstPersonCamera {
     pub location: GeoPoint<f32>,
     pub direction: GeoVector<f32>,
+    // pub inclination: Rad<f32>,
     pub speed: f32,
     pub radius: f32,
     pub height: f32,
@@ -66,22 +67,17 @@ impl FirstPersonCamera {
         self.speed = 0.0;
     }
 
-    pub fn compute(&self, aspect_ratio: f32) -> ComputedCamera {
+    pub fn compute(&self, aspect: f32) -> ComputedCamera {
         let position = self.location.to_point(self.radius + self.height);
-        let target = {
-            let end_point = self.location + self.direction;
-            let great_circle = GreatCircle::from_points(self.location, end_point);
-            let forward = Vector3::cross(great_circle.normal(), self.location.up());
-
-            position + forward
-        };
+        let great_circle = GreatCircle::from_point_vector(self.location, self.direction);
+        let target = position + Vector3::cross(great_circle.normal(), self.location.up());
 
         let camera = Camera {
             up: self.location.up(),
             position,
             target,
             projection: PerspectiveFov {
-                aspect: aspect_ratio,
+                aspect,
                 fovy: Rad::full_turn() / 6.0,
                 near: self.near,
                 far: self.far,

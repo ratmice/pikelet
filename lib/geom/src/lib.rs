@@ -93,11 +93,12 @@ pub struct Edge {
 
 impl Edge {
     /// Constructs a new `Edge` including a reference to an adjacent `Edge`.
-    pub fn new(point: PositionIndex,
-               face: FaceIndex,
-               next: EdgeIndex,
-               adjacent: EdgeIndex)
-               -> Edge {
+    pub fn new(
+        point: PositionIndex,
+        face: FaceIndex,
+        next: EdgeIndex,
+        adjacent: EdgeIndex,
+    ) -> Edge {
         Edge {
             position: point,
             face: face,
@@ -235,9 +236,10 @@ mod tests {
         let planet_radius = 1.0;
 
         let icosahedron = primitives::icosahedron(planet_radius);
-        let mesh =
-            icosahedron.subdivide(subdivisions,
-                                  &|a, b| super::midpoint_arc(planet_radius, a, b));
+        let mesh = icosahedron.subdivide(
+            subdivisions,
+            &|a, b| super::midpoint_arc(planet_radius, a, b),
+        );
         assert_congruent_nonboundary_mesh(&mesh);
         assert_face_associations(&mesh);
     }

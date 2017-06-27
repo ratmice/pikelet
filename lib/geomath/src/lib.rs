@@ -30,7 +30,8 @@ impl<A: Angle> From<GeoPoint<A::Unitless>> for LatLong<A> {
 }
 
 impl<A: Angle> Rand for LatLong<A>
-    where A::Unitless: BaseFloat + Rand + SampleRange
+where
+    A::Unitless: BaseFloat + Rand + SampleRange,
 {
     #[inline]
     fn rand<R: Rng>(rng: &mut R) -> LatLong<A> {
@@ -142,7 +143,8 @@ impl<T: BaseFloat> Sub for GeoPoint<T> {
 }
 
 impl<T: BaseFloat> Rand for GeoPoint<T>
-    where T: Rand + SampleRange
+where
+    T: Rand + SampleRange,
 {
     #[inline]
     fn rand<R: Rng>(rng: &mut R) -> GeoPoint<T> {
@@ -254,6 +256,12 @@ impl<T: BaseFloat> GreatCircle<T> {
     #[inline]
     pub fn from_points(a: GeoPoint<T>, b: GeoPoint<T>) -> GreatCircle<T> {
         GreatCircle { normal: Vector3::cross(a.up, b.up).normalize() }
+    }
+
+    /// Construct a great-circle from a points on a sphere and a direction.
+    #[inline]
+    pub fn from_point_vector(a: GeoPoint<T>, direction: GeoVector<T>) -> GreatCircle<T> {
+        GreatCircle::from_points(a, a + direction)
     }
 
     /// The normal vector of the great-circle plane.

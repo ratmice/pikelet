@@ -85,15 +85,19 @@ impl Context {
 
     pub fn frame(&mut self, metrics: FrameMetrics) -> Ui {
         let scale = self.imgui.display_framebuffer_scale();
-        self.imgui
-            .set_mouse_pos(self.mouse_pos.0 as f32 / scale.0,
-                           self.mouse_pos.1 as f32 / scale.1);
-        self.imgui
-            .set_mouse_down(&[self.mouse_pressed.0,
-                              self.mouse_pressed.1,
-                              self.mouse_pressed.2,
-                              false,
-                              false]);
+        self.imgui.set_mouse_pos(
+            self.mouse_pos.0 as f32 / scale.0,
+            self.mouse_pos.1 as f32 / scale.1,
+        );
+        self.imgui.set_mouse_down(
+            &[
+                self.mouse_pressed.0,
+                self.mouse_pressed.1,
+                self.mouse_pressed.2,
+                false,
+                false,
+            ],
+        );
         self.imgui.set_mouse_wheel(self.mouse_wheel / scale.1);
         self.mouse_wheel = 0.0;
 
@@ -103,10 +107,11 @@ impl Context {
             delta_time,
         } = metrics;
 
-        self.imgui
-            .frame((size_points.width, size_points.height),
-                   (size_pixels.width, size_pixels.height),
-                   delta_time)
+        self.imgui.frame(
+            (size_points.width, size_points.height),
+            (size_pixels.width, size_pixels.height),
+            delta_time,
+        )
     }
 }
 
@@ -121,12 +126,13 @@ pub fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool
     }
 }
 
-pub fn combo(ui: &Ui,
-             label: imgui::ImStr,
-             current_item: i32,
-             items: &[imgui::ImStr],
-             height_in_items: i32)
-             -> Option<i32> {
+pub fn combo(
+    ui: &Ui,
+    label: imgui::ImStr,
+    current_item: i32,
+    items: &[imgui::ImStr],
+    height_in_items: i32,
+) -> Option<i32> {
     let mut current_item = current_item;
     if ui.combo(label, &mut current_item, items, height_in_items) {
         Some(current_item)
@@ -135,12 +141,13 @@ pub fn combo(ui: &Ui,
     }
 }
 
-pub fn slider_float(ui: &Ui,
-                    text: imgui::ImStr,
-                    initial_value: f32,
-                    min: f32,
-                    max: f32)
-                    -> Option<f32> {
+pub fn slider_float(
+    ui: &Ui,
+    text: imgui::ImStr,
+    initial_value: f32,
+    min: f32,
+    max: f32,
+) -> Option<f32> {
     use std::f32;
 
     let mut value = initial_value;
@@ -153,12 +160,13 @@ pub fn slider_float(ui: &Ui,
     }
 }
 
-pub fn slider_int(ui: &Ui,
-                  text: imgui::ImStr,
-                  initial_value: i32,
-                  min: i32,
-                  max: i32)
-                  -> Option<i32> {
+pub fn slider_int(
+    ui: &Ui,
+    text: imgui::ImStr,
+    initial_value: i32,
+    min: i32,
+    max: i32,
+) -> Option<i32> {
     let mut value = initial_value;
     ui.slider_int(text, &mut value, min, max).build();
 

@@ -151,7 +151,7 @@ impl State {
             first_person_camera: FirstPersonCamera {
                 location: GeoPoint::north(),
                 direction: GeoPoint::north() -
-                           GeoPoint::from_up(GeoPoint::north().up() + Vector3::unit_y()),
+                    GeoPoint::from_up(GeoPoint::north().up() + Vector3::unit_y()),
                 speed: 1.0,
                 height: 0.01,
                 radius: planet_radius,
@@ -214,17 +214,17 @@ impl Game {
 
     fn queue_regenete_stars_jobs(&self) {
         self.queue_job(Job::Stars {
-                           index: 2,
-                           count: self.state.stars2.count,
-                       });
+            index: 2,
+            count: self.state.stars2.count,
+        });
         self.queue_job(Job::Stars {
-                           index: 1,
-                           count: self.state.stars1.count,
-                       });
+            index: 1,
+            count: self.state.stars1.count,
+        });
         self.queue_job(Job::Stars {
-                           index: 0,
-                           count: self.state.stars0.count,
-                       });
+            index: 0,
+            count: self.state.stars0.count,
+        });
     }
 
     fn init_resources(&self) {
@@ -246,21 +246,27 @@ impl Game {
         }
 
         self.resources
-            .compile_program("flat_shaded",
-                             load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
-                             load_shader(&assets.join("shaders/flat_shaded.f.glsl")).unwrap())
+            .compile_program(
+                "flat_shaded",
+                load_shader(&assets.join("shaders/flat_shaded.v.glsl")).unwrap(),
+                load_shader(&assets.join("shaders/flat_shaded.f.glsl")).unwrap(),
+            )
             .unwrap();
 
         self.resources
-            .compile_program("text",
-                             load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
-                             load_shader(&assets.join("shaders/text.f.glsl")).unwrap())
+            .compile_program(
+                "text",
+                load_shader(&assets.join("shaders/text.v.glsl")).unwrap(),
+                load_shader(&assets.join("shaders/text.f.glsl")).unwrap(),
+            )
             .unwrap();
 
         self.resources
-            .compile_program("unshaded",
-                             load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
-                             load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap())
+            .compile_program(
+                "unshaded",
+                load_shader(&assets.join("shaders/unshaded.v.glsl")).unwrap(),
+                load_shader(&assets.join("shaders/unshaded.f.glsl")).unwrap(),
+            )
             .unwrap();
 
         fn load_font(path: &Path) -> io::Result<Vec<u8>> {
@@ -272,8 +278,10 @@ impl Game {
         }
 
         self.resources
-            .upload_font("blogger_sans",
-                         load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap())
+            .upload_font(
+                "blogger_sans",
+                load_font(&assets.join("fonts/blogger_sans.ttf")).unwrap(),
+            )
             .unwrap();
     }
 }
@@ -309,9 +317,7 @@ impl Application for Game {
                     self.state.turntable_camera.zoom_delta = self.state.mouse_delta.y as f32;
                 }
 
-                self.state
-                    .turntable_camera
-                    .update(frame_metrics.delta_time);
+                self.state.turntable_camera.update(frame_metrics.delta_time);
 
                 if self.state.is_dragging {
                     self.state.turntable_camera.rotation_delta = Rad(0.0);
@@ -321,9 +327,9 @@ impl Application for Game {
                 }
             },
             CameraMode::FirstPerson => {
-                self.state
-                    .first_person_camera
-                    .update(frame_metrics.delta_time);
+                self.state.first_person_camera.update(
+                    frame_metrics.delta_time,
+                );
             },
         }
 
@@ -387,23 +393,29 @@ impl Application for Game {
 
         if self.state.is_showing_star_field {
             let star_field_matrix = Matrix4::from_translation(camera.position.to_vec()) *
-                                    Matrix4::from_scale(self.state.star_field_radius);
+                Matrix4::from_scale(self.state.star_field_radius);
 
-            command_list.points("stars0",
-                                self.state.stars0.size,
-                                color::WHITE,
-                                star_field_matrix,
-                                camera);
-            command_list.points("stars1",
-                                self.state.stars1.size,
-                                color::WHITE,
-                                star_field_matrix,
-                                camera);
-            command_list.points("stars2",
-                                self.state.stars2.size,
-                                color::WHITE,
-                                star_field_matrix,
-                                camera);
+            command_list.points(
+                "stars0",
+                self.state.stars0.size,
+                color::WHITE,
+                star_field_matrix,
+                camera,
+            );
+            command_list.points(
+                "stars1",
+                self.state.stars1.size,
+                color::WHITE,
+                star_field_matrix,
+                camera,
+            );
+            command_list.points(
+                "stars2",
+                self.state.stars2.size,
+                color::WHITE,
+                star_field_matrix,
+                camera,
+            );
         }
 
         let planet_matrix = Matrix4::from_scale(self.state.planet_radius);
@@ -411,11 +423,13 @@ impl Application for Game {
         if self.state.is_wireframe {
             command_list.lines("planet", 0.5, color::BLACK, planet_matrix, camera);
         } else {
-            command_list.solid("planet",
-                               self.state.light_dir,
-                               color::GREEN,
-                               planet_matrix,
-                               camera);
+            command_list.solid(
+                "planet",
+                self.state.light_dir,
+                color::GREEN,
+                planet_matrix,
+                camera,
+            );
         }
 
         if self.state.is_ui_enabled {
@@ -429,12 +443,14 @@ impl Application for Game {
                 y: 2.0 * scale_y,
             };
 
-            command_list.text("blogger_sans",
-                              color::BLACK,
-                              text,
-                              font_size,
-                              position,
-                              screen_matrix);
+            command_list.text(
+                "blogger_sans",
+                color::BLACK,
+                text,
+                font_size,
+                position,
+                screen_matrix,
+            );
 
             let State {
                 is_wireframe,
@@ -457,12 +473,15 @@ impl Application for Game {
                     .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
                     .size((300.0, 250.0), imgui::ImGuiSetCond_FirstUseEver)
                     .build(|| {
-                        ui::checkbox(ui, im_str!("Wireframe"), is_wireframe)
-                    .map(|v| events.push(Event::SetWireframe(v)));
+                        ui::checkbox(ui, im_str!("Wireframe"), is_wireframe).map(
+                            |v| {
+                                events.push(Event::SetWireframe(v))
+                            },
+                        );
                         ui::checkbox(ui, im_str!("Show star field"), is_showing_star_field)
                             .map(|v| events.push(Event::SetShowingStarField(v)));
                         ui::checkbox(ui, im_str!("Limit FPS"), is_limiting_fps)
-                    .map(|v| events.push(Event::SetLimitingFps(v)));
+                            .map(|v| events.push(Event::SetLimitingFps(v)));
 
                         let camera_options = &[im_str!("Turntable"), im_str!("First Person")];
                         let camera_index = match camera_mode {
@@ -480,20 +499,22 @@ impl Application for Game {
                                 events.push(Event::SetCameraMode(mode));
                             });
 
-                        ui::slider_int(ui,
-                                       im_str!("Planet subdivisions"),
-                                       planet_subdivs as i32,
-                                       1,
-                                       8)
-                                .map(|v| events.push(Event::SetPlanetSubdivisions(v as usize)));
+                        ui::slider_int(
+                            ui,
+                            im_str!("Planet subdivisions"),
+                            planet_subdivs as i32,
+                            1,
+                            8,
+                        ).map(|v| events.push(Event::SetPlanetSubdivisions(v as usize)));
                         ui::slider_float(ui, im_str!("Planet radius"), planet_radius, 0.0, 2.0)
                             .map(|v| events.push(Event::SetPlanetRadius(v)));
-                        ui::slider_float(ui,
-                                         im_str!("Star field radius"),
-                                         star_field_radius,
-                                         0.0,
-                                         20.0)
-                                .map(|v| events.push(Event::SetStarFieldRadius(v)));
+                        ui::slider_float(
+                            ui,
+                            im_str!("Star field radius"),
+                            star_field_radius,
+                            0.0,
+                            20.0,
+                        ).map(|v| events.push(Event::SetStarFieldRadius(v)));
 
                         if ui.small_button(im_str!("Reset state")) {
                             events.push(Event::ResetState);

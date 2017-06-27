@@ -12,7 +12,8 @@ use {EdgeIndex, FaceIndex, Mesh, PositionIndex};
 impl<Position: Copy> Mesh<Position> {
     /// Applies `subdivide_once` the specified number of times.
     pub fn subdivide<F>(&self, count: usize, midpoint_fn: &F) -> Mesh<Position>
-        where F: Fn(Position, Position) -> Position
+    where
+        F: Fn(Position, Position) -> Position,
     {
         (0..count).fold(self.clone(), |acc, _| acc.subdivide_once(&midpoint_fn))
     }
@@ -35,21 +36,26 @@ impl<Position: Copy> Mesh<Position> {
     /// This method will panic if the Mesh has non-triangle faces.
     ///
     pub fn subdivide_once<F>(&self, midpoint_fn: &F) -> Mesh<Position>
-        where F: Fn(Position, Position) -> Position
+    where
+        F: Fn(Position, Position) -> Position,
     {
         type MidpointCache = HashMap<EdgeIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
-        type SplitEdgeCache = HashMap<EdgeIndex,
-                                      (EdgeIndex, EdgeIndex),
-                                      BuildHasherDefault<FnvHasher>>;
+        type SplitEdgeCache = HashMap<
+            EdgeIndex,
+            (EdgeIndex, EdgeIndex),
+            BuildHasherDefault<FnvHasher>,
+        >;
 
-        fn calc_and_cache_midpoint<Position, F>(index: EdgeIndex,
-                                                in_mesh: &Mesh<Position>,
-                                                out_mesh: &mut Mesh<Position>,
-                                                cache: &mut MidpointCache,
-                                                midpoint_fn: &F)
-                                                -> PositionIndex
-            where Position: Copy,
-                  F: Fn(Position, Position) -> Position
+        fn calc_and_cache_midpoint<Position, F>(
+            index: EdgeIndex,
+            in_mesh: &Mesh<Position>,
+            out_mesh: &mut Mesh<Position>,
+            cache: &mut MidpointCache,
+            midpoint_fn: &F,
+        ) -> PositionIndex
+        where
+            Position: Copy,
+            F: Fn(Position, Position) -> Position,
         {
             let edge = in_mesh.edge(index).unwrap();
             let mp_index = out_mesh.add_position(in_mesh.edge_midpoint(edge, midpoint_fn));
@@ -89,33 +95,39 @@ impl<Position: Copy> Mesh<Position> {
             let p3 = match midpoint_cache.remove(&in_e0) {
                 Some(point) => point,
                 None => {
-                    calc_and_cache_midpoint(in_e0,
-                                            self,
-                                            &mut mesh,
-                                            &mut midpoint_cache,
-                                            &midpoint_fn)
+                    calc_and_cache_midpoint(
+                        in_e0,
+                        self,
+                        &mut mesh,
+                        &mut midpoint_cache,
+                        &midpoint_fn,
+                    )
                 },
             };
 
             let p4 = match midpoint_cache.remove(&in_e1) {
                 Some(point) => point,
                 None => {
-                    calc_and_cache_midpoint(in_e1,
-                                            self,
-                                            &mut mesh,
-                                            &mut midpoint_cache,
-                                            &midpoint_fn)
+                    calc_and_cache_midpoint(
+                        in_e1,
+                        self,
+                        &mut mesh,
+                        &mut midpoint_cache,
+                        &midpoint_fn,
+                    )
                 },
             };
 
             let p5 = match midpoint_cache.remove(&in_e2) {
                 Some(point) => point,
                 None => {
-                    calc_and_cache_midpoint(in_e2,
-                                            self,
-                                            &mut mesh,
-                                            &mut midpoint_cache,
-                                            &midpoint_fn)
+                    calc_and_cache_midpoint(
+                        in_e2,
+                        self,
+                        &mut mesh,
+                        &mut midpoint_cache,
+                        &midpoint_fn,
+                    )
                 },
             };
 
@@ -157,10 +169,11 @@ impl Mesh<Point3<f32>> {
         type CentroidCache = HashMap<FaceIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
         type FaceMembershipCache = HashMap<PositionIndex, FaceIndex, BuildHasherDefault<FnvHasher>>;
 
-        fn next_face_around_position(mesh: &Mesh<Point3<f32>>,
-                                     pi: PositionIndex,
-                                     ei0: EdgeIndex)
-                                     -> FaceIndex {
+        fn next_face_around_position(
+            mesh: &Mesh<Point3<f32>>,
+            pi: PositionIndex,
+            ei0: EdgeIndex,
+        ) -> FaceIndex {
             let e0 = mesh.edge(ei0).unwrap();
             let e1 = mesh.edge(e0.next).unwrap();
             let e2 = mesh.edge(e1.next).unwrap();
@@ -192,18 +205,20 @@ impl Mesh<Point3<f32>> {
             face_cache.entry(point_indices[1]).or_insert(face_index);
             face_cache.entry(point_indices[2]).or_insert(face_index);
 
-            let face_positions = [*self.position(point_indices[0]).unwrap(),
-                                  *self.position(point_indices[1]).unwrap(),
-                                  *self.position(point_indices[2]).unwrap()];
+            let face_positions = [
+                *self.position(point_indices[0]).unwrap(),
+                *self.position(point_indices[1]).unwrap(),
+                *self.position(point_indices[2]).unwrap(),
+            ];
 
             let centroid_index = mesh.add_position(Point3::centroid(&face_positions));
             centroid_cache.insert(face_index, centroid_index);
         }
 
         for pi in (0..self.positions.len()).map(PositionIndex) {
-            let fi0 = *face_cache
-                           .get(&pi)
-                           .expect("Position in Mesh without any connected faces!?");
+            let fi0 = *face_cache.get(&pi).expect(
+                "Position in Mesh without any connected faces!?",
+            );
             let mut current_face_index = fi0;
 
             let mut centroids = Vec::with_capacity(6);
@@ -225,9 +240,11 @@ impl Mesh<Point3<f32>> {
                         if e1.position == pi {
                             e0.next
                         } else {
-                            assert!(pi == self.edge(e1.next).unwrap().position,
-                                    "Unable to find outgoing edge for {:?}",
-                                    pi);
+                            assert!(
+                                pi == self.edge(e1.next).unwrap().position,
+                                "Unable to find outgoing edge for {:?}",
+                                pi
+                            );
                             e1.next
                         }
                     }

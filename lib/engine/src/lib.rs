@@ -44,16 +44,18 @@ impl FrameMetrics {
     }
 
     pub fn framebuffer_scale(&self) -> (f32, f32) {
-        (if self.size_points.width == 0 {
-             0.0
-         } else {
-             self.size_pixels.width as f32 / self.size_points.width as f32
-         },
-         if self.size_points.height == 0 {
-             0.0
-         } else {
-             self.size_pixels.height as f32 / self.size_points.height as f32
-         })
+        (
+            if self.size_points.width == 0 {
+                0.0
+            } else {
+                self.size_pixels.width as f32 / self.size_points.width as f32
+            },
+            if self.size_points.height == 0 {
+                0.0
+            } else {
+                self.size_pixels.height as f32 / self.size_points.height as f32
+            },
+        )
     }
 
     pub fn aspect_ratio(&self) -> f32 {
@@ -132,9 +134,9 @@ pub fn run<T: Application>() {
                 UpdateEvent::FrameRequested(metrics) => {
                     // We send the data for the last frame so that the renderer
                     // can get started doing it's job in parallel!
-                    render_tx
-                        .send(game.render())
-                        .expect("Failed to send render data");
+                    render_tx.send(game.render()).expect(
+                        "Failed to send render data",
+                    );
 
                     game.handle_frame_request(metrics)
                 },
@@ -172,10 +174,12 @@ pub fn run<T: Application>() {
         let mut frame = display.draw();
 
         renderer
-            .draw(&mut frame,
-                  render_data.metrics,
-                  render_data.command_list,
-                  |event| drop(update_tx.send(UpdateEvent::Input(event))))
+            .draw(
+                &mut frame,
+                render_data.metrics,
+                render_data.command_list,
+                |event| drop(update_tx.send(UpdateEvent::Input(event))),
+            )
             .unwrap();
 
         frame.finish().unwrap();

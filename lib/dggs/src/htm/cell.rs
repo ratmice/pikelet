@@ -38,15 +38,18 @@ impl Path {
         Path(self.0 >> 2)
     }
 
-    pub fn orientation(self,
-                       subdivision_level: Level,
-                       tree_orientation: Orientation)
-                       -> Orientation {
+    pub fn orientation(
+        self,
+        subdivision_level: Level,
+        tree_orientation: Orientation,
+    ) -> Orientation {
         let parent_orientation = match subdivision_level {
             1 => tree_orientation,
             _ => {
-                self.parent()
-                    .orientation(subdivision_level - 1, tree_orientation)
+                self.parent().orientation(
+                    subdivision_level - 1,
+                    tree_orientation,
+                )
             },
         };
 

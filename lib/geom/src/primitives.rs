@@ -7,15 +7,19 @@ use PositionIndex as Pi;
 
 pub fn triangle(scale: f32) -> Mesh<Point3<f32>> {
     let extent = scale / 2.0;
-    let positions = vec![Point3::new(0.0, extent, 0.0),
-                         Point3::new(-extent, -extent, 0.0),
-                         Point3::new(extent, -extent, 0.0)];
+    let positions = vec![
+        Point3::new(0.0, extent, 0.0),
+        Point3::new(-extent, -extent, 0.0),
+        Point3::new(extent, -extent, 0.0),
+    ];
 
     let faces = vec![Face::new(Ei(0))];
 
-    let edges = vec![Edge::new_boundary(Pi(0), Fi(0), Ei(1)),
-                     Edge::new_boundary(Pi(1), Fi(0), Ei(2)),
-                     Edge::new_boundary(Pi(2), Fi(0), Ei(0))];
+    let edges = vec![
+        Edge::new_boundary(Pi(0), Fi(0), Ei(1)),
+        Edge::new_boundary(Pi(1), Fi(0), Ei(2)),
+        Edge::new_boundary(Pi(2), Fi(0), Ei(0)),
+    ];
 
     Mesh {
         positions: positions,
@@ -26,19 +30,23 @@ pub fn triangle(scale: f32) -> Mesh<Point3<f32>> {
 
 pub fn plane(scale: f32) -> Mesh<Point3<f32>> {
     let extent = scale / 2.0;
-    let positions = vec![Point3::new(-extent, extent, 0.0),
-                         Point3::new(-extent, -extent, 0.0),
-                         Point3::new(extent, -extent, 0.0),
-                         Point3::new(extent, extent, 0.0)];
+    let positions = vec![
+        Point3::new(-extent, extent, 0.0),
+        Point3::new(-extent, -extent, 0.0),
+        Point3::new(extent, -extent, 0.0),
+        Point3::new(extent, extent, 0.0),
+    ];
 
     let faces = vec![Face::new(Ei(0)), Face::new(Ei(3))];
 
-    let edges = vec![Edge::new_boundary(Pi(0), Fi(0), Ei(1)),
-                     Edge::new_boundary(Pi(1), Fi(0), Ei(2)),
-                     Edge::new(Pi(2), Fi(0), Ei(0), Ei(3)),
-                     Edge::new(Pi(0), Fi(1), Ei(4), Ei(2)),
-                     Edge::new_boundary(Pi(2), Fi(1), Ei(5)),
-                     Edge::new_boundary(Pi(3), Fi(1), Ei(3))];
+    let edges = vec![
+        Edge::new_boundary(Pi(0), Fi(0), Ei(1)),
+        Edge::new_boundary(Pi(1), Fi(0), Ei(2)),
+        Edge::new(Pi(2), Fi(0), Ei(0), Ei(3)),
+        Edge::new(Pi(0), Fi(1), Ei(4), Ei(2)),
+        Edge::new_boundary(Pi(2), Fi(1), Ei(5)),
+        Edge::new_boundary(Pi(3), Fi(1), Ei(3)),
+    ];
 
     Mesh {
         positions: positions,
@@ -50,15 +58,19 @@ pub fn plane(scale: f32) -> Mesh<Point3<f32>> {
 pub fn tetrahedron(scale: f32) -> Mesh<Point3<f32>> {
     let extent = scale / 2.0;
 
-    let positions = vec![Point3::new(extent, extent, extent),
-                         Point3::new(extent, -extent, -extent),
-                         Point3::new(-extent, extent, -extent),
-                         Point3::new(-extent, -extent, extent)];
+    let positions = vec![
+        Point3::new(extent, extent, extent),
+        Point3::new(extent, -extent, -extent),
+        Point3::new(-extent, extent, -extent),
+        Point3::new(-extent, -extent, extent),
+    ];
 
-    let faces = vec![Face::new(Ei(0)),
-                     Face::new(Ei(3)),
-                     Face::new(Ei(6)),
-                     Face::new(Ei(9))];
+    let faces = vec![
+        Face::new(Ei(0)),
+        Face::new(Ei(3)),
+        Face::new(Ei(6)),
+        Face::new(Ei(9)),
+    ];
 
     let edges = vec![
         //        point,  face,   next,     adj,
@@ -96,18 +108,20 @@ pub fn icosahedron(radius: f32) -> Mesh<Point3<f32>> {
     //       (would be cool if you could annotate source code with images
     //        to explain notes like this!)
     let phi = (1.0 + f32::sqrt(5.0)) / 2.0;
-    let positions = vec![set_radius(Point3::new(0.0, phi, -1.0), radius),
-                         set_radius(Point3::new(-phi, 1.0, 0.0), radius),
-                         set_radius(Point3::new(0.0, phi, 1.0), radius),
-                         set_radius(Point3::new(phi, 1.0, 0.0), radius),
-                         set_radius(Point3::new(1.0, 0.0, -phi), radius),
-                         set_radius(Point3::new(-1.0, 0.0, -phi), radius),
-                         set_radius(Point3::new(-1.0, 0.0, phi), radius),
-                         set_radius(Point3::new(1.0, 0.0, phi), radius),
-                         set_radius(Point3::new(phi, -1.0, 0.0), radius),
-                         set_radius(Point3::new(0.0, -phi, -1.0), radius),
-                         set_radius(Point3::new(-phi, -1.0, 0.0), radius),
-                         set_radius(Point3::new(0.0, -phi, 1.0), radius)];
+    let positions = vec![
+        set_radius(Point3::new(0.0, phi, -1.0), radius),
+        set_radius(Point3::new(-phi, 1.0, 0.0), radius),
+        set_radius(Point3::new(0.0, phi, 1.0), radius),
+        set_radius(Point3::new(phi, 1.0, 0.0), radius),
+        set_radius(Point3::new(1.0, 0.0, -phi), radius),
+        set_radius(Point3::new(-1.0, 0.0, -phi), radius),
+        set_radius(Point3::new(-1.0, 0.0, phi), radius),
+        set_radius(Point3::new(1.0, 0.0, phi), radius),
+        set_radius(Point3::new(phi, -1.0, 0.0), radius),
+        set_radius(Point3::new(0.0, -phi, -1.0), radius),
+        set_radius(Point3::new(-phi, -1.0, 0.0), radius),
+        set_radius(Point3::new(0.0, -phi, 1.0), radius),
+    ];
 
     // Edges around the face:
     let faces = vec![

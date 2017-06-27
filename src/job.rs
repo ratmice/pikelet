@@ -61,9 +61,11 @@ impl Job {
             },
             Job::Stars { index, count } => {
                 resources_ref
-                    .upload_buffer(format!("stars{}", index),
-                                   create_star_vertices(count),
-                                   Indices::Points)
+                    .upload_buffer(
+                        format!("stars{}", index),
+                        create_star_vertices(count),
+                        Indices::Points,
+                    )
                     .unwrap();
             },
         }

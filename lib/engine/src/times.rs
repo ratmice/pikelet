@@ -31,9 +31,9 @@ impl<T: Copy + Sub<T, Output = T>> Iterator for Times<T> {
         let current = (self.get_time)();
         let previous = mem::replace(&mut self.previous, current);
         Some(State {
-                 previous: previous,
-                 current: current,
-             })
+            previous: previous,
+            current: current,
+        })
     }
 }
 

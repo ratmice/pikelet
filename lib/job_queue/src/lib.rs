@@ -38,8 +38,9 @@ impl<Job: PartialEq> JobQueue<Job> {
 }
 
 pub fn spawn<Job, F>(mut f: F) -> Sender<Job>
-    where Job: Send + PartialEq + 'static,
-          F: Send + FnMut(Job) + 'static
+where
+    Job: Send + PartialEq + 'static,
+    F: Send + FnMut(Job) + 'static,
 {
     use std::sync::{Arc, Mutex};
     use std::sync::mpsc;
@@ -52,9 +53,9 @@ pub fn spawn<Job, F>(mut f: F) -> Sender<Job>
         let queue = queue.clone();
 
         thread::spawn(move || for job in job_rx.iter() {
-                          let mut queue = queue.lock().unwrap();
-                          queue.push_back(job);
-                      });
+            let mut queue = queue.lock().unwrap();
+            queue.push_back(job);
+        });
     }
 
     thread::spawn(move || {

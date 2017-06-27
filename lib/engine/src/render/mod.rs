@@ -108,22 +108,28 @@ impl fmt::Debug for ResourceEvent {
                 ref vertices,
                 ref indices,
             } => {
-                write!(f,
-                       "ResourceEvent::UploadBuffer {{ name: {:?}, vertices: vec![_; {}], indices: {:?} }}",
-                       name,
-                       vertices.len(),
-                       indices)
+                write!(
+                    f,
+                    "ResourceEvent::UploadBuffer {{ name: {:?}, vertices: vec![_; {}], indices: {:?} }}",
+                    name,
+                    vertices.len(),
+                    indices
+                )
             },
             ResourceEvent::CompileProgram { ref name, .. } => {
-                write!(f,
-                       "ResourceEvent::CompileProgram {{ name: {:?}, vertex_shader: \"..\", fragment_shader: \"..\"] }}",
-                       name)
+                write!(
+                    f,
+                    "ResourceEvent::CompileProgram {{ name: {:?}, vertex_shader: \"..\", fragment_shader: \"..\"] }}",
+                    name
+                )
             },
             ResourceEvent::UploadFont { ref name, ref data } => {
-                write!(f,
-                       "ResourceEvent::UploadFont {{ name: {:?}, data: vec![_; {}] }}",
-                       name,
-                       data.len())
+                write!(
+                    f,
+                    "ResourceEvent::UploadFont {{ name: {:?}, data: vec![_; {}] }}",
+                    name,
+                    data.len()
+                )
             },
         }
     }
@@ -137,46 +143,51 @@ pub struct ResourcesRef {
 }
 
 impl ResourcesRef {
-    pub fn upload_buffer<S>(&self,
-                            name: S,
-                            vertices: Vec<Vertex>,
-                            indices: Indices)
-                            -> Result<(), ()>
-        where S: Into<Cow<'static, str>>
+    pub fn upload_buffer<S>(
+        &self,
+        name: S,
+        vertices: Vec<Vertex>,
+        indices: Indices,
+    ) -> Result<(), ()>
+    where
+        S: Into<Cow<'static, str>>,
     {
         self.tx
             .send(ResourceEvent::UploadBuffer {
-                      name: name.into(),
-                      vertices,
-                      indices,
-                  })
+                name: name.into(),
+                vertices,
+                indices,
+            })
             .map_err(|_| ())
     }
 
-    pub fn compile_program<S>(&self,
-                              name: S,
-                              vertex_shader: String,
-                              fragment_shader: String)
-                              -> Result<(), ()>
-        where S: Into<Cow<'static, str>>
+    pub fn compile_program<S>(
+        &self,
+        name: S,
+        vertex_shader: String,
+        fragment_shader: String,
+    ) -> Result<(), ()>
+    where
+        S: Into<Cow<'static, str>>,
     {
         self.tx
             .send(ResourceEvent::CompileProgram {
-                      name: name.into(),
-                      vertex_shader,
-                      fragment_shader,
-                  })
+                name: name.into(),
+                vertex_shader,
+                fragment_shader,
+            })
             .map_err(|_| ())
     }
 
     pub fn upload_font<S>(&self, name: S, data: Vec<u8>) -> Result<(), ()>
-        where S: Into<Cow<'static, str>>
+    where
+        S: Into<Cow<'static, str>>,
     {
         self.tx
             .send(ResourceEvent::UploadFont {
-                      name: name.into(),
-                      data,
-                  })
+                name: name.into(),
+                data,
+            })
             .map_err(|_| ())
     }
 }
@@ -221,10 +232,11 @@ impl Renderer {
             fonts: HashMap::new(),
 
             text_vertex_buffer: VertexBuffer::new(facade, &text::TEXTURE_VERTICES).unwrap(),
-            text_index_buffer: IndexBuffer::new(facade,
-                                                PrimitiveType::TrianglesList,
-                                                &text::TEXTURE_INDICES)
-                    .unwrap(),
+            text_index_buffer: IndexBuffer::new(
+                facade,
+                PrimitiveType::TrianglesList,
+                &text::TEXTURE_INDICES,
+            ).unwrap(),
         };
 
         renderer
@@ -278,13 +290,15 @@ impl Renderer {
         }
     }
 
-    fn handle_draw_command<Event, F>(&mut self,
-                                     frame: &mut Frame,
-                                     frame_metrics: FrameMetrics,
-                                     command: DrawCommand<Event>,
-                                     on_event: &mut F)
-                                     -> RenderResult<()>
-        where F: FnMut(Event)
+    fn handle_draw_command<Event, F>(
+        &mut self,
+        frame: &mut Frame,
+        frame_metrics: FrameMetrics,
+        command: DrawCommand<Event>,
+        on_event: &mut F,
+    ) -> RenderResult<()>
+    where
+        F: FnMut(Event),
     {
         fn draw_params<'a>() -> DrawParameters<'a> {
             use glium::{BackfaceCullingMode, Depth, DepthTest};
@@ -318,18 +332,18 @@ impl Renderer {
                     point_size: Some(size),
                     ..draw_params()
                 };
-                let uniforms = uniform! {
+                let uniforms =
+                    uniform! {
                     color:      color,
                     model:      array4x4(model),
                     view:       array4x4(camera.view),
                     proj:       array4x4(camera.projection),
                 };
 
-                self.buffers
-                    .get(buffer_name.as_ref())
-                    .map(|&(ref vbuf, ref ibuf)| {
-                             frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-                         })
+                self.buffers.get(buffer_name.as_ref()).map(|&(ref vbuf,
+                   ref ibuf)| {
+                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                })
             },
             DrawCommand::Lines {
                 buffer_name,
@@ -344,18 +358,18 @@ impl Renderer {
                     line_width: Some(width),
                     ..draw_params()
                 };
-                let uniforms = uniform! {
+                let uniforms =
+                    uniform! {
                     color:      color,
                     model:      array4x4(model),
                     view:       array4x4(camera.view),
                     proj:       array4x4(camera.projection),
                 };
 
-                self.buffers
-                    .get(buffer_name.as_ref())
-                    .map(|&(ref vbuf, ref ibuf)| {
-                             frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-                         })
+                self.buffers.get(buffer_name.as_ref()).map(|&(ref vbuf,
+                   ref ibuf)| {
+                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                })
             },
             DrawCommand::Solid {
                 buffer_name,
@@ -369,7 +383,8 @@ impl Renderer {
                     polygon_mode: PolygonMode::Fill,
                     ..draw_params()
                 };
-                let uniforms = uniform! {
+                let uniforms =
+                    uniform! {
                     color:      color,
                     light_dir:  array3(light_dir),
                     model:      array4x4(model),
@@ -378,11 +393,10 @@ impl Renderer {
                     eye:        array3(camera.position),
                 };
 
-                self.buffers
-                    .get(buffer_name.as_ref())
-                    .map(|&(ref vbuf, ref ibuf)| {
-                             frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-                         })
+                self.buffers.get(buffer_name.as_ref()).map(|&(ref vbuf,
+                   ref ibuf)| {
+                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                })
             },
             DrawCommand::Text {
                 font_name,
@@ -453,18 +467,25 @@ impl Renderer {
         }
     }
 
-    pub fn draw<Event, F>(&mut self,
-                          frame: &mut Frame,
-                          frame_metrics: FrameMetrics,
-                          command_list: CommandList<Event>,
-                          mut on_event: F)
-                          -> RenderResult<()>
-        where F: FnMut(Event)
+    pub fn draw<Event, F>(
+        &mut self,
+        frame: &mut Frame,
+        frame_metrics: FrameMetrics,
+        command_list: CommandList<Event>,
+        mut on_event: F,
+    ) -> RenderResult<()>
+    where
+        F: FnMut(Event),
     {
         self.ui_was_rendered = false;
 
         for command in command_list {
-            self.handle_draw_command(frame, frame_metrics, command, &mut on_event)?;
+            self.handle_draw_command(
+                frame,
+                frame_metrics,
+                command,
+                &mut on_event,
+            )?;
         }
 
         Ok(())

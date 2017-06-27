@@ -50,10 +50,10 @@ impl TextData {
         for glyph in glyphs {
             if let Some(bb) = glyph.pixel_bounding_box() {
                 glyph.draw(|x, y, value| {
-                               let x = (x as i32 + bb.min.x) as usize;
-                               let y = (y as i32 + bb.min.y) as usize;
-                               data[x + y * width] = value as f32;
-                           });
+                    let x = (x as i32 + bb.min.x) as usize;
+                    let y = (y as i32 + bb.min.y) as usize;
+                    data[x + y * width] = value as f32;
+                });
             }
         }
 
