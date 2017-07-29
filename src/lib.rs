@@ -75,26 +75,15 @@ impl From<InputEvent> for Event {
                         _ => Event::NoOp,
                     }
                 },
-                MouseInput {
-                    state: Pressed,
-                    button: MouseButton::Left,
-                    ..
-                } => Event::DragStart,
-                MouseInput {
-                    state: Released,
-                    button: MouseButton::Left,
-                    ..
-                } => Event::DragEnd,
-                MouseInput {
-                    state: Pressed,
-                    button: MouseButton::Right,
-                    ..
-                } => Event::ZoomStart,
-                MouseInput {
-                    state: Released,
-                    button: MouseButton::Right,
-                    ..
-                } => Event::ZoomEnd,
+                MouseInput { state, button, .. } => {
+                    match (state, button) {
+                        (Pressed, MouseButton::Left) => Event::DragStart,
+                        (Released, MouseButton::Left) => Event::DragEnd,
+                        (Pressed, MouseButton::Right) => Event::ZoomStart,
+                        (Released, MouseButton::Right) => Event::ZoomEnd,
+                        (_, _) => Event::NoOp,
+                    }
+                },
                 MouseMoved { position: (x, y), .. } => Event::MousePosition(
                     Point2::new(x as i32, y as i32),
                 ),

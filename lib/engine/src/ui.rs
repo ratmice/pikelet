@@ -77,21 +77,14 @@ impl Context {
                     }
                 },
                 MouseMoved { position: (x, y), .. } => self.mouse_pos = (x as i32, y as i32),
-                MouseInput {
-                    state,
-                    button: MouseButton::Left,
-                    ..
-                } => self.mouse_pressed.0 = state == Pressed,
-                MouseInput {
-                    state,
-                    button: MouseButton::Right,
-                    ..
-                } => self.mouse_pressed.1 = state == Pressed,
-                MouseInput {
-                    state,
-                    button: MouseButton::Middle,
-                    ..
-                } => self.mouse_pressed.2 = state == Pressed,
+                MouseInput { state, button, .. } => {
+                    match button {
+                        MouseButton::Left => self.mouse_pressed.0 = state == Pressed,
+                        MouseButton::Right => self.mouse_pressed.1 = state == Pressed,
+                        MouseButton::Middle => self.mouse_pressed.2 = state == Pressed,
+                        _ => {},
+                    }
+                },
                 MouseWheel { delta: LineDelta(_, y), .. } |
                 MouseWheel { delta: PixelDelta(_, y), .. } => self.mouse_wheel = y,
                 ReceivedCharacter(c) => self.imgui.add_input_character(c),
