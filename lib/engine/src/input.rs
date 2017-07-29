@@ -1,4 +1,9 @@
+pub use glium::glutin::DeviceEvent;
+pub use glium::glutin::DeviceId;
 pub use glium::glutin::ElementState;
 pub use glium::glutin::Event;
+pub use glium::glutin::KeyboardInput;
 pub use glium::glutin::MouseButton;
 pub use glium::glutin::VirtualKeyCode;
+pub use glium::glutin::WindowEvent;
+pub use glium::glutin::WindowId;

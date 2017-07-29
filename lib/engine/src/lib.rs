@@ -76,7 +76,7 @@ pub enum UpdateEvent<InputEvent> {
 }
 
 fn create_frame_metrics(display: &glium::Display, delta_time: f32) -> FrameMetrics {
-    let window = display.get_window().unwrap();
+    let window = display.gl_window();
     let size_points = window.get_inner_size_points().unwrap();
     let size_pixels = window.get_inner_size_pixels().unwrap();
 
@@ -104,19 +104,19 @@ pub trait Application {
 
 #[cfg_attr(feature = "cargo-clippy", allow(drop_copy))]
 pub fn run<T: Application>() {
-    use glium::DisplayBuild;
-    use glium::glutin::WindowBuilder;
+    use glium::Display;
+    use glium::glutin::{ContextBuilder, EventsLoop, WindowBuilder};
     use std::sync::mpsc;
     use std::thread;
 
     use render::Renderer;
 
-    let display = WindowBuilder::new()
+    let mut events_loop = EventsLoop::new();
+    let window = WindowBuilder::new()
         .with_title("Voyager!")
-        .with_dimensions(1000, 500)
-        .with_depth_buffer(24)
-        .build_glium()
-        .unwrap();
+        .with_dimensions(1000, 500);
+    let context = ContextBuilder::new().with_depth_buffer(24);
+    let display = Display::new(window, context, &events_loop).unwrap();
 
     let metrics = create_frame_metrics(&display, 0.0);
 
@@ -161,11 +161,12 @@ pub fn run<T: Application>() {
         };
 
         // Get user input
-        for event in display.poll_events() {
+        events_loop.poll_events(|event| {
             renderer.handle_ui_event(event.clone());
             let update_event = UpdateEvent::Input(event.into());
-            try_or!(update_tx.send(update_event), break 'main);
-        }
+            // try_or!(update_tx.send(update_event), break 'main);
+            update_tx.send(update_event).unwrap();
+        });
 
         // Update renderer
         renderer.poll();

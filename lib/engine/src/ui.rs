@@ -45,41 +45,58 @@ impl Context {
 
     pub fn update(&mut self, event: glutin::Event) {
         use glium::glutin::ElementState::Pressed;
-        use glium::glutin::Event::*;
-        use glium::glutin::{MouseButton, MouseScrollDelta};
+        use glium::glutin::MouseScrollDelta::*;
+        use glium::glutin::WindowEvent::*;
+        use glium::glutin::{Event, MouseButton};
         use glium::glutin::VirtualKeyCode as Key;
 
-        match event {
-            KeyboardInput(state, _, Some(code)) => {
-                let pressed = state == Pressed;
-                match code {
-                    Key::Tab => self.imgui.set_key(0, pressed),
-                    Key::Left => self.imgui.set_key(1, pressed),
-                    Key::Right => self.imgui.set_key(2, pressed),
-                    Key::Up => self.imgui.set_key(3, pressed),
-                    Key::Down => self.imgui.set_key(4, pressed),
-                    Key::PageUp => self.imgui.set_key(5, pressed),
-                    Key::PageDown => self.imgui.set_key(6, pressed),
-                    Key::Home => self.imgui.set_key(7, pressed),
-                    Key::End => self.imgui.set_key(8, pressed),
-                    Key::Delete => self.imgui.set_key(9, pressed),
-                    Key::Back => self.imgui.set_key(10, pressed),
-                    Key::Return => self.imgui.set_key(11, pressed),
-                    Key::Escape => self.imgui.set_key(12, pressed),
-                    Key::LControl | Key::RControl => self.imgui.set_key_ctrl(pressed),
-                    Key::LShift | Key::RShift => self.imgui.set_key_shift(pressed),
-                    Key::LAlt | Key::RAlt => self.imgui.set_key_alt(pressed),
-                    _ => {},
-                }
-            },
-            MouseMoved(x, y) => self.mouse_pos = (x, y),
-            MouseInput(state, MouseButton::Left) => self.mouse_pressed.0 = state == Pressed,
-            MouseInput(state, MouseButton::Right) => self.mouse_pressed.1 = state == Pressed,
-            MouseInput(state, MouseButton::Middle) => self.mouse_pressed.2 = state == Pressed,
-            MouseWheel(MouseScrollDelta::LineDelta(_, y), _) |
-            MouseWheel(MouseScrollDelta::PixelDelta(_, y), _) => self.mouse_wheel = y,
-            ReceivedCharacter(c) => self.imgui.add_input_character(c),
-            _ => {},
+        if let Event::WindowEvent { event, .. } = event {
+            match event {
+                KeyboardInput { input, .. } => {
+                    let pressed = input.state == Pressed;
+                    if let Some(key) = input.virtual_keycode {
+                        match key {
+                            Key::Tab => self.imgui.set_key(0, pressed),
+                            Key::Left => self.imgui.set_key(1, pressed),
+                            Key::Right => self.imgui.set_key(2, pressed),
+                            Key::Up => self.imgui.set_key(3, pressed),
+                            Key::Down => self.imgui.set_key(4, pressed),
+                            Key::PageUp => self.imgui.set_key(5, pressed),
+                            Key::PageDown => self.imgui.set_key(6, pressed),
+                            Key::Home => self.imgui.set_key(7, pressed),
+                            Key::End => self.imgui.set_key(8, pressed),
+                            Key::Delete => self.imgui.set_key(9, pressed),
+                            Key::Back => self.imgui.set_key(10, pressed),
+                            Key::Return => self.imgui.set_key(11, pressed),
+                            Key::Escape => self.imgui.set_key(12, pressed),
+                            Key::LControl | Key::RControl => self.imgui.set_key_ctrl(pressed),
+                            Key::LShift | Key::RShift => self.imgui.set_key_shift(pressed),
+                            Key::LAlt | Key::RAlt => self.imgui.set_key_alt(pressed),
+                            _ => {},
+                        }
+                    }
+                },
+                MouseMoved { position: (x, y), .. } => self.mouse_pos = (x as i32, y as i32),
+                MouseInput {
+                    state,
+                    button: MouseButton::Left,
+                    ..
+                } => self.mouse_pressed.0 = state == Pressed,
+                MouseInput {
+                    state,
+                    button: MouseButton::Right,
+                    ..
+                } => self.mouse_pressed.1 = state == Pressed,
+                MouseInput {
+                    state,
+                    button: MouseButton::Middle,
+                    ..
+                } => self.mouse_pressed.2 = state == Pressed,
+                MouseWheel { delta: LineDelta(_, y), .. } |
+                MouseWheel { delta: PixelDelta(_, y), .. } => self.mouse_wheel = y,
+                ReceivedCharacter(c) => self.imgui.add_input_character(c),
+                _ => {},
+            }
         }
     }
 
@@ -115,7 +132,7 @@ impl Context {
     }
 }
 
-pub fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool> {
+pub fn checkbox(ui: &Ui, text: &imgui::ImStr, initial_value: bool) -> Option<bool> {
     let mut value = initial_value;
     ui.checkbox(text, &mut value);
 
@@ -128,9 +145,9 @@ pub fn checkbox(ui: &Ui, text: imgui::ImStr, initial_value: bool) -> Option<bool
 
 pub fn combo(
     ui: &Ui,
-    label: imgui::ImStr,
+    label: &imgui::ImStr,
     current_item: i32,
-    items: &[imgui::ImStr],
+    items: &[&imgui::ImStr],
     height_in_items: i32,
 ) -> Option<i32> {
     let mut current_item = current_item;
@@ -143,7 +160,7 @@ pub fn combo(
 
 pub fn slider_float(
     ui: &Ui,
-    text: imgui::ImStr,
+    text: &imgui::ImStr,
     initial_value: f32,
     min: f32,
     max: f32,
@@ -162,7 +179,7 @@ pub fn slider_float(
 
 pub fn slider_int(
     ui: &Ui,
-    text: imgui::ImStr,
+    text: &imgui::ImStr,
     initial_value: i32,
     min: i32,
     max: i32,

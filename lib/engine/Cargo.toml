@@ -6,9 +6,9 @@ publish = false
 
 [dependencies]
 cgmath = { version = "0.14.0", features = ["use_simd"] }
-glium = "0.16.0"
-imgui = "0.0.13"
-imgui-glium-renderer = "0.0.13"
+glium = "0.17.0"
+imgui = "0.0.15"
+imgui-glium-renderer = "0.0.15"
 quick-error = "1.0.0"
 rusttype = "0.2"
 time = "0.1"

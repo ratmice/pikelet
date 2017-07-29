@@ -60,20 +60,48 @@ impl From<InputEvent> for Event {
     fn from(src: InputEvent) -> Event {
         use engine::input::ElementState::{Pressed, Released};
         use engine::input::MouseButton;
+        use engine::input::WindowEvent::*;
         use engine::input::VirtualKeyCode as Key;
 
-        match src {
-            InputEvent::Closed |
-            InputEvent::KeyboardInput(Pressed, _, Some(Key::Escape)) => Event::Close,
-            InputEvent::KeyboardInput(Pressed, _, Some(Key::C)) => Event::ToggleCameraMode,
-            InputEvent::KeyboardInput(Pressed, _, Some(Key::R)) => Event::ResetState,
-            InputEvent::KeyboardInput(Pressed, _, Some(Key::U)) => Event::ToggleUi,
-            InputEvent::MouseInput(Pressed, MouseButton::Left) => Event::DragStart,
-            InputEvent::MouseInput(Released, MouseButton::Left) => Event::DragEnd,
-            InputEvent::MouseInput(Pressed, MouseButton::Right) => Event::ZoomStart,
-            InputEvent::MouseInput(Released, MouseButton::Right) => Event::ZoomEnd,
-            InputEvent::MouseMoved(x, y) => Event::MousePosition(Point2::new(x, y)),
-            _ => Event::NoOp,
+        if let InputEvent::WindowEvent { event, .. } = src {
+            match event {
+                Closed => Event::Close,
+                KeyboardInput { input, .. } if input.state == Pressed => {
+                    match input.virtual_keycode {
+                        Some(Key::Escape) => Event::Close,
+                        Some(Key::C) => Event::ToggleCameraMode,
+                        Some(Key::R) => Event::ResetState,
+                        Some(Key::U) => Event::ToggleUi,
+                        _ => Event::NoOp,
+                    }
+                },
+                MouseInput {
+                    state: Pressed,
+                    button: MouseButton::Left,
+                    ..
+                } => Event::DragStart,
+                MouseInput {
+                    state: Released,
+                    button: MouseButton::Left,
+                    ..
+                } => Event::DragEnd,
+                MouseInput {
+                    state: Pressed,
+                    button: MouseButton::Right,
+                    ..
+                } => Event::ZoomStart,
+                MouseInput {
+                    state: Released,
+                    button: MouseButton::Right,
+                    ..
+                } => Event::ZoomEnd,
+                MouseMoved { position: (x, y), .. } => Event::MousePosition(
+                    Point2::new(x as i32, y as i32),
+                ),
+                _ => Event::NoOp,
+            }
+        } else {
+            Event::NoOp
         }
     }
 }
