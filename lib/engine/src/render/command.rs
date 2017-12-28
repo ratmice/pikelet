@@ -8,7 +8,9 @@ use color::Color;
 
 #[cfg_attr(feature = "cargo-clippy", allow(large_enum_variant))]
 pub enum DrawCommand<Event> {
-    Clear { color: Color },
+    Clear {
+        color: Color,
+    },
     Points {
         buffer_name: Cow<'static, str>,
         size: f32,
@@ -38,7 +40,9 @@ pub enum DrawCommand<Event> {
         position: Point2<f32>,
         screen_matrix: Matrix4<f32>,
     },
-    Ui { run_ui: Box<Fn(&Ui) -> Vec<Event> + Send>, },
+    Ui {
+        run_ui: Box<Fn(&Ui) -> Vec<Event> + Send>,
+    },
 }
 
 pub struct CommandList<Event> {
@@ -47,7 +51,9 @@ pub struct CommandList<Event> {
 
 impl<Event> CommandList<Event> {
     pub fn new() -> CommandList<Event> {
-        CommandList { commands: Vec::new() }
+        CommandList {
+            commands: Vec::new(),
+        }
     }
 
     pub fn clear(&mut self, color: Color) {
@@ -136,9 +142,9 @@ impl<Event> CommandList<Event> {
     where
         F: Fn(&Ui) -> Vec<Event> + Send + 'static,
     {
-        self.commands.push(
-            DrawCommand::Ui { run_ui: Box::new(run_ui) },
-        );
+        self.commands.push(DrawCommand::Ui {
+            run_ui: Box::new(run_ui),
+        });
     }
 }
 

@@ -76,17 +76,23 @@ impl Context {
                         }
                     }
                 },
-                MouseMoved { position: (x, y), .. } => self.mouse_pos = (x as i32, y as i32),
-                MouseInput { state, button, .. } => {
-                    match button {
-                        MouseButton::Left => self.mouse_pressed.0 = state == Pressed,
-                        MouseButton::Right => self.mouse_pressed.1 = state == Pressed,
-                        MouseButton::Middle => self.mouse_pressed.2 = state == Pressed,
-                        _ => {},
-                    }
+                MouseMoved {
+                    position: (x, y), ..
+                } => self.mouse_pos = (x as i32, y as i32),
+                MouseInput { state, button, .. } => match button {
+                    MouseButton::Left => self.mouse_pressed.0 = state == Pressed,
+                    MouseButton::Right => self.mouse_pressed.1 = state == Pressed,
+                    MouseButton::Middle => self.mouse_pressed.2 = state == Pressed,
+                    _ => {},
                 },
-                MouseWheel { delta: LineDelta(_, y), .. } |
-                MouseWheel { delta: PixelDelta(_, y), .. } => self.mouse_wheel = y,
+                MouseWheel {
+                    delta: LineDelta(_, y),
+                    ..
+                }
+                | MouseWheel {
+                    delta: PixelDelta(_, y),
+                    ..
+                } => self.mouse_wheel = y,
                 ReceivedCharacter(c) => self.imgui.add_input_character(c),
                 _ => {},
             }
@@ -99,15 +105,13 @@ impl Context {
             self.mouse_pos.0 as f32 / scale.0,
             self.mouse_pos.1 as f32 / scale.1,
         );
-        self.imgui.set_mouse_down(
-            &[
-                self.mouse_pressed.0,
-                self.mouse_pressed.1,
-                self.mouse_pressed.2,
-                false,
-                false,
-            ],
-        );
+        self.imgui.set_mouse_down(&[
+            self.mouse_pressed.0,
+            self.mouse_pressed.1,
+            self.mouse_pressed.2,
+            false,
+            false,
+        ]);
         self.imgui.set_mouse_wheel(self.mouse_wheel / scale.1);
         self.mouse_wheel = 0.0;
 

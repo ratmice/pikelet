@@ -15,10 +15,22 @@ pub const TEXTURE_HEIGHT: f32 = 1.0;
 pub const TEXTURE_WIDTH: f32 = 1.0;
 
 pub const TEXTURE_VERTICES: [TextVertex; 4] = [
-    TextVertex { position: [          0.0,            0.0], tex_coords: [0.0, 0.0] }, // Top-left
-    TextVertex { position: [TEXTURE_WIDTH,            0.0], tex_coords: [1.0, 0.0] }, // Top-right
-    TextVertex { position: [TEXTURE_WIDTH, TEXTURE_HEIGHT], tex_coords: [1.0, 1.0] }, // Bottom-right
-    TextVertex { position: [          0.0, TEXTURE_HEIGHT], tex_coords: [0.0, 1.0] }, // Bottom-left
+    TextVertex {
+        position: [0.0, 0.0],
+        tex_coords: [0.0, 0.0],
+    }, // Top-left
+    TextVertex {
+        position: [TEXTURE_WIDTH, 0.0],
+        tex_coords: [1.0, 0.0],
+    }, // Top-right
+    TextVertex {
+        position: [TEXTURE_WIDTH, TEXTURE_HEIGHT],
+        tex_coords: [1.0, 1.0],
+    }, // Bottom-right
+    TextVertex {
+        position: [0.0, TEXTURE_HEIGHT],
+        tex_coords: [0.0, 1.0],
+    }, // Bottom-left
 ];
 
 pub const TEXTURE_INDICES: [u8; 2 * 3] = [0, 1, 2, 2, 3, 0];

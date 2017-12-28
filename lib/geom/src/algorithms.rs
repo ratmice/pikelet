@@ -40,11 +40,8 @@ impl<Position: Copy> Mesh<Position> {
         F: Fn(Position, Position) -> Position,
     {
         type MidpointCache = HashMap<EdgeIndex, PositionIndex, BuildHasherDefault<FnvHasher>>;
-        type SplitEdgeCache = HashMap<
-            EdgeIndex,
-            (EdgeIndex, EdgeIndex),
-            BuildHasherDefault<FnvHasher>,
-        >;
+        type SplitEdgeCache =
+            HashMap<EdgeIndex, (EdgeIndex, EdgeIndex), BuildHasherDefault<FnvHasher>>;
 
         fn calc_and_cache_midpoint<Position, F>(
             index: EdgeIndex,
@@ -94,41 +91,35 @@ impl<Position: Copy> Mesh<Position> {
 
             let p3 = match midpoint_cache.remove(&in_e0) {
                 Some(point) => point,
-                None => {
-                    calc_and_cache_midpoint(
-                        in_e0,
-                        self,
-                        &mut mesh,
-                        &mut midpoint_cache,
-                        &midpoint_fn,
-                    )
-                },
+                None => calc_and_cache_midpoint(
+                    in_e0,
+                    self,
+                    &mut mesh,
+                    &mut midpoint_cache,
+                    &midpoint_fn,
+                ),
             };
 
             let p4 = match midpoint_cache.remove(&in_e1) {
                 Some(point) => point,
-                None => {
-                    calc_and_cache_midpoint(
-                        in_e1,
-                        self,
-                        &mut mesh,
-                        &mut midpoint_cache,
-                        &midpoint_fn,
-                    )
-                },
+                None => calc_and_cache_midpoint(
+                    in_e1,
+                    self,
+                    &mut mesh,
+                    &mut midpoint_cache,
+                    &midpoint_fn,
+                ),
             };
 
             let p5 = match midpoint_cache.remove(&in_e2) {
                 Some(point) => point,
-                None => {
-                    calc_and_cache_midpoint(
-                        in_e2,
-                        self,
-                        &mut mesh,
-                        &mut midpoint_cache,
-                        &midpoint_fn,
-                    )
-                },
+                None => calc_and_cache_midpoint(
+                    in_e2,
+                    self,
+                    &mut mesh,
+                    &mut midpoint_cache,
+                    &midpoint_fn,
+                ),
             };
 
             let (_, (e0, e1, e2)) = mesh.add_triangle(p0, p3, p5);
@@ -216,9 +207,9 @@ impl Mesh<Point3<f32>> {
         }
 
         for pi in (0..self.positions.len()).map(PositionIndex) {
-            let fi0 = *face_cache.get(&pi).expect(
-                "Position in Mesh without any connected faces!?",
-            );
+            let fi0 = *face_cache
+                .get(&pi)
+                .expect("Position in Mesh without any connected faces!?");
             let mut current_face_index = fi0;
 
             let mut centroids = Vec::with_capacity(6);

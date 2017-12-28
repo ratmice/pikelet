@@ -85,12 +85,16 @@ pub struct GeoPoint<T> {
 impl<T: BaseFloat> GeoPoint<T> {
     #[inline]
     pub fn from_up(up: Vector3<T>) -> GeoPoint<T> {
-        GeoPoint { up: Vector3::normalize(up) }
+        GeoPoint {
+            up: Vector3::normalize(up),
+        }
     }
 
     #[inline]
     pub fn north() -> GeoPoint<T> {
-        GeoPoint { up: Vector3::unit_x() }
+        GeoPoint {
+            up: Vector3::unit_x(),
+        }
     }
 
     #[inline]
@@ -105,7 +109,9 @@ impl<T: BaseFloat> GeoPoint<T> {
 
     #[inline]
     pub fn midpoint(self, other: GeoPoint<T>) -> GeoPoint<T> {
-        GeoPoint { up: Vector3::normalize(self.up + other.up) }
+        GeoPoint {
+            up: Vector3::normalize(self.up + other.up),
+        }
     }
 
     #[inline]
@@ -138,7 +144,9 @@ impl<T: BaseFloat> Sub for GeoPoint<T> {
 
     #[inline]
     fn sub(self, other: GeoPoint<T>) -> GeoVector<T> {
-        GeoVector { rotation: Quaternion::from_arc(other.up, self.up, None) }
+        GeoVector {
+            rotation: Quaternion::from_arc(other.up, self.up, None),
+        }
     }
 }
 
@@ -170,7 +178,9 @@ impl<T: BaseFloat> Add for GeoVector<T> {
 
     #[inline]
     fn add(self, other: GeoVector<T>) -> GeoVector<T> {
-        GeoVector { rotation: self.rotation + other.rotation }
+        GeoVector {
+            rotation: self.rotation + other.rotation,
+        }
     }
 }
 
@@ -179,7 +189,9 @@ impl<T: BaseFloat> Sub for GeoVector<T> {
 
     #[inline]
     fn sub(self, other: GeoVector<T>) -> GeoVector<T> {
-        GeoVector { rotation: self.rotation - other.rotation }
+        GeoVector {
+            rotation: self.rotation - other.rotation,
+        }
     }
 }
 
@@ -188,7 +200,9 @@ impl<T: BaseFloat> Neg for GeoVector<T> {
 
     #[inline]
     fn neg(self) -> GeoVector<T> {
-        GeoVector { rotation: -self.rotation }
+        GeoVector {
+            rotation: -self.rotation,
+        }
     }
 }
 
@@ -197,7 +211,9 @@ impl<T: BaseFloat> Mul<T> for GeoVector<T> {
 
     #[inline]
     fn mul(self, other: T) -> GeoVector<T> {
-        GeoVector { rotation: self.rotation * other }
+        GeoVector {
+            rotation: self.rotation * other,
+        }
     }
 }
 
@@ -206,7 +222,9 @@ impl<T: BaseFloat> Div<T> for GeoVector<T> {
 
     #[inline]
     fn div(self, other: T) -> GeoVector<T> {
-        GeoVector { rotation: self.rotation / other }
+        GeoVector {
+            rotation: self.rotation / other,
+        }
     }
 }
 
@@ -215,7 +233,9 @@ impl<T: BaseFloat> Rem<T> for GeoVector<T> {
 
     #[inline]
     fn rem(self, other: T) -> GeoVector<T> {
-        GeoVector { rotation: self.rotation % other }
+        GeoVector {
+            rotation: self.rotation % other,
+        }
     }
 }
 
@@ -227,7 +247,9 @@ impl<T: BaseFloat> Zero for GeoVector<T> {
 
     #[inline]
     fn zero() -> GeoVector<T> {
-        GeoVector { rotation: Quaternion::<T>::zero() }
+        GeoVector {
+            rotation: Quaternion::<T>::zero(),
+        }
     }
 }
 
@@ -255,7 +277,9 @@ impl<T: BaseFloat> GreatCircle<T> {
     /// of the sphere.
     #[inline]
     pub fn from_points(a: GeoPoint<T>, b: GeoPoint<T>) -> GreatCircle<T> {
-        GreatCircle { normal: Vector3::cross(a.up, b.up).normalize() }
+        GreatCircle {
+            normal: Vector3::cross(a.up, b.up).normalize(),
+        }
     }
 
     /// Construct a great-circle from a points on a sphere and a direction.

@@ -49,9 +49,8 @@ impl<T: NodeData> QuadTree<T> {
 
         for path in (0..cell_count).map(cell::Path) {
             let cell_orientation = path.orientation(subdivision_level, orientation);
-            tree.nodes.push(
-                Node::new(path, cell_orientation, T::default()),
-            );
+            tree.nodes
+                .push(Node::new(path, cell_orientation, T::default()));
         }
 
         tree
@@ -130,9 +129,7 @@ mod tests {
 
             println!(
                 "Path: {}, Expected: {:?}, Actual: {:?}",
-                index,
-                expected_orientation,
-                cell_orientation
+                index, expected_orientation, cell_orientation
             );
             assert_eq!(expected_orientation, *cell_orientation);
         }

@@ -75,18 +75,16 @@ impl From<InputEvent> for Event {
                         _ => Event::NoOp,
                     }
                 },
-                MouseInput { state, button, .. } => {
-                    match (state, button) {
-                        (Pressed, MouseButton::Left) => Event::DragStart,
-                        (Released, MouseButton::Left) => Event::DragEnd,
-                        (Pressed, MouseButton::Right) => Event::ZoomStart,
-                        (Released, MouseButton::Right) => Event::ZoomEnd,
-                        (_, _) => Event::NoOp,
-                    }
+                MouseInput { state, button, .. } => match (state, button) {
+                    (Pressed, MouseButton::Left) => Event::DragStart,
+                    (Released, MouseButton::Left) => Event::DragEnd,
+                    (Pressed, MouseButton::Right) => Event::ZoomStart,
+                    (Released, MouseButton::Right) => Event::ZoomEnd,
+                    (_, _) => Event::NoOp,
                 },
-                MouseMoved { position: (x, y), .. } => Event::MousePosition(
-                    Point2::new(x as i32, y as i32),
-                ),
+                MouseMoved {
+                    position: (x, y), ..
+                } => Event::MousePosition(Point2::new(x as i32, y as i32)),
                 _ => Event::NoOp,
             }
         } else {
@@ -167,8 +165,8 @@ impl State {
             },
             first_person_camera: FirstPersonCamera {
                 location: GeoPoint::north(),
-                direction: GeoPoint::north() -
-                    GeoPoint::from_up(GeoPoint::north().up() + Vector3::unit_y()),
+                direction: GeoPoint::north()
+                    - GeoPoint::from_up(GeoPoint::north().up() + Vector3::unit_y()),
                 speed: 1.0,
                 height: 0.01,
                 radius: planet_radius,
@@ -226,7 +224,9 @@ impl Game {
     }
 
     fn queue_regenete_planet_job(&self) {
-        self.queue_job(Job::Planet { subdivs: self.state.planet_subdivs });
+        self.queue_job(Job::Planet {
+            subdivs: self.state.planet_subdivs,
+        });
     }
 
     fn queue_regenete_stars_jobs(&self) {
@@ -344,9 +344,9 @@ impl Application for Game {
                 }
             },
             CameraMode::FirstPerson => {
-                self.state.first_person_camera.update(
-                    frame_metrics.delta_time,
-                );
+                self.state
+                    .first_person_camera
+                    .update(frame_metrics.delta_time);
             },
         }
 
@@ -409,8 +409,8 @@ impl Application for Game {
         command_list.clear(color::BLUE);
 
         if self.state.is_showing_star_field {
-            let star_field_matrix = Matrix4::from_translation(camera.position.to_vec()) *
-                Matrix4::from_scale(self.state.star_field_radius);
+            let star_field_matrix = Matrix4::from_translation(camera.position.to_vec())
+                * Matrix4::from_scale(self.state.star_field_radius);
 
             command_list.points(
                 "stars0",
@@ -490,11 +490,8 @@ impl Application for Game {
                     .position((10.0, 10.0), imgui::ImGuiSetCond_FirstUseEver)
                     .size((300.0, 250.0), imgui::ImGuiSetCond_FirstUseEver)
                     .build(|| {
-                        ui::checkbox(ui, im_str!("Wireframe"), is_wireframe).map(
-                            |v| {
-                                events.push(Event::SetWireframe(v))
-                            },
-                        );
+                        ui::checkbox(ui, im_str!("Wireframe"), is_wireframe)
+                            .map(|v| events.push(Event::SetWireframe(v)));
                         ui::checkbox(ui, im_str!("Show star field"), is_showing_star_field)
                             .map(|v| events.push(Event::SetShowingStarField(v)));
                         ui::checkbox(ui, im_str!("Limit FPS"), is_limiting_fps)

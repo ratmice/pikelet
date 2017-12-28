@@ -12,7 +12,9 @@ struct JobQueue<Job> {
 
 impl<Job: PartialEq> JobQueue<Job> {
     fn new() -> JobQueue<Job> {
-        JobQueue { queued_jobs: VecDeque::new() }
+        JobQueue {
+            queued_jobs: VecDeque::new(),
+        }
     }
 
     fn pop_front(&mut self) -> Option<Job> {
@@ -52,9 +54,11 @@ where
     {
         let queue = queue.clone();
 
-        thread::spawn(move || for job in job_rx.iter() {
-            let mut queue = queue.lock().unwrap();
-            queue.push_back(job);
+        thread::spawn(move || {
+            for job in job_rx.iter() {
+                let mut queue = queue.lock().unwrap();
+                queue.push_back(job);
+            }
         });
     }
 
@@ -140,7 +144,9 @@ mod test {
         let job1 = Job(1, "1");
         let job2 = Job(2, "2");
 
-        let job_tx = super::spawn(move |job| { result_tx.send(job).unwrap(); });
+        let job_tx = super::spawn(move |job| {
+            result_tx.send(job).unwrap();
+        });
 
         job_tx.send(job0).unwrap();
         job_tx.send(job1).unwrap();

@@ -1,11 +1,11 @@
-extern crate rusttype;
 extern crate imgui_glium_renderer;
+extern crate rusttype;
 
 use cgmath::conv::*;
 use glium::{self, glutin, index, program, texture, vertex};
 use glium::{DrawParameters, Frame, IndexBuffer, PolygonMode, Program, Surface, VertexBuffer};
 use glium::backend::{Context, Facade};
-use glium::index::{PrimitiveType, NoIndices};
+use glium::index::{NoIndices, PrimitiveType};
 use imgui::ImGui;
 use self::imgui_glium_renderer::{Renderer as UiRenderer, RendererError as UiRendererError};
 use self::rusttype::{Font, FontCollection};
@@ -332,18 +332,18 @@ impl Renderer {
                     point_size: Some(size),
                     ..draw_params()
                 };
-                let uniforms =
-                    uniform! {
+                let uniforms = uniform! {
                     color:      color,
                     model:      array4x4(model),
                     view:       array4x4(camera.view),
                     proj:       array4x4(camera.projection),
                 };
 
-                self.buffers.get(buffer_name.as_ref()).map(|&(ref vbuf,
-                   ref ibuf)| {
-                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-                })
+                self.buffers
+                    .get(buffer_name.as_ref())
+                    .map(|&(ref vbuf, ref ibuf)| {
+                        frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                    })
             },
             DrawCommand::Lines {
                 buffer_name,
@@ -358,18 +358,18 @@ impl Renderer {
                     line_width: Some(width),
                     ..draw_params()
                 };
-                let uniforms =
-                    uniform! {
+                let uniforms = uniform! {
                     color:      color,
                     model:      array4x4(model),
                     view:       array4x4(camera.view),
                     proj:       array4x4(camera.projection),
                 };
 
-                self.buffers.get(buffer_name.as_ref()).map(|&(ref vbuf,
-                   ref ibuf)| {
-                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-                })
+                self.buffers
+                    .get(buffer_name.as_ref())
+                    .map(|&(ref vbuf, ref ibuf)| {
+                        frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                    })
             },
             DrawCommand::Solid {
                 buffer_name,
@@ -383,8 +383,7 @@ impl Renderer {
                     polygon_mode: PolygonMode::Fill,
                     ..draw_params()
                 };
-                let uniforms =
-                    uniform! {
+                let uniforms = uniform! {
                     color:      color,
                     light_dir:  array3(light_dir),
                     model:      array4x4(model),
@@ -393,10 +392,11 @@ impl Renderer {
                     eye:        array3(camera.position),
                 };
 
-                self.buffers.get(buffer_name.as_ref()).map(|&(ref vbuf,
-                   ref ibuf)| {
-                    frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
-                })
+                self.buffers
+                    .get(buffer_name.as_ref())
+                    .map(|&(ref vbuf, ref ibuf)| {
+                        frame.draw(vbuf, ibuf, program, &uniforms, &draw_params)
+                    })
             },
             DrawCommand::Text {
                 font_name,
@@ -433,7 +433,7 @@ impl Renderer {
 
                         let blending_function = Addition {
                             source: SourceAlpha,
-                            destination: OneMinusSourceAlpha
+                            destination: OneMinusSourceAlpha,
                         };
 
                         DrawParameters {
@@ -480,12 +480,7 @@ impl Renderer {
         self.ui_was_rendered = false;
 
         for command in command_list {
-            self.handle_draw_command(
-                frame,
-                frame_metrics,
-                command,
-                &mut on_event,
-            )?;
+            self.handle_draw_command(frame, frame_metrics, command, &mut on_event)?;
         }
 
         Ok(())

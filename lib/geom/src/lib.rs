@@ -59,13 +59,11 @@ impl Face {
     }
 }
 
-
 /// Used to build an index of Point/Edge/Face relationships
 #[derive(Clone, Debug)]
 pub struct Vertex {
     pub edges: Vec<EdgeIndex>,
 }
-
 
 /// Our primary entity for navigating the topology of a Mesh
 ///
@@ -123,7 +121,6 @@ impl Edge {
     }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,7 +130,7 @@ mod tests {
     use cgmath::prelude::*;
     use cgmath::Point3;
 
-    use super::{Mesh, Edge, EdgeIndex, FaceIndex};
+    use super::{Edge, EdgeIndex, FaceIndex, Mesh};
     use super::primitives;
 
     fn assert_congruent_adjacent_positions(e0: &Edge, e1: &Edge, mesh: &Mesh<Point3<f32>>) {
@@ -236,10 +233,9 @@ mod tests {
         let planet_radius = 1.0;
 
         let icosahedron = primitives::icosahedron(planet_radius);
-        let mesh = icosahedron.subdivide(
-            subdivisions,
-            &|a, b| super::midpoint_arc(planet_radius, a, b),
-        );
+        let mesh = icosahedron.subdivide(subdivisions, &|a, b| {
+            super::midpoint_arc(planet_radius, a, b)
+        });
         assert_congruent_nonboundary_mesh(&mesh);
         assert_face_associations(&mesh);
     }

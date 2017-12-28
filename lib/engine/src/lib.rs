@@ -134,9 +134,9 @@ pub fn run<T: Application>() {
                 UpdateEvent::FrameRequested(metrics) => {
                     // We send the data for the last frame so that the renderer
                     // can get started doing it's job in parallel!
-                    render_tx.send(game.render()).expect(
-                        "Failed to send render data",
-                    );
+                    render_tx
+                        .send(game.render())
+                        .expect("Failed to send render data");
 
                     game.handle_frame_request(metrics)
                 },
@@ -148,7 +148,6 @@ pub fn run<T: Application>() {
             };
         }
     });
-
 
     'main: for time in times::in_seconds() {
         // Swap frames with update thread

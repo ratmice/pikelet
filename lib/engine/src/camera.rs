@@ -1,4 +1,4 @@
-use cgmath::{Matrix4, Point3, Vector3, PerspectiveFov};
+use cgmath::{Matrix4, PerspectiveFov, Point3, Vector3};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Camera {

@@ -1,6 +1,6 @@
 use cgmath::conv::*;
 use cgmath::Point3;
-use engine::render::{ResourcesRef, Vertex, Indices};
+use engine::render::{Indices, ResourcesRef, Vertex};
 use geom::{self, primitives, Mesh};
 use geomath::GeoPoint;
 use rand::{self, Rng};
@@ -25,9 +25,15 @@ fn create_vertices(mesh: &Mesh<Point3<f32>>) -> Vec<Vertex> {
         let p1 = mesh.edge(e1).unwrap().position;
         let p2 = mesh.edge(e2).unwrap().position;
 
-        vertices.push(Vertex { position: *mesh.position(p0).unwrap().as_ref() });
-        vertices.push(Vertex { position: *mesh.position(p1).unwrap().as_ref() });
-        vertices.push(Vertex { position: *mesh.position(p2).unwrap().as_ref() });
+        vertices.push(Vertex {
+            position: *mesh.position(p0).unwrap().as_ref(),
+        });
+        vertices.push(Vertex {
+            position: *mesh.position(p1).unwrap().as_ref(),
+        });
+        vertices.push(Vertex {
+            position: *mesh.position(p2).unwrap().as_ref(),
+        });
     }
 
     vertices
@@ -38,7 +44,9 @@ fn create_star_vertices(count: usize) -> Vec<Vertex> {
 
     (0..count)
         .map(|_| rng.gen::<GeoPoint<f32>>())
-        .map(|star| Vertex { position: array3(star.to_point(1.0)) })
+        .map(|star| Vertex {
+            position: array3(star.to_point(1.0)),
+        })
         .collect()
 }
 
