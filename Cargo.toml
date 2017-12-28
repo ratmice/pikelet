@@ -6,6 +6,7 @@ publish = false
 
 [workspace]
 members = [
+    "experiments/village2",
     "lib/dggs",
     "lib/engine",
     "lib/geom",
