@@ -70,7 +70,7 @@ fn main() -> amethyst::Result<()> {
         .with_bundle(transform_bundle)?
         .with_bundle(render_bundle)?;
 
-    let mut game = Application::new("./", Example, game_data)?;
+    let mut game = Application::new(app_root, Example, game_data)?;
     game.run();
 
     Ok(())
