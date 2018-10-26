@@ -40,17 +40,68 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
             [0.2, 0.75, 0.93, 1.0].into(),
         );
 
+        let width: u32 = 10;
+        let depth: u32 = 10;
+        let main_color = [0.4, 0.4, 0.4, 1.0].into();
+
+        // Grid lines in X-axis
+        for x in 0..=width {
+            let (x, width, depth) = (x as f32, width as f32, depth as f32);
+
+            let position = Point3::new(x - width / 2.0, 0.0, -depth / 2.0);
+            let direction = Vector3::new(0.0, 0.0, depth);
+
+            debug_lines_component.add_direction(position, direction, main_color);
+
+            // Sub-grid lines
+            if x != width {
+                for sub_x in 1..10 {
+                    let sub_offset = Vector3::new((1.0 / 10.0) * sub_x as f32, -0.001, 0.0);
+
+                    debug_lines_component.add_direction(
+                        position + sub_offset,
+                        direction,
+                        [0.1, 0.1, 0.1, 0.1].into(),
+                    );
+                }
+            }
+        }
+
+        // Grid lines in Z-axis
+        for z in 0..=depth {
+            let (z, width, depth) = (z as f32, width as f32, depth as f32);
+
+            let position = Point3::new(-width / 2.0, 0.0, z - depth / 2.0);
+            let direction = Vector3::new(width, 0.0, 0.0);
+
+            debug_lines_component.add_direction(position, direction, main_color);
+
+            // Sub-grid lines
+            if z != depth {
+                for sub_z in 1..10 {
+                    let sub_offset = Vector3::new(0.0, -0.001, (1.0 / 10.0) * sub_z as f32);
+
+                    debug_lines_component.add_direction(
+                        position + sub_offset,
+                        direction,
+                        [0.1, 0.1, 0.1, 0.0].into(),
+                    );
+                }
+            }
+        }
+
         data.world.register::<DebugLinesComponent>();
         data.world.create_entity()
             .with(debug_lines_component)
             .build();
 
         // Setup camera
+        // TODO: need to use window dimensions for correct projection
         let mut local_xform = Transform::default();
         local_xform.set_position([0.0,0.5,2.0].into());
         data.world.create_entity()
             .with(FlyControlTag)
-            .with(Camera::from(Projection::perspective(1.333, Deg(90.0))))
+            .with(Camera::from(Projection::perspective(1.333, Deg(72.0))))
             .with(GlobalTransform::default())
             .with(local_xform)
             .build();
