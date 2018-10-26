@@ -1,33 +1,7 @@
 [package]
-authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>", "Chip Collier <photex@gmail.com>"]
 name = "voyager"
-version = "0.0.1"
-publish = false
-
-[workspace]
-members = [
-    "experiments/village2",
-    "lib/dggs",
-    "lib/engine",
-    "lib/geom",
-    "lib/geomath",
-    "lib/job_queue",
-]
+version = "0.2.0"
+authors = []
 
 [dependencies]
-cgmath = { version = "0.14.0", features = ["use_simd"] }
-find_folder = "0.3.0"
-fnv = "1.0"
-imgui = "0.0.15"
-notify = "4.0"
-num-traits = "0.1"
-rand = "^0.3.14"
-
-dggs = { path = "lib/dggs" }
-engine = { path = "lib/engine" }
-geom = { path = "lib/geom" }
-geomath = { path = "lib/geomath" }
-job_queue = { path = "lib/job_queue" }
-
-[dev-dependencies]
-expectest = "0.7.0"
+amethyst = "0.9.0"
