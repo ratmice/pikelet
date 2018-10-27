@@ -10,7 +10,6 @@ use amethyst::{
     input::{is_close_requested, is_key_down, InputBundle},
     prelude::*,
     renderer::*,
-    utils::application_root_dir,
 };
 
 struct BaseState;
@@ -129,9 +128,11 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
 }
 
 fn main() -> amethyst::Result<()> {
-    amethyst::start_logger(Default::default());
+    use amethyst::LoggerConfig;
 
-    let app_root = application_root_dir();
+    amethyst::start_logger(LoggerConfig::default());
+
+    let app_root = amethyst::utils::application_root_dir();
 
     let input_bundle = {
         let path = format!("{}/resources/input.ron", app_root);
