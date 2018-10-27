@@ -3,11 +3,11 @@ extern crate amethyst;
 use amethyst::{
     controls::{FlyControlBundle, FlyControlTag},
     core::{
-        transform::{GlobalTransform, Transform, TransformBundle},
         cgmath::{Deg, Point3, Vector3},
+        transform::{GlobalTransform, Transform, TransformBundle},
     },
     ecs::{Read, System, Write},
-    input::{InputBundle, is_close_requested, is_key_down},
+    input::{is_close_requested, is_key_down, InputBundle},
     prelude::*,
     renderer::*,
     utils::application_root_dir,
@@ -17,7 +17,8 @@ struct BaseState;
 
 impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
     fn on_start(&mut self, data: StateData<GameData>) {
-        data.world.add_resource(DebugLines::new().with_capacity(100));
+        data.world
+            .add_resource(DebugLines::new().with_capacity(100));
         data.world.add_resource(DebugLinesParams {
             line_width: 1.0 / 400.0,
         });
@@ -91,15 +92,17 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
         }
 
         data.world.register::<DebugLinesComponent>();
-        data.world.create_entity()
+        data.world
+            .create_entity()
             .with(debug_lines_component)
             .build();
 
         // Setup camera
         // TODO: need to use window dimensions for correct projection
         let mut local_xform = Transform::default();
-        local_xform.set_position([0.0,0.5,2.0].into());
-        data.world.create_entity()
+        local_xform.set_position([0.0, 0.5, 2.0].into());
+        data.world
+            .create_entity()
             .with(FlyControlTag)
             .with(Camera::from(Projection::perspective(1.333, Deg(72.0))))
             .with(GlobalTransform::default())
@@ -139,7 +142,8 @@ fn main() -> amethyst::Result<()> {
         Some(String::from("move_x")),
         Some(String::from("move_y")),
         Some(String::from("move_z")),
-    ).with_sensitivity(0.1, 0.1);
+    )
+    .with_sensitivity(0.1, 0.1);
 
     let transform_bundle = TransformBundle::new().with_dep(&["fly_movement"]);
 
