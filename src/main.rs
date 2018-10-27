@@ -14,6 +14,10 @@ use amethyst::{
 
 struct BaseState;
 
+const LINE_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
+const SUBLINE_COLOR: Rgba = Rgba(0.4, 0.4, 0.4, 1.0);
+const SKY_COLOR: Rgba = Rgba(0.4, 0.6, 0.6, 1.0);
+
 impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
     fn on_start(&mut self, data: StateData<GameData>) {
         data.world
@@ -42,7 +46,6 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
 
         let width: u32 = 10;
         let depth: u32 = 10;
-        let main_color = [0.4, 0.4, 0.4, 1.0].into();
 
         // Grid lines in X-axis
         for x in 0..=width {
@@ -51,17 +54,16 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
             let position = Point3::new(x - width / 2.0, 0.0, -depth / 2.0);
             let direction = Vector3::new(0.0, 0.0, depth);
 
-            debug_lines_component.add_direction(position, direction, main_color);
+            debug_lines_component.add_direction(position, direction, LINE_COLOR);
 
             // Sub-grid lines
             if x != width {
                 for sub_x in 1..10 {
                     let sub_offset = Vector3::new((1.0 / 10.0) * sub_x as f32, -0.001, 0.0);
-
                     debug_lines_component.add_direction(
                         position + sub_offset,
                         direction,
-                        [0.1, 0.1, 0.1, 0.1].into(),
+                        SUBLINE_COLOR,
                     );
                 }
             }
@@ -74,17 +76,16 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
             let position = Point3::new(-width / 2.0, 0.0, z - depth / 2.0);
             let direction = Vector3::new(width, 0.0, 0.0);
 
-            debug_lines_component.add_direction(position, direction, main_color);
+            debug_lines_component.add_direction(position, direction, LINE_COLOR);
 
             // Sub-grid lines
             if z != depth {
                 for sub_z in 1..10 {
                     let sub_offset = Vector3::new(0.0, -0.001, (1.0 / 10.0) * sub_z as f32);
-
                     debug_lines_component.add_direction(
                         position + sub_offset,
                         direction,
-                        [0.1, 0.1, 0.1, 0.0].into(),
+                        SUBLINE_COLOR,
                     );
                 }
             }
@@ -156,7 +157,7 @@ fn main() -> amethyst::Result<()> {
 
         let pipe = Pipeline::build().with_stage(
             Stage::with_backbuffer()
-                .clear_target([0.05, 0.05, 0.05, 1.0], 1.0)
+                .clear_target(SKY_COLOR, 1.0)
                 .with_pass(DrawFlat::<PosNormTex>::new())
                 .with_pass(DrawDebugLines::<PosColorNorm>::new()),
         );
