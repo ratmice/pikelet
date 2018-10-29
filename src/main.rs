@@ -1,4 +1,13 @@
 extern crate amethyst;
+#[macro_use]
+extern crate derivative;
+#[macro_use]
+extern crate log;
+extern crate gfx;
+extern crate glsl_layout;
+
+mod origin_grid;
+mod draw_origin_grid;
 
 use amethyst::{
     controls::{FlyControlBundle, FlyControlTag},
@@ -12,6 +21,9 @@ use amethyst::{
     renderer::*,
 };
 
+use origin_grid::*;
+use draw_origin_grid::{DrawGridLines, GridLinesParams};
+
 struct BaseState;
 
 const LINE_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
@@ -21,13 +33,13 @@ const SKY_COLOR: Rgba = Rgba(0.4, 0.6, 0.6, 1.0);
 impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
     fn on_start(&mut self, data: StateData<GameData>) {
         data.world
-            .add_resource(DebugLines::new().with_capacity(100));
-        data.world.add_resource(DebugLinesParams {
+            .add_resource(GridLines::new().with_capacity(100));
+        data.world.add_resource(GridLinesParams {
             line_width: 1.0 / 400.0,
         });
 
         // Setup debug lines as a component and add lines to render axis&grid
-        let mut debug_lines_component = DebugLinesComponent::new().with_capacity(100);
+        let mut debug_lines_component = GridLinesComponent::new().with_capacity(100);
         debug_lines_component.add_direction(
             [0.0, 0.0001, 0.0].into(),
             [0.2, 0.0, 0.0].into(),
@@ -91,7 +103,7 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
             }
         }
 
-        data.world.register::<DebugLinesComponent>();
+        data.world.register::<GridLinesComponent>();
         data.world
             .create_entity()
             .with(debug_lines_component)
@@ -144,8 +156,7 @@ fn main() -> amethyst::Result<()> {
         Some(String::from("move_x")),
         Some(String::from("move_y")),
         Some(String::from("move_z")),
-    )
-    .with_sensitivity(0.1, 0.1);
+    ).with_sensitivity(0.1, 0.1);
 
     let transform_bundle = TransformBundle::new().with_dep(&["fly_movement"]);
 
@@ -158,8 +169,8 @@ fn main() -> amethyst::Result<()> {
         let pipe = Pipeline::build().with_stage(
             Stage::with_backbuffer()
                 .clear_target(SKY_COLOR, 1.0)
-                .with_pass(DrawFlat::<PosNormTex>::new())
-                .with_pass(DrawDebugLines::<PosColorNorm>::new()),
+                //.with_pass(DrawFlat::<PosNormTex>::new())
+                .with_pass(DrawGridLines::<PosColorNorm>::new()),
         );
 
         RenderBundle::new(pipe, Some(display_config))
