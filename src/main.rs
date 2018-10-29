@@ -6,8 +6,7 @@ extern crate log;
 extern crate gfx;
 extern crate glsl_layout;
 
-mod origin_grid;
-mod draw_origin_grid;
+mod tools;
 
 use amethyst::{
     controls::{FlyControlBundle, FlyControlTag},
@@ -21,8 +20,8 @@ use amethyst::{
     renderer::*,
 };
 
-use origin_grid::*;
-use draw_origin_grid::{DrawGridLines, GridLinesParams};
+use tools::component::grid::*;
+use tools::pass::grid::{DrawGridLines, GridLinesParams};
 
 struct BaseState;
 

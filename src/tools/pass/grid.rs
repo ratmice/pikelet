@@ -17,16 +17,16 @@ use amethyst::{
         Normal, Position, Query, Attributes,
     },
 };
-use origin_grid::{GridLine, GridLines, GridLinesComponent};
+use tools::component::grid::{GridLine, GridLines, GridLinesComponent};
 use gfx::pso::buffer::ElemStride;
 use gfx::Primitive;
 use glsl_layout::{Uniform, mat4};
 use std::marker::PhantomData;
 
 
-static VERT_SRC: &[u8] = include_bytes!("shaders/vertex/origin_grid.glsl");
-static GEOM_SRC: &[u8] = include_bytes!("shaders/geometry/origin_grid.glsl");
-static FRAG_SRC: &[u8] = include_bytes!("shaders/fragment/origin_grid.glsl");
+static VERT_SRC: &[u8] = include_bytes!("../../shaders/vertex/origin_grid.glsl");
+static GEOM_SRC: &[u8] = include_bytes!("../../shaders/geometry/origin_grid.glsl");
+static FRAG_SRC: &[u8] = include_bytes!("../../shaders/fragment/origin_grid.glsl");
 
 fn set_attribute_buffers(
     effect: &mut Effect,
