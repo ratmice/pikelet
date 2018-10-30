@@ -2,8 +2,8 @@
 
 use amethyst::{
     core::{
-        cgmath::{Matrix4, One},
-        specs::{Join, Read, ReadStorage, Write, WriteStorage},
+        cgmath::{Matrix4, One, Point3, Vector3},
+        specs::{Read, ReadStorage},
         transform::GlobalTransform,
     },
     renderer::{
@@ -14,15 +14,17 @@ use amethyst::{
             DepthMode, Effect, NewEffect,
         },
         set_vertex_args, ActiveCamera, Camera, Color, Encoder, Factory, Mesh,
-        Normal, Position, Query, Attributes,
+        Normal, Position, Query, Attributes, Rgba, PosColorNorm
     },
 };
-use tools::component::grid::{GridLine, GridLines, GridLinesComponent};
 use gfx::pso::buffer::ElemStride;
 use gfx::Primitive;
 use glsl_layout::{Uniform, mat4};
 use std::marker::PhantomData;
 
+
+const LINE_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
+const SUBLINE_COLOR: Rgba = Rgba(0.4, 0.4, 0.4, 1.0);
 
 static VERT_SRC: &[u8] = include_bytes!("../../shaders/vertex/origin_grid.glsl");
 static GEOM_SRC: &[u8] = include_bytes!("../../shaders/geometry/origin_grid.glsl");
@@ -48,6 +50,18 @@ fn set_attribute_buffers(
     true
 }
 
+fn new_direction(
+    position: Point3<f32>,
+    direction: Vector3<f32>,
+    color: Rgba
+) -> GridLine {
+    GridLine {
+        position: position.into(),
+        color: color.into(),
+        normal: direction.into(),
+    }
+}
+
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, Uniform)]
 pub(crate) struct VertexArgs {
@@ -55,6 +69,12 @@ pub(crate) struct VertexArgs {
     view: mat4,
     model: mat4,
 }
+
+/// Grid lines are stored as a position, a direction and a color.
+///
+/// Storing a direction instead of an end position may not be intuitive,
+/// but is similar to other 'VertexFormat's.
+pub type GridLine = PosColorNorm;
 
 /// Parameters for renderer of debug lines. The params affect all lines.
 pub struct GridLinesParams {
@@ -78,10 +98,11 @@ impl Default for GridLinesParams {
 /// # Type Parameters:
 ///
 /// * `V`: `VertexFormat`
-#[derive(Derivative, Clone, Debug, PartialEq)]
+#[derive(Derivative, Clone, Debug)]
 #[derivative(Default(bound = "V: Query<(Position, Color, Normal)>"))]
 pub struct DrawGridLines<V> {
     _pd: PhantomData<V>,
+    mesh: Option<Mesh>,
 }
 
 impl<V> DrawGridLines<V>
@@ -90,7 +111,10 @@ impl<V> DrawGridLines<V>
 {
     /// Create instance of `DrawGridLines` pass
     pub fn new() -> Self {
-        Default::default()
+        DrawGridLines {
+            mesh: None,
+            .. Default::default()
+        }
     }
 }
 
@@ -102,8 +126,8 @@ impl<'a, V> PassData<'a> for DrawGridLines<V>
         Option<Read<'a, ActiveCamera>>,
         ReadStorage<'a, Camera>,
         ReadStorage<'a, GlobalTransform>,
-        WriteStorage<'a, GridLinesComponent>, // GridLines components
-        Option<Write<'a, GridLines>>,         // GridLines resource
+        //WriteStorage<'a, GridLinesComponent>, // GridLines components
+        //Option<Write<'a, GridLines>>,         // GridLines resource
         Read<'a, GridLinesParams>,
     );
 }
@@ -112,7 +136,74 @@ impl<V> Pass for DrawGridLines<V>
     where
         V: Query<(Position, Color, Normal)>,
 {
-    fn compile(&mut self, effect: NewEffect) -> Result<Effect> {
+    fn compile(&mut self, mut effect: NewEffect) -> Result<Effect> {
+        debug!("Building origin grid mesh");
+        let mut lines: Vec<GridLine> = Vec::with_capacity(100);
+        lines.push(new_direction(
+            [0.0, 0.0001, 0.0].into(),
+            [0.2, 0.0, 0.0].into(),
+            [1.0, 0.0, 0.23, 1.0].into(),
+        ));
+        lines.push(new_direction(
+            [0.0, 0.0, 0.0].into(),
+            [0.0, 0.2, 0.0].into(),
+            [0.5, 0.85, 0.1, 1.0].into(),
+        ));
+        lines.push(new_direction(
+            [0.0, 0.0001, 0.0].into(),
+            [0.0, 0.0, 0.2].into(),
+            [0.2, 0.75, 0.93, 1.0].into(),
+        ));
+
+        let width: u32 = 10;
+        let depth: u32 = 10;
+
+        // Grid lines in X-axis
+        for x in 0..=width {
+            let (x, width, depth) = (x as f32, width as f32, depth as f32);
+
+            let position = Point3::new(x - width / 2.0, 0.0, -depth / 2.0);
+            let direction = Vector3::new(0.0, 0.0, depth);
+
+            lines.push(new_direction(position, direction, LINE_COLOR));
+
+            // Sub-grid lines
+            if x != width {
+                for sub_x in 1..10 {
+                    let sub_offset = Vector3::new((1.0 / 10.0) * sub_x as f32, -0.001, 0.0);
+                    lines.push(new_direction(
+                        position + sub_offset,
+                        direction,
+                        SUBLINE_COLOR,
+                    ));
+                }
+            }
+        }
+
+        // Grid lines in Z-axis
+        for z in 0..=depth {
+            let (z, width, depth) = (z as f32, width as f32, depth as f32);
+
+            let position = Point3::new(-width / 2.0, 0.0, z - depth / 2.0);
+            let direction = Vector3::new(width, 0.0, 0.0);
+
+            lines.push(new_direction(position, direction, LINE_COLOR));
+
+            // Sub-grid lines
+            if z != depth {
+                for sub_z in 1..10 {
+                    let sub_offset = Vector3::new(0.0, -0.001, (1.0 / 10.0) * sub_z as f32);
+                    lines.push(new_direction(
+                        position + sub_offset,
+                        direction,
+                        SUBLINE_COLOR,
+                    ));
+                }
+            }
+        }
+
+        self.mesh = Some(Mesh::build(lines).build(&mut effect.factory)?);
+
         debug!("Building debug lines pass");
         let mut builder = effect.geom(VERT_SRC, GEOM_SRC, FRAG_SRC);
 
@@ -136,28 +227,10 @@ impl<V> Pass for DrawGridLines<V>
         &'a mut self,
         encoder: &mut Encoder,
         effect: &mut Effect,
-        mut factory: Factory,
-        (active, camera, global, lines_components, lines_resource, lines_params): <Self as PassData<'a>>::Data,
+        mut _factory: Factory,
+        (active, camera, global, lines_params): <Self as PassData<'a>>::Data,
     ){
-        trace!("Drawing debug lines pass");
-        let debug_lines = {
-            let mut lines = Vec::<GridLine>::new();
-
-            for debug_lines_component in (&lines_components).join() {
-                lines.extend(&debug_lines_component.lines);
-            }
-
-            if let Some(mut lines_resource) = lines_resource {
-                lines.append(&mut lines_resource.lines);
-            };
-
-            lines
-        };
-
-        if debug_lines.len() == 0 {
-            effect.clear();
-            return;
-        }
+        trace!("Drawing origin grid pass");
 
         let camera = get_camera(active, &camera, &global);
         effect.update_global(
@@ -170,9 +243,8 @@ impl<V> Pass for DrawGridLines<V>
 
         effect.update_global("line_width", lines_params.line_width);
 
-        let mesh = Mesh::build(debug_lines)
-            .build(&mut factory)
-            .expect("Failed to create debug lines mesh");
+        let mesh = self.mesh.as_ref()
+            .expect("Failed to get origin mesh reference.");
 
         if !set_attribute_buffers(effect, &mesh, &[V::QUERIED_ATTRIBUTES]) {
             effect.clear();
