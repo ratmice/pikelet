@@ -96,7 +96,7 @@ impl Default for GridLinesParams {
 #[derive(Derivative, Clone, Debug)]
 #[derivative(Default(bound = "V: Query<(Position, Color, Normal)>"))]
 pub struct DrawGridLines<V> {
-    _pd: PhantomData<V>,
+    _marker: PhantomData<V>,
     mesh: Option<Mesh>,
 }
 
@@ -108,7 +108,7 @@ where
     pub fn new() -> Self {
         DrawGridLines {
             mesh: None,
-            ..Default::default()
+            ..DrawGridLines::default()
         }
     }
 }
