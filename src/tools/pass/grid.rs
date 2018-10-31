@@ -13,15 +13,14 @@ use amethyst::{
             pass::{Pass, PassData},
             DepthMode, Effect, NewEffect,
         },
-        set_vertex_args, ActiveCamera, Camera, Color, Encoder, Factory, Mesh,
-        Normal, Position, Query, Attributes, Rgba, PosColorNorm
+        set_vertex_args, ActiveCamera, Attributes, Camera, Color, Encoder, Factory, Mesh, Normal,
+        PosColorNorm, Position, Query, Rgba,
     },
 };
 use gfx::pso::buffer::ElemStride;
 use gfx::Primitive;
-use glsl_layout::{Uniform, mat4};
+use glsl_layout::{mat4, Uniform};
 use std::marker::PhantomData;
-
 
 const LINE_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
 const SUBLINE_COLOR: Rgba = Rgba(0.4, 0.4, 0.4, 1.0);
@@ -44,17 +43,13 @@ fn set_attribute_buffers(
                     attr
                 );
                 return false;
-            }
+            },
         }
     }
     true
 }
 
-fn new_direction(
-    position: Point3<f32>,
-    direction: Vector3<f32>,
-    color: Rgba
-) -> GridLine {
+fn new_direction(position: Point3<f32>, direction: Vector3<f32>, color: Rgba) -> GridLine {
     GridLine {
         position: position.into(),
         color: color.into(),
@@ -106,21 +101,21 @@ pub struct DrawGridLines<V> {
 }
 
 impl<V> DrawGridLines<V>
-    where
-        V: Query<(Position, Color, Normal)>,
+where
+    V: Query<(Position, Color, Normal)>,
 {
     /// Create instance of `DrawGridLines` pass
     pub fn new() -> Self {
         DrawGridLines {
             mesh: None,
-            .. Default::default()
+            ..Default::default()
         }
     }
 }
 
 impl<'a, V> PassData<'a> for DrawGridLines<V>
-    where
-        V: Query<(Position, Color, Normal)>,
+where
+    V: Query<(Position, Color, Normal)>,
 {
     type Data = (
         Option<Read<'a, ActiveCamera>>,
@@ -133,8 +128,8 @@ impl<'a, V> PassData<'a> for DrawGridLines<V>
 }
 
 impl<V> Pass for DrawGridLines<V>
-    where
-        V: Query<(Position, Color, Normal)>,
+where
+    V: Query<(Position, Color, Normal)>,
 {
     fn compile(&mut self, mut effect: NewEffect) -> Result<Effect> {
         debug!("Building origin grid mesh");
@@ -213,7 +208,7 @@ impl<V> Pass for DrawGridLines<V>
         builder.with_raw_constant_buffer(
             "VertexArgs",
             std::mem::size_of::<<VertexArgs as Uniform>::Std140>(),
-            1
+            1,
         );
         builder.with_raw_global("camera_position");
         builder.with_raw_global("line_width");
@@ -229,7 +224,7 @@ impl<V> Pass for DrawGridLines<V>
         effect: &mut Effect,
         mut _factory: Factory,
         (active, camera, global, lines_params): <Self as PassData<'a>>::Data,
-    ){
+    ) {
         trace!("Drawing origin grid pass");
 
         let camera = get_camera(active, &camera, &global);
@@ -243,7 +238,9 @@ impl<V> Pass for DrawGridLines<V>
 
         effect.update_global("line_width", lines_params.line_width);
 
-        let mesh = self.mesh.as_ref()
+        let mesh = self
+            .mesh
+            .as_ref()
             .expect("Failed to get origin mesh reference.");
 
         if !set_attribute_buffers(effect, &mesh, &[V::QUERIED_ATTRIBUTES]) {

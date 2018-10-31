@@ -23,7 +23,6 @@ use tools::pass::grid::DrawGridLines;
 
 struct BaseState;
 
-
 const SKY_COLOR: Rgba = Rgba(0.4, 0.6, 0.6, 1.0);
 
 impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
@@ -74,7 +73,8 @@ fn main() -> amethyst::Result<()> {
         Some(String::from("move_x")),
         Some(String::from("move_y")),
         Some(String::from("move_z")),
-    ).with_sensitivity(0.1, 0.1);
+    )
+    .with_sensitivity(0.1, 0.1);
 
     let transform_bundle = TransformBundle::new().with_dep(&["fly_movement"]);
 
