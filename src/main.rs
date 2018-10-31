@@ -69,7 +69,6 @@ fn main() -> amethyst::Result<()> {
 
     let first_person_control_bundle = FirstPersonControlBundle::<String, String>::new(
         Some("move_x".to_owned()),
-        Some("move_y".to_owned()),
         Some("move_z".to_owned()),
     )
     .with_sensitivity(0.1, 0.1)

@@ -17,24 +17,18 @@ pub struct FirstPersonControlBundle<A, B> {
     sensitivity_y: f32,
     speed: f32,
     right_input_axis: Option<A>,
-    up_input_axis: Option<A>,
     forward_input_axis: Option<A>,
     _marker: PhantomData<B>,
 }
 
 impl<A, B> FirstPersonControlBundle<A, B> {
     /// Builds a new first person control bundle using the provided axes as controls.
-    pub fn new(
-        right_input_axis: Option<A>,
-        up_input_axis: Option<A>,
-        forward_input_axis: Option<A>,
-    ) -> Self {
+    pub fn new(right_input_axis: Option<A>, forward_input_axis: Option<A>) -> Self {
         FirstPersonControlBundle {
             sensitivity_x: 1.0,
             sensitivity_y: 1.0,
             speed: 1.0,
             right_input_axis,
-            up_input_axis,
             forward_input_axis,
             _marker: PhantomData,
         }
@@ -63,7 +57,6 @@ where
         let first_person_movement = FirstPersonMovementSystem::<A, B>::new(
             self.speed,
             self.right_input_axis,
-            self.up_input_axis,
             self.forward_input_axis,
         );
         let free_rotation = FreeRotationSystem::<A, B>::new(self.sensitivity_x, self.sensitivity_y);
@@ -86,8 +79,6 @@ pub struct FirstPersonMovementSystem<A, B> {
     speed: f32,
     /// The name of the input axis to locally move in the x coordinates.
     right_input_axis: Option<A>,
-    /// The name of the input axis to locally move in the y coordinates.
-    up_input_axis: Option<A>,
     /// The name of the input axis to locally move in the z coordinates.
     forward_input_axis: Option<A>,
     _marker: PhantomData<B>,
@@ -99,16 +90,10 @@ where
     B: Send + Sync + Hash + Eq + Clone + 'static,
 {
     /// Builds a new `FirstPersonMovementSystem` using the provided speeds and axis controls.
-    pub fn new(
-        speed: f32,
-        right_input_axis: Option<A>,
-        up_input_axis: Option<A>,
-        forward_input_axis: Option<A>,
-    ) -> Self {
+    pub fn new(speed: f32, right_input_axis: Option<A>, forward_input_axis: Option<A>) -> Self {
         FirstPersonMovementSystem {
             speed,
             right_input_axis,
-            up_input_axis,
             forward_input_axis,
             _marker: PhantomData,
         }
@@ -133,10 +118,9 @@ where
         use amethyst::input;
 
         let x = input::get_input_axis_simple(&self.right_input_axis, &input);
-        let y = input::get_input_axis_simple(&self.up_input_axis, &input);
         let z = input::get_input_axis_simple(&self.forward_input_axis, &input);
 
-        let dir = Vector3::new(x, y, z);
+        let dir = Vector3::new(x, 0.0, z);
 
         for (transform, _) in (&mut transform, &tag).join() {
             transform.move_along_local(dir, time.delta_seconds() * self.speed);
