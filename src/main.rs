@@ -6,19 +6,17 @@ extern crate log;
 extern crate gfx;
 extern crate glsl_layout;
 
+mod controls;
 mod tools;
 
-use amethyst::{
-    controls::{FlyControlBundle, FlyControlTag},
-    core::{
-        cgmath::Deg,
-        transform::{GlobalTransform, Transform, TransformBundle},
-    },
-    input::{is_close_requested, is_key_down, InputBundle},
-    prelude::*,
-    renderer::*,
-};
+use amethyst::controls::FlyControlTag;
+use amethyst::core::cgmath::Deg;
+use amethyst::core::transform::{GlobalTransform, Transform, TransformBundle};
+use amethyst::input::{is_close_requested, is_key_down, InputBundle};
+use amethyst::prelude::*;
+use amethyst::renderer::*;
 
+use controls::FirstPersonControlBundle;
 use tools::pass::grid::DrawGridLines;
 
 struct BaseState;
@@ -69,14 +67,16 @@ fn main() -> amethyst::Result<()> {
         InputBundle::<String, String>::new().with_bindings_from_file(path)?
     };
 
-    let fly_control_bundle = FlyControlBundle::<String, String>::new(
-        Some(String::from("move_x")),
-        Some(String::from("move_y")),
-        Some(String::from("move_z")),
+    let first_person_control_bundle = FirstPersonControlBundle::<String, String>::new(
+        Some("move_x".to_owned()),
+        Some("move_z".to_owned()),
     )
-    .with_sensitivity(0.1, 0.1);
+    .with_sensitivity(0.1, 0.1)
+    .with_speed(1.0)
+    .with_eye_height(1.0);
 
-    let transform_bundle = TransformBundle::new().with_dep(&["fly_movement"]);
+    let transform_bundle =
+        TransformBundle::new().with_dep(&["first_person_movement", "free_rotation"]);
 
     let render_bundle = {
         let display_config = {
@@ -96,7 +96,7 @@ fn main() -> amethyst::Result<()> {
 
     let game_data = GameDataBuilder::default()
         .with_bundle(input_bundle)?
-        .with_bundle(fly_control_bundle)?
+        .with_bundle(first_person_control_bundle)?
         .with_bundle(transform_bundle)?
         .with_bundle(render_bundle)?;
 
