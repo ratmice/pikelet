@@ -23,7 +23,7 @@ use tools::pass::grid::DrawGridLines;
 
 struct BaseState;
 
-const SKY_COLOR: Rgba = Rgba(0.4, 0.6, 0.6, 1.0);
+const CLEAR_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
 
 impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
     fn on_start(&mut self, data: StateData<GameData>) {
@@ -88,7 +88,7 @@ fn main() -> amethyst::Result<()> {
 
         let pipe = Pipeline::build().with_stage(
             Stage::with_backbuffer()
-                .clear_target(SKY_COLOR, 1.0)
+                .clear_target(CLEAR_COLOR, 1.0)
                 .with_pass(DrawSky::<PosNormTex>::new())
                 //.with_pass(DrawFlat::<PosNormTex>::new())
                 .with_pass(DrawGridLines::<PosColorNorm>::new()),

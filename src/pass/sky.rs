@@ -2,7 +2,7 @@
 
 use amethyst::{
     core::{
-        cgmath::{Matrix4, One, Point3, Vector3},
+        cgmath::{Matrix4, One},
         specs::{Read, ReadStorage},
         transform::GlobalTransform,
     },
@@ -13,13 +13,12 @@ use amethyst::{
             pass::{Pass, PassData},
             DepthMode, Effect, NewEffect,
         },
-        set_vertex_args, ActiveCamera, Camera, Color, Encoder, Factory, Mesh,
-        Normal, Position, TexCoord, Query, Attributes, Rgba, PosNormTex, Shape,
+        set_vertex_args, ActiveCamera, Camera, Encoder, Factory, Mesh,
+        Normal, Position, TexCoord, Query, Attributes, PosNormTex, Shape,
         VertexFormat
     },
 };
 use gfx::pso::buffer::ElemStride;
-use gfx::Primitive;
 use glsl_layout::{Uniform, mat4};
 use std::marker::PhantomData;
 
