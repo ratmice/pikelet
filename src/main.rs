@@ -72,7 +72,8 @@ fn main() -> amethyst::Result<()> {
         Some("move_z".to_owned()),
     )
     .with_sensitivity(0.1, 0.1)
-    .with_speed(1.0);
+    .with_speed(1.0)
+    .with_eye_height(1.0);
 
     let transform_bundle =
         TransformBundle::new().with_dep(&["first_person_movement", "free_rotation"]);

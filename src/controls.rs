@@ -16,6 +16,7 @@ pub struct FirstPersonControlBundle<A, B> {
     sensitivity_x: f32,
     sensitivity_y: f32,
     speed: f32,
+    eye_height: f32,
     right_input_axis: Option<A>,
     forward_input_axis: Option<A>,
     _marker: PhantomData<B>,
@@ -28,6 +29,7 @@ impl<A, B> FirstPersonControlBundle<A, B> {
             sensitivity_x: 1.0,
             sensitivity_y: 1.0,
             speed: 1.0,
+            eye_height: 1.0,
             right_input_axis,
             forward_input_axis,
             _marker: PhantomData,
@@ -46,6 +48,12 @@ impl<A, B> FirstPersonControlBundle<A, B> {
         self.speed = speed;
         self
     }
+
+    /// Alters the eye height on this `FirstPersonControlBundle`.
+    pub fn with_eye_height(mut self, eye_height: f32) -> Self {
+        self.eye_height = eye_height;
+        self
+    }
 }
 
 impl<'a, 'b, A, B> SystemBundle<'a, 'b> for FirstPersonControlBundle<A, B>
@@ -56,6 +64,7 @@ where
     fn build(self, builder: &mut DispatcherBuilder<'a, 'b>) -> bundle::Result<()> {
         let first_person_movement = FirstPersonMovementSystem::<A, B>::new(
             self.speed,
+            self.eye_height,
             self.right_input_axis,
             self.forward_input_axis,
         );
@@ -77,6 +86,7 @@ where
 pub struct FirstPersonMovementSystem<A, B> {
     /// The movement speed of the movement in units per second.
     speed: f32,
+    eye_height: f32,
     /// The name of the input axis to locally move in the x coordinates.
     right_input_axis: Option<A>,
     /// The name of the input axis to locally move in the z coordinates.
@@ -90,9 +100,15 @@ where
     B: Send + Sync + Hash + Eq + Clone + 'static,
 {
     /// Builds a new `FirstPersonMovementSystem` using the provided speeds and axis controls.
-    pub fn new(speed: f32, right_input_axis: Option<A>, forward_input_axis: Option<A>) -> Self {
+    pub fn new(
+        speed: f32,
+        eye_height: f32,
+        right_input_axis: Option<A>,
+        forward_input_axis: Option<A>,
+    ) -> Self {
         FirstPersonMovementSystem {
             speed,
+            eye_height,
             right_input_axis,
             forward_input_axis,
             _marker: PhantomData,
@@ -124,6 +140,9 @@ where
 
         for (transform, _) in (&mut transform, &tag).join() {
             transform.move_along_local(dir, time.delta_seconds() * self.speed);
+            // Set the camera position to the eye height. This will change once
+            // we add terrain, or add some sort of physics to the character.
+            transform.translation.y = self.eye_height;
         }
     }
 }
