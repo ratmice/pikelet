@@ -27,14 +27,18 @@ const CLEAR_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
 
 impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
     fn on_start(&mut self, data: StateData<GameData>) {
+        let (width, height) = {
+            let dim = data.world.read_resource::<ScreenDimensions>();
+            (dim.width(), dim.height())
+        };
+
         // Setup camera
-        // TODO: need to use window dimensions for correct projection
         let mut local_xform = Transform::default();
         local_xform.set_position([0.0, 0.0, 20.0].into());
         data.world
             .create_entity()
             .with(FlyControlTag)
-            .with(Camera::from(Projection::perspective(1.333, Deg(72.0))))
+            .with(Camera::from(Projection::perspective(width / height, Deg(72.0))))
             .with(GlobalTransform::default())
             .with(local_xform)
             .build();
