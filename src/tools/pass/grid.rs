@@ -22,8 +22,8 @@ use gfx::Primitive;
 use glsl_layout::{mat4, Uniform};
 use std::marker::PhantomData;
 
-const LINE_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
-const SUBLINE_COLOR: Rgba = Rgba(0.4, 0.4, 0.4, 1.0);
+const LINE_COLOR: Rgba = Rgba(0.1, 0.1, 0.1, 1.0);
+const SUBLINE_COLOR: Rgba = Rgba(0.3, 0.3, 0.3, 1.0);
 
 static VERT_SRC: &[u8] = include_bytes!("../../shaders/vertex/origin_grid.glsl");
 static GEOM_SRC: &[u8] = include_bytes!("../../shaders/geometry/origin_grid.glsl");
@@ -80,7 +80,7 @@ pub struct GridLinesParams {
 impl Default for GridLinesParams {
     fn default() -> Self {
         GridLinesParams {
-            line_width: 1.0 / 400.0,
+            line_width: 1.0 / 15.0,
         }
     }
 }
@@ -127,29 +127,32 @@ where
     V: Query<(Position, Color, Normal)>,
 {
     fn compile(&mut self, mut effect: NewEffect) -> Result<Effect> {
+        let axis_line_length = 2.0;
+
         debug!("Building origin grid mesh");
         let mut lines: Vec<GridLine> = Vec::with_capacity(100);
         lines.push(new_direction(
             [0.0, 0.0001, 0.0].into(),
-            [0.2, 0.0, 0.0].into(),
+            [axis_line_length, 0.0, 0.0].into(),
             [1.0, 0.0, 0.23, 1.0].into(),
         ));
         lines.push(new_direction(
             [0.0, 0.0, 0.0].into(),
-            [0.0, 0.2, 0.0].into(),
+            [0.0, axis_line_length, 0.0].into(),
             [0.5, 0.85, 0.1, 1.0].into(),
         ));
         lines.push(new_direction(
             [0.0, 0.0001, 0.0].into(),
-            [0.0, 0.0, 0.2].into(),
+            [0.0, 0.0, axis_line_length].into(),
             [0.2, 0.75, 0.93, 1.0].into(),
         ));
 
-        let width: u32 = 10;
-        let depth: u32 = 10;
+        let width: u32 = 100;
+        let depth: u32 = 100;
+        let subline_count: u32 = 5;
 
         // Grid lines in X-axis
-        for x in 0..=width {
+        for x in (0..=width).step_by(subline_count as usize) {
             let (x, width, depth) = (x as f32, width as f32, depth as f32);
 
             let position = Point3::new(x - width / 2.0, 0.0, -depth / 2.0);
@@ -159,8 +162,9 @@ where
 
             // Sub-grid lines
             if x != width {
-                for sub_x in 1..10 {
-                    let sub_offset = Vector3::new((1.0 / 10.0) * sub_x as f32, -0.001, 0.0);
+                for sub_x in 1..subline_count {
+                    //let sub_offset = Vector3::new((1.0 / 10.0) * sub_x as f32, -0.001, 0.0);
+                    let sub_offset = Vector3::new(sub_x as f32, -0.001, 0.0);
                     lines.push(new_direction(
                         position + sub_offset,
                         direction,
@@ -171,7 +175,7 @@ where
         }
 
         // Grid lines in Z-axis
-        for z in 0..=depth {
+        for z in (0..=depth).step_by(subline_count as usize) {
             let (z, width, depth) = (z as f32, width as f32, depth as f32);
 
             let position = Point3::new(-width / 2.0, 0.0, z - depth / 2.0);
@@ -181,8 +185,9 @@ where
 
             // Sub-grid lines
             if z != depth {
-                for sub_z in 1..10 {
-                    let sub_offset = Vector3::new(0.0, -0.001, (1.0 / 10.0) * sub_z as f32);
+                for sub_z in 1..subline_count {
+                    //let sub_offset = Vector3::new(0.0, -0.001, (1.0 / 10.0) * sub_z as f32);
+                    let sub_offset = Vector3::new(0.0, -0.001, sub_z as f32);
                     lines.push(new_direction(
                         position + sub_offset,
                         direction,

@@ -30,7 +30,7 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
         // Setup camera
         // TODO: need to use window dimensions for correct projection
         let mut local_xform = Transform::default();
-        local_xform.set_position([0.0, 0.5, 2.0].into());
+        local_xform.set_position([0.0, 0.0, 20.0].into());
         data.world
             .create_entity()
             .with(FlyControlTag)
@@ -73,9 +73,9 @@ fn main() -> amethyst::Result<()> {
         Some("move_x".to_owned()),
         Some("move_z".to_owned()),
     )
-    .with_sensitivity(0.1, 0.1)
-    .with_speed(1.0)
-    .with_eye_height(1.0);
+    .with_sensitivity(0.15, 0.15)
+    .with_speed(13.8) // average walking speed of a human at 13.8 dm / sec
+    .with_eye_height(10.0);
 
     let transform_bundle =
         TransformBundle::new().with_dep(&["first_person_movement", "free_rotation"]);
@@ -90,8 +90,8 @@ fn main() -> amethyst::Result<()> {
             Stage::with_backbuffer()
                 .clear_target(CLEAR_COLOR, 1.0)
                 .with_pass(DrawSky::<PosNormTex>::new())
-                //.with_pass(DrawFlat::<PosNormTex>::new())
-                .with_pass(DrawGridLines::<PosColorNorm>::new()),
+                .with_pass(DrawGridLines::<PosColorNorm>::new())
+                .with_pass(DrawFlat::<PosNormTex>::new()),
         );
 
         RenderBundle::new(pipe, Some(display_config))
