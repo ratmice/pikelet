@@ -6,6 +6,7 @@ extern crate log;
 extern crate gfx;
 extern crate glsl_layout;
 
+mod pass;
 mod tools;
 
 use amethyst::{
@@ -19,6 +20,7 @@ use amethyst::{
     renderer::*,
 };
 
+use pass::sky::DrawSky;
 use tools::pass::grid::DrawGridLines;
 
 struct BaseState;
@@ -87,6 +89,7 @@ fn main() -> amethyst::Result<()> {
         let pipe = Pipeline::build().with_stage(
             Stage::with_backbuffer()
                 .clear_target(SKY_COLOR, 1.0)
+                .with_pass(DrawSky::<PosNormTex>::new())
                 //.with_pass(DrawFlat::<PosNormTex>::new())
                 .with_pass(DrawGridLines::<PosColorNorm>::new()),
         );

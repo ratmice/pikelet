@@ -90,10 +90,7 @@ impl Default for GridLinesParams {
     }
 }
 
-/// Draw several simple lines for debugging
-///
-/// See the [crate level documentation](index.html) for information about interleaved and separate
-/// passes.
+/// Draw a simple origin grid to aid in view orientation
 ///
 /// # Type Parameters:
 ///
@@ -126,8 +123,6 @@ impl<'a, V> PassData<'a> for DrawGridLines<V>
         Option<Read<'a, ActiveCamera>>,
         ReadStorage<'a, Camera>,
         ReadStorage<'a, GlobalTransform>,
-        //WriteStorage<'a, GridLinesComponent>, // GridLines components
-        //Option<Write<'a, GridLines>>,         // GridLines resource
         Read<'a, GridLinesParams>,
     );
 }
