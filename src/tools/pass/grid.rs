@@ -22,8 +22,9 @@ use gfx::Primitive;
 use glsl_layout::{mat4, Uniform};
 use std::marker::PhantomData;
 
-const LINE_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
-const SUBLINE_COLOR: Rgba = Rgba(0.4, 0.4, 0.4, 1.0);
+const LINE_COLOR: Rgba = Rgba(1.0, 1.0, 1.0, 1.0);
+// TODO: would be nice if these lines were drawn thinner!
+const SUBLINE_COLOR: Rgba = Rgba(1.0, 1.0, 1.0, 1.0);
 
 static VERT_SRC: &[u8] = include_bytes!("../../shaders/vertex/origin_grid.glsl");
 static GEOM_SRC: &[u8] = include_bytes!("../../shaders/geometry/origin_grid.glsl");
