@@ -16,6 +16,7 @@ use amethyst::core::transform::{GlobalTransform, Transform, TransformBundle};
 use amethyst::input::{is_close_requested, is_key_down, InputBundle};
 use amethyst::prelude::*;
 use amethyst::renderer::*;
+use amethyst::assets::Loader;
 
 use controls::FirstPersonControlBundle;
 use pass::sky::DrawSky;
@@ -27,20 +28,55 @@ const CLEAR_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
 
 impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
     fn on_start(&mut self, data: StateData<GameData>) {
+        let StateData { world, .. } = data;
+
         let (width, height) = {
-            let dim = data.world.read_resource::<ScreenDimensions>();
+            let dim = world.read_resource::<ScreenDimensions>();
             (dim.width(), dim.height())
         };
 
         // Setup camera
-        let mut local_xform = Transform::default();
-        local_xform.set_position([0.0, 0.0, 20.0].into());
-        data.world
+        let mut cam_xform = Transform::default();
+        cam_xform.set_position([0.0, 0.0, 20.0].into());
+        world
             .create_entity()
             .with(FlyControlTag)
             .with(Camera::from(Projection::perspective(width / height, Deg(72.0))))
             .with(GlobalTransform::default())
-            .with(local_xform)
+            .with(cam_xform)
+            .build();
+
+        // Setup ground plane
+        let (mesh, albedo) = {
+            let loader = world.read_resource::<Loader>();
+
+            let meshes = &world.read_resource();
+            let textures = &world.read_resource();
+
+            let verts = Shape::Plane(Some((10,10)))
+                .generate::<Vec<PosNormTex>>(Some((100.0, 100.0, 100.0)));
+            let mesh: MeshHandle = loader.load_from_data(verts, (), meshes);
+
+            let albedo = loader.load_from_data([0.27, 0.43, 0.29, 1.0].into(), (), textures);
+
+            (mesh, albedo)
+        };
+
+        let mat_defaults = world.read_resource::<MaterialDefaults>().0.clone();
+        let mtl = Material {
+            albedo: albedo.clone(),
+            ..mat_defaults.clone()
+        };
+
+        let mut ground_xform = Transform::default();
+        ground_xform.set_position([0.0, -0.001, 0.0].into());
+        ground_xform.pitch_local(Deg(-90.0));
+        world
+            .create_entity()
+            .with(GlobalTransform::default())
+            .with(ground_xform)
+            .with(mesh.clone())
+            .with(mtl)
             .build();
     }
 

@@ -138,7 +138,7 @@ where
 
         let dir = Vector3::new(x, 0.0, z);
 
-        for (transform, _) in (&mut transform, &tag).join() {
+        for (mut transform, _) in (&mut transform, &tag).join() {
             transform.move_along_local(dir, time.delta_seconds() * self.speed);
             // Set the camera position to the eye height. This will change once
             // we add terrain, or add some sort of physics to the character.

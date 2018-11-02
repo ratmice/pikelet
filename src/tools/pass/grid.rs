@@ -22,7 +22,7 @@ use gfx::Primitive;
 use glsl_layout::{mat4, Uniform};
 use std::marker::PhantomData;
 
-const LINE_COLOR: Rgba = Rgba(0.1, 0.1, 0.1, 1.0);
+const LINE_COLOR: Rgba = Rgba(0.75, 0.75, 0.75, 1.0);
 const SUBLINE_COLOR: Rgba = Rgba(0.3, 0.3, 0.3, 1.0);
 
 static VERT_SRC: &[u8] = include_bytes!("../../shaders/vertex/origin_grid.glsl");
