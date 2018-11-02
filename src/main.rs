@@ -25,6 +25,7 @@ use tools::pass::grid::DrawGridLines;
 struct BaseState;
 
 const CLEAR_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
+const FOV: Deg<f32> = Deg(60.0);
 
 impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
     fn on_start(&mut self, data: StateData<GameData>) {
@@ -41,7 +42,7 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
         world
             .create_entity()
             .with(FlyControlTag)
-            .with(Camera::from(Projection::perspective(width / height, Deg(72.0))))
+            .with(Camera::from(Projection::perspective(width / height, FOV)))
             .with(GlobalTransform::default())
             .with(cam_xform)
             .build();
@@ -57,7 +58,7 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
                 .generate::<Vec<PosNormTex>>(Some((100.0, 100.0, 100.0)));
             let mesh: MeshHandle = loader.load_from_data(verts, (), meshes);
 
-            let albedo = loader.load_from_data([0.27, 0.43, 0.29, 1.0].into(), (), textures);
+            let albedo = loader.load_from_data([0.47, 0.53, 0.49, 1.0].into(), (), textures);
 
             (mesh, albedo)
         };
