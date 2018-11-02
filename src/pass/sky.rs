@@ -13,19 +13,16 @@ use amethyst::{
             pass::{Pass, PassData},
             DepthMode, Effect, NewEffect,
         },
-        set_vertex_args, ActiveCamera, Camera, Encoder, Factory, Mesh,
-        Normal, Position, TexCoord, Query, Attributes, PosNormTex, Shape,
-        VertexFormat
+        set_vertex_args, ActiveCamera, Attributes, Camera, Encoder, Factory, Mesh, Normal,
+        PosNormTex, Position, Query, Shape, TexCoord, VertexFormat,
     },
 };
 use gfx::pso::buffer::ElemStride;
-use glsl_layout::{Uniform, mat4};
+use glsl_layout::{mat4, Uniform};
 use std::marker::PhantomData;
-
 
 static VERT_SRC: &[u8] = include_bytes!("../shaders/vertex/sky.glsl");
 static FRAG_SRC: &[u8] = include_bytes!("../shaders/fragment/sky.glsl");
-
 
 fn set_attribute_buffers(
     effect: &mut Effect,
@@ -41,12 +38,11 @@ fn set_attribute_buffers(
                     attr
                 );
                 return false;
-            }
+            },
         }
     }
     true
 }
-
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, Uniform)]
@@ -56,7 +52,6 @@ pub(crate) struct VertexArgs {
     model: mat4,
 }
 
-
 /// Draw a simple origin grid to aid in view orientation
 ///
 /// # Type Parameters:
@@ -65,26 +60,26 @@ pub(crate) struct VertexArgs {
 #[derive(Derivative, Clone, Debug)]
 #[derivative(Default(bound = "V: Query<(Position, Normal, TexCoord)>"))]
 pub struct DrawSky<V> {
-    _pd: PhantomData<V>,
+    _marker: PhantomData<V>,
     mesh: Option<Mesh>,
 }
 
 impl<V> DrawSky<V>
-    where
-        V: Query<(Position, Normal, TexCoord)>,
+where
+    V: Query<(Position, Normal, TexCoord)>,
 {
     /// Create instance of `DrawSky` pass
     pub fn new() -> Self {
         DrawSky {
             mesh: None,
-            .. Default::default()
+            ..DrawSky::default()
         }
     }
 }
 
 impl<'a, V> PassData<'a> for DrawSky<V>
-    where
-        V: Query<(Position, Normal, TexCoord)>,
+where
+    V: Query<(Position, Normal, TexCoord)>,
 {
     type Data = (
         Option<Read<'a, ActiveCamera>>,
@@ -94,14 +89,11 @@ impl<'a, V> PassData<'a> for DrawSky<V>
 }
 
 impl<V> Pass for DrawSky<V>
-    where
-        V: Query<(Position, Normal, TexCoord)>,
+where
+    V: Query<(Position, Normal, TexCoord)>,
 {
-    fn compile(
-        &mut self,
-        mut effect: NewEffect
-    ) -> Result<Effect> {
-        let verts = Shape::Cube.generate_vertices::<Vec<PosNormTex>>(Some((-1.,-1.,-1.)));
+    fn compile(&mut self, mut effect: NewEffect) -> Result<Effect> {
+        let verts = Shape::Cube.generate_vertices::<Vec<PosNormTex>>(Some((-1., -1., -1.)));
         self.mesh = Some(Mesh::build(verts).build(&mut effect.factory)?);
 
         debug!("Building debug lines pass");
@@ -132,7 +124,9 @@ impl<V> Pass for DrawSky<V>
 
         let camera = get_camera(active, &camera, &global);
 
-        let mesh = self.mesh.as_ref()
+        let mesh = self
+            .mesh
+            .as_ref()
             .expect("Failed to get origin mesh reference.");
 
         set_vertex_args(effect, encoder, camera, &GlobalTransform(Matrix4::one()));

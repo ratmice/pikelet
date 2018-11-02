@@ -2,7 +2,6 @@
 
 #version 150 core
 
-
 in VertexData {
     vec3 position;
     vec3 normal;
