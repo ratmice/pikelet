@@ -16,7 +16,7 @@ use amethyst::core::transform::{GlobalTransform, Transform, TransformBundle};
 use amethyst::input::{is_close_requested, is_key_down, InputBundle};
 use amethyst::prelude::*;
 use amethyst::renderer::*;
-use amethyst::assets::Loader;
+use amethyst::assets::{Loader, AssetStorage};
 
 use controls::FirstPersonControlBundle;
 use pass::sky::DrawSky;
@@ -25,60 +25,138 @@ use tools::pass::grid::DrawGridLines;
 struct BaseState;
 
 const CLEAR_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
+const GROUND_COLOR: [f32;4] = [0.47, 0.53, 0.49, 1.0];
 const FOV: Deg<f32> = Deg(60.0);
+
+
+struct MeshLibrary {
+    cube: MeshHandle,
+    plane_sm: MeshHandle,
+    plane_md: MeshHandle,
+    plane_lg: MeshHandle,
+}
+
+impl MeshLibrary {
+    fn new(world: &mut World) -> MeshLibrary {
+        let loader = world.read_resource::<Loader>();
+        let meshes: &AssetStorage<Mesh> = &world.read_resource();
+
+        let cube = {
+            let verts = Shape::Cube.generate::<Vec<PosNormTex>>(None);
+            loader.load_from_data(verts, (), meshes)
+        };
+
+        let plane_sm = {
+            let verts = Shape::Plane(None).generate::<Vec<PosNormTex>>(None);
+            loader.load_from_data(verts, (), meshes)
+        };
+
+        let plane_md = {
+            let verts = Shape::Plane(Some((4, 4)))
+                .generate::<Vec<PosNormTex>>(Some((10.0, 10.0, 10.0)));
+            loader.load_from_data(verts, (), meshes)
+        };
+
+        let plane_lg = {
+            let verts = Shape::Plane(Some((10,10)))
+                .generate::<Vec<PosNormTex>>(Some((100.0, 100.0, 100.0)));
+            loader.load_from_data(verts, (), meshes)
+        };
+
+        MeshLibrary {
+            cube,
+            plane_sm,
+            plane_md,
+            plane_lg,
+        }
+    }
+}
+
+struct MaterialLibrary {
+    white: Material,
+    green_a: Material,
+}
+
+impl MaterialLibrary {
+    fn new(world: &mut World) -> MaterialLibrary {
+        let loader = world.read_resource::<Loader>();
+
+        let textures: &AssetStorage<Texture> = &world.read_resource();
+        let default_material = world.read_resource::<MaterialDefaults>().0.clone();
+
+        let white_albedo = loader.load_from_data([1.0, 1.0, 1.0, 1.0].into(), (), textures);
+        let ground_albedo = loader.load_from_data(GROUND_COLOR.into(), (), textures);
+
+        MaterialLibrary {
+            white: Material {
+                albedo: white_albedo,
+                ..default_material.clone()
+            },
+            green_a: Material {
+                albedo: ground_albedo,
+                ..default_material.clone()
+            }
+        }
+    }
+}
+
+fn initialize_ground(
+    world: &mut World,
+    meshes: &MeshLibrary,
+    materials: &MaterialLibrary
+) {
+    let mut ground_xform = Transform::default();
+    ground_xform.set_position([0.0, -0.001, 0.0].into());
+    ground_xform.pitch_local(Deg(-90.0));
+    world.create_entity()
+        .with(GlobalTransform::default())
+        .with(ground_xform)
+        .with(meshes.plane_lg.clone())
+        .with(materials.green_a.clone())
+        .build();
+}
+
+fn initialize_house(
+    world: &mut World,
+    meshes: &MeshLibrary,
+    materials: &MaterialLibrary
+) {
+    world.create_entity()
+        .with(GlobalTransform::default())
+        .with(meshes.cube.clone())
+        .with(materials.white.clone())
+        .build();
+}
+
+fn initialize_camera(world: &mut World) {
+    let (width, height) = {
+        let dim = world.read_resource::<ScreenDimensions>();
+        (dim.width(), dim.height())
+    };
+
+    // Setup camera
+    let mut cam_xform = Transform::default();
+    cam_xform.set_position([0.0, 0.0, 20.0].into());
+    world
+        .create_entity()
+        .with(FlyControlTag)
+        .with(Camera::from(Projection::perspective(width / height, FOV)))
+        .with(GlobalTransform::default())
+        .with(cam_xform)
+        .build();
+}
 
 impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
     fn on_start(&mut self, data: StateData<GameData>) {
         let StateData { world, .. } = data;
 
-        let (width, height) = {
-            let dim = world.read_resource::<ScreenDimensions>();
-            (dim.width(), dim.height())
-        };
+        let mesh_lib = MeshLibrary::new(world);
+        let mat_lib = MaterialLibrary::new(world);
 
-        // Setup camera
-        let mut cam_xform = Transform::default();
-        cam_xform.set_position([0.0, 0.0, 20.0].into());
-        world
-            .create_entity()
-            .with(FlyControlTag)
-            .with(Camera::from(Projection::perspective(width / height, FOV)))
-            .with(GlobalTransform::default())
-            .with(cam_xform)
-            .build();
+        initialize_camera(world);
 
-        // Setup ground plane
-        let (mesh, albedo) = {
-            let loader = world.read_resource::<Loader>();
-
-            let meshes = &world.read_resource();
-            let textures = &world.read_resource();
-
-            let verts = Shape::Plane(Some((10,10)))
-                .generate::<Vec<PosNormTex>>(Some((100.0, 100.0, 100.0)));
-            let mesh: MeshHandle = loader.load_from_data(verts, (), meshes);
-
-            let albedo = loader.load_from_data([0.47, 0.53, 0.49, 1.0].into(), (), textures);
-
-            (mesh, albedo)
-        };
-
-        let mat_defaults = world.read_resource::<MaterialDefaults>().0.clone();
-        let mtl = Material {
-            albedo: albedo.clone(),
-            ..mat_defaults.clone()
-        };
-
-        let mut ground_xform = Transform::default();
-        ground_xform.set_position([0.0, -0.001, 0.0].into());
-        ground_xform.pitch_local(Deg(-90.0));
-        world
-            .create_entity()
-            .with(GlobalTransform::default())
-            .with(ground_xform)
-            .with(mesh.clone())
-            .with(mtl)
-            .build();
+        initialize_ground(world, &mesh_lib, &mat_lib);
+        initialize_house(world, &mesh_lib, &mat_lib);
     }
 
     fn handle_event(
