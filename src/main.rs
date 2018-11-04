@@ -117,8 +117,18 @@ fn initialize_ground(world: &mut World) {
 fn initialize_house(world: &mut World) {
     let cube = world.read_resource::<MeshLibrary>().cube.clone();
     let mtl = world.read_resource::<MaterialLibrary>().white.clone();
+
+    let house_w = 20.0;
+    let house_h = 15.0;
+    let house_d = 20.0;
+
+    let mut xform = Transform::default();
+    xform.scale.x = house_w;
+    xform.scale.z = house_d;
+    xform.scale.y = house_h;
+    xform.set_position([0.0, house_h, -(house_d + 5.0)].into());
     world.create_entity()
-        .with(GlobalTransform::default())
+        .with(xform)
         .with(cube)
         .with(mtl)
         .build();
@@ -132,7 +142,7 @@ fn initialize_camera(world: &mut World) {
 
     // Setup camera
     let mut cam_xform = Transform::default();
-    cam_xform.set_position([0.0, 0.0, 20.0].into());
+    cam_xform.set_position([0.0, 0.0, 40.0].into());
     world
         .create_entity()
         .with(FlyControlTag)
