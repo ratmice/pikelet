@@ -52,14 +52,14 @@ impl MeshLibrary {
         };
 
         let plane_md = {
-            let verts = Shape::Plane(Some((4, 4)))
-                .generate::<Vec<PosNormTex>>(Some((10.0, 10.0, 10.0)));
+            let verts = Shape::Plane(Some((10, 10)))
+                .generate::<Vec<PosNormTex>>(None);
             loader.load_from_data(verts, (), meshes)
         };
 
         let plane_lg = {
-            let verts = Shape::Plane(Some((10,10)))
-                .generate::<Vec<PosNormTex>>(Some((100.0, 100.0, 100.0)));
+            let verts = Shape::Plane(Some((100,100)))
+                .generate::<Vec<PosNormTex>>(None);
             loader.load_from_data(verts, (), meshes)
         };
 
@@ -103,12 +103,13 @@ impl MaterialLibrary {
 fn initialize_ground(world: &mut World) {
     let plane = world.read_resource::<MeshLibrary>().plane_lg.clone();
     let mtl = world.read_resource::<MaterialLibrary>().green_a.clone();
-    let mut ground_xform = Transform::default();
-    ground_xform.set_position([0.0, -0.001, 0.0].into());
-    ground_xform.pitch_local(Deg(-90.0));
+    let mut xform = Transform::default();
+    xform.set_position([0.0, -0.001, 0.0].into());
+    xform.pitch_local(Deg(-90.0));
+    xform.scale.x = 1000.0;
+    xform.scale.y = 1000.0;
     world.create_entity()
-        .with(GlobalTransform::default())
-        .with(ground_xform)
+        .with(xform)
         .with(plane)
         .with(mtl)
         .build();
@@ -131,6 +132,19 @@ fn initialize_house(world: &mut World) {
         .with(xform)
         .with(cube)
         .with(mtl)
+        .build();
+}
+
+fn initialize_lights(world: &mut World) {
+    world.write_resource::<AmbientColor>().0 = [0.75,0.75,1.0,1.0].into();
+
+    let sunlight: Light = DirectionalLight {
+        color: Rgba::white(),
+        direction: [0.0, -1.0, -1.0],
+    }.into();
+
+    world.create_entity()
+        .with(sunlight)
         .build();
 }
 
@@ -163,7 +177,7 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
         world.add_resource(mat_lib);
 
         initialize_camera(world);
-
+        initialize_lights(world);
         initialize_ground(world);
         initialize_house(world);
     }
@@ -219,7 +233,7 @@ fn main() -> amethyst::Result<()> {
                 .clear_target(CLEAR_COLOR, 1.0)
                 .with_pass(DrawSky::<PosNormTex>::new())
                 .with_pass(DrawGridLines::<PosColorNorm>::new())
-                .with_pass(DrawFlat::<PosNormTex>::new()),
+                .with_pass(DrawShaded::<PosNormTex>::new()),
         );
 
         RenderBundle::new(pipe, Some(display_config))
