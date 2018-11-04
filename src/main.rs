@@ -100,31 +100,27 @@ impl MaterialLibrary {
     }
 }
 
-fn initialize_ground(
-    world: &mut World,
-    meshes: &MeshLibrary,
-    materials: &MaterialLibrary
-) {
+fn initialize_ground(world: &mut World) {
+    let plane = world.read_resource::<MeshLibrary>().plane_lg.clone();
+    let mtl = world.read_resource::<MaterialLibrary>().green_a.clone();
     let mut ground_xform = Transform::default();
     ground_xform.set_position([0.0, -0.001, 0.0].into());
     ground_xform.pitch_local(Deg(-90.0));
     world.create_entity()
         .with(GlobalTransform::default())
         .with(ground_xform)
-        .with(meshes.plane_lg.clone())
-        .with(materials.green_a.clone())
+        .with(plane)
+        .with(mtl)
         .build();
 }
 
-fn initialize_house(
-    world: &mut World,
-    meshes: &MeshLibrary,
-    materials: &MaterialLibrary
-) {
+fn initialize_house(world: &mut World) {
+    let cube = world.read_resource::<MeshLibrary>().cube.clone();
+    let mtl = world.read_resource::<MaterialLibrary>().white.clone();
     world.create_entity()
         .with(GlobalTransform::default())
-        .with(meshes.cube.clone())
-        .with(materials.white.clone())
+        .with(cube)
+        .with(mtl)
         .build();
 }
 
@@ -153,10 +149,13 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
         let mesh_lib = MeshLibrary::new(world);
         let mat_lib = MaterialLibrary::new(world);
 
+        world.add_resource(mesh_lib);
+        world.add_resource(mat_lib);
+
         initialize_camera(world);
 
-        initialize_ground(world, &mesh_lib, &mat_lib);
-        initialize_house(world, &mesh_lib, &mat_lib);
+        initialize_ground(world);
+        initialize_house(world);
     }
 
     fn handle_event(
