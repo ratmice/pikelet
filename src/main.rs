@@ -35,8 +35,8 @@ const FOV: Deg<f32> = Deg(60.0);
 struct MeshLibrary {
     cube: MeshHandle,
     sphere: MeshHandle,
-    plane_sm: MeshHandle,
-    plane_md: MeshHandle,
+//    plane_sm: MeshHandle,
+//    plane_md: MeshHandle,
     plane_lg: MeshHandle,
 }
 
@@ -55,16 +55,16 @@ impl MeshLibrary {
             loader.load_from_data(verts, (), meshes)
         };
 
-        let plane_sm = {
-            let verts = Shape::Plane(None).generate::<Vec<PosNormTex>>(None);
-            loader.load_from_data(verts, (), meshes)
-        };
-
-        let plane_md = {
-            let verts = Shape::Plane(Some((10, 10)))
-                .generate::<Vec<PosNormTex>>(None);
-            loader.load_from_data(verts, (), meshes)
-        };
+//        let plane_sm = {
+//            let verts = Shape::Plane(None).generate::<Vec<PosNormTex>>(None);
+//            loader.load_from_data(verts, (), meshes)
+//        };
+//
+//        let plane_md = {
+//            let verts = Shape::Plane(Some((10, 10)))
+//                .generate::<Vec<PosNormTex>>(None);
+//            loader.load_from_data(verts, (), meshes)
+//        };
 
         let plane_lg = {
             let verts = Shape::Plane(Some((100,100)))
@@ -75,8 +75,8 @@ impl MeshLibrary {
         MeshLibrary {
             cube,
             sphere,
-            plane_sm,
-            plane_md,
+//            plane_sm,
+//            plane_md,
             plane_lg,
         }
     }
@@ -196,9 +196,7 @@ fn initialize_tree(world: &mut World, root_xform: Transform, has_leaves: bool) {
 
     if has_leaves {
         let mut leaves_xform = Transform::default();
-        leaves_xform.scale.x = 10.0;
-        leaves_xform.scale.y = 10.0;
-        leaves_xform.scale.z = 10.0;
+        leaves_xform.scale *= (random::<f32>() * 5.0) + 10.0;
         leaves_xform.set_position([0.0, trunk_height * 2.0, 0.0].into());
         world.create_entity()
             .with(Parent { entity: root })
@@ -212,8 +210,11 @@ fn initialize_tree(world: &mut World, root_xform: Transform, has_leaves: bool) {
 
 fn initialize_forest(world: &mut World) {
     let mut rng = thread_rng();
-    for _ in 0..40 {
+    for _ in 0..400 {
         let mut xform = Transform::default();
+        let x_range = (-400.0, 400.0);
+        let z_range = (20.0, 400.0);
+        let scale_range = (1.0, 3.0);
 
         let x = rng.gen_range(-200.0, 200.0);
         let z = rng.gen_range(20.0, 800.0);
