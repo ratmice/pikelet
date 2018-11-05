@@ -131,10 +131,18 @@ fn initialize_ground(world: &mut World) {
         .build();
 }
 
-fn initialize_house(world: &mut World) {
+fn initialize_house(world: &mut World, xform: Transform) {
     let cube = world.read_resource::<MeshLibrary>().cube.clone();
     let mtl = world.read_resource::<MaterialLibrary>().white.clone();
 
+    world.create_entity()
+        .with(xform)
+        .with(cube)
+        .with(mtl)
+        .build();
+}
+
+fn initialize_village(world: &mut World) {
     let house_w = 20.0;
     let house_h = 15.0;
     let house_d = 20.0;
@@ -144,11 +152,8 @@ fn initialize_house(world: &mut World) {
     xform.scale.z = house_d;
     xform.scale.y = house_h;
     xform.set_position([0.0, house_h, -(house_d + 5.0)].into());
-    world.create_entity()
-        .with(xform)
-        .with(cube)
-        .with(mtl)
-        .build();
+
+    initialize_house(world, xform);
 }
 
 fn initialize_tree(world: &mut World, root_xform: Transform, has_leaves: bool) {
@@ -264,7 +269,7 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
         initialize_camera(world);
         initialize_lights(world);
         initialize_ground(world);
-        initialize_house(world);
+        initialize_village(world);
         initialize_forest(world);
     }
 
