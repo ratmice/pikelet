@@ -19,6 +19,7 @@ use amethyst::input::{is_close_requested, is_key_down, InputBundle};
 use amethyst::prelude::*;
 use amethyst::renderer::*;
 use amethyst::assets::{Loader, AssetStorage};
+use amethyst::utils::fps_counter::{FPSCounterBundle, FPSCounter};
 use rand::prelude::*;
 
 use controls::FirstPersonControlBundle;
@@ -210,16 +211,12 @@ fn initialize_tree(world: &mut World, root_xform: Transform, has_leaves: bool) {
 
 fn initialize_forest(world: &mut World) {
     let mut rng = thread_rng();
-    for _ in 0..400 {
-        let mut xform = Transform::default();
-        let x_range = (-400.0, 400.0);
-        let z_range = (20.0, 400.0);
-        let scale_range = (1.0, 3.0);
-
-        let x = rng.gen_range(-200.0, 200.0);
-        let z = rng.gen_range(20.0, 800.0);
+    for _ in 0..200 {
+        let x = rng.gen_range(-400.0, 400.0);
+        let z = rng.gen_range(20.0, 400.0);
         let scale = rng.gen_range(1.0, 3.0);
 
+        let mut xform = Transform::default();
         xform.set_position([x, 0.0, -z].into());
         xform.scale *= scale;
 
@@ -281,13 +278,17 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
 
     fn handle_event(
         &mut self,
-        _data: StateData<GameData>,
+        data: StateData<GameData>,
         event: StateEvent,
     ) -> SimpleTrans<'a, 'b> {
         if let StateEvent::Window(event) = &event {
             if is_close_requested(&event) || is_key_down(&event, VirtualKeyCode::Escape) {
                 Trans::Quit
             } else {
+                if is_key_down(&event, VirtualKeyCode::Space) {
+                    let fps_counter = data.world.read_resource::<FPSCounter>();
+                    info!("FPS: {}", fps_counter.sampled_fps());
+                }
                 Trans::None
             }
         } else {
@@ -336,7 +337,10 @@ fn main() -> amethyst::Result<()> {
         RenderBundle::new(pipe, Some(display_config))
     };
 
+    let fps_counter_bundle = FPSCounterBundle::default();
+
     let game_data = GameDataBuilder::default()
+        .with_bundle(fps_counter_bundle)?
         .with_bundle(input_bundle)?
         .with_bundle(first_person_control_bundle)?
         .with_bundle(transform_bundle)?
