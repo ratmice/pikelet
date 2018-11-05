@@ -13,6 +13,7 @@ mod tools;
 use amethyst::controls::FlyControlTag;
 use amethyst::core::cgmath::Deg;
 use amethyst::core::transform::{GlobalTransform, Transform, TransformBundle};
+use amethyst::core::Parent;
 use amethyst::input::{is_close_requested, is_key_down, InputBundle};
 use amethyst::prelude::*;
 use amethyst::renderer::*;
@@ -31,6 +32,7 @@ const FOV: Deg<f32> = Deg(60.0);
 
 struct MeshLibrary {
     cube: MeshHandle,
+    sphere: MeshHandle,
     plane_sm: MeshHandle,
     plane_md: MeshHandle,
     plane_lg: MeshHandle,
@@ -43,6 +45,11 @@ impl MeshLibrary {
 
         let cube = {
             let verts = Shape::Cube.generate::<Vec<PosNormTex>>(None);
+            loader.load_from_data(verts, (), meshes)
+        };
+
+        let sphere = {
+            let verts = Shape::IcoSphere(None).generate::<Vec<PosNormTex>>(None);
             loader.load_from_data(verts, (), meshes)
         };
 
@@ -65,6 +72,7 @@ impl MeshLibrary {
 
         MeshLibrary {
             cube,
+            sphere,
             plane_sm,
             plane_md,
             plane_lg,
@@ -74,6 +82,7 @@ impl MeshLibrary {
 
 struct MaterialLibrary {
     white: Material,
+    dark_grey: Material,
     green_a: Material,
 }
 
@@ -85,11 +94,16 @@ impl MaterialLibrary {
         let default_material = world.read_resource::<MaterialDefaults>().0.clone();
 
         let white_albedo = loader.load_from_data([1.0, 1.0, 1.0, 1.0].into(), (), textures);
+        let dark_grey_albedo = loader.load_from_data([0.3, 0.3, 0.3, 1.0].into(), (), textures);
         let ground_albedo = loader.load_from_data(GROUND_COLOR.into(), (), textures);
 
         MaterialLibrary {
             white: Material {
                 albedo: white_albedo,
+                ..default_material.clone()
+            },
+            dark_grey: Material {
+                albedo: dark_grey_albedo,
                 ..default_material.clone()
             },
             green_a: Material {
@@ -135,8 +149,55 @@ fn initialize_house(world: &mut World) {
         .build();
 }
 
+fn initialize_tree(world: &mut World) {
+    let (trunk_mesh, trunk_mtl, leaves_mesh, leaves_mtl) = {
+        let meshes = world.read_resource::<MeshLibrary>();
+        let materials = world.read_resource::<MaterialLibrary>();
+
+        (meshes.cube.clone(), materials.dark_grey.clone(),
+         meshes.sphere.clone(), materials.green_a.clone())
+    };
+
+    let root = {
+        let mut xform = Transform::default();
+        xform.set_position([-40.0, 0.0, -20.0].into());
+        world.create_entity()
+            .with(GlobalTransform::default())
+            .with(xform)
+            .build()
+    };
+
+    let trunk_diameter = 0.5;
+    let trunk_height = 10.0;
+    let mut trunk_xform = Transform::default();
+    trunk_xform.scale.x = trunk_diameter;
+    trunk_xform.scale.y = trunk_height;
+    trunk_xform.scale.z = trunk_diameter;
+    trunk_xform.set_position([0.0, trunk_height, 0.0].into());
+    world.create_entity()
+        .with(Parent { entity: root })
+        .with(GlobalTransform::default())
+        .with(trunk_xform)
+        .with(trunk_mesh)
+        .with(trunk_mtl)
+        .build();
+
+    let mut leaves_xform = Transform::default();
+    leaves_xform.scale.x = 10.0;
+    leaves_xform.scale.y = 10.0;
+    leaves_xform.scale.z = 10.0;
+    leaves_xform.set_position([0.0, trunk_height * 2.0, 0.0].into());
+    world.create_entity()
+        .with(Parent { entity: root })
+        .with(GlobalTransform::default())
+        .with(leaves_xform)
+        .with(leaves_mesh)
+        .with(leaves_mtl)
+        .build();
+}
+
 fn initialize_lights(world: &mut World) {
-    world.write_resource::<AmbientColor>().0 = [0.75,0.75,1.0,1.0].into();
+    world.write_resource::<AmbientColor>().0 = [0.75,1.0,1.0,1.0].into();
 
     let sunlight: Light = DirectionalLight {
         color: Rgba::white(),
@@ -166,20 +227,25 @@ fn initialize_camera(world: &mut World) {
         .build();
 }
 
+fn initialize_object_libraries(world: &mut World) {
+    let mesh_lib = MeshLibrary::new(world);
+    let mat_lib = MaterialLibrary::new(world);
+
+    world.add_resource(mesh_lib);
+    world.add_resource(mat_lib);
+}
+
 impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
     fn on_start(&mut self, data: StateData<GameData>) {
         let StateData { world, .. } = data;
 
-        let mesh_lib = MeshLibrary::new(world);
-        let mat_lib = MaterialLibrary::new(world);
-
-        world.add_resource(mesh_lib);
-        world.add_resource(mat_lib);
+        initialize_object_libraries(world);
 
         initialize_camera(world);
         initialize_lights(world);
         initialize_ground(world);
         initialize_house(world);
+        initialize_tree(world);
     }
 
     fn handle_event(
