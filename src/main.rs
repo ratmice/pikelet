@@ -143,17 +143,24 @@ fn initialize_house(world: &mut World, xform: Transform) {
 }
 
 fn initialize_village(world: &mut World) {
-    let house_w = 20.0;
-    let house_h = 15.0;
-    let house_d = 20.0;
+    let mut rng = thread_rng();
 
-    let mut xform = Transform::default();
-    xform.scale.x = house_w;
-    xform.scale.z = house_d;
-    xform.scale.y = house_h;
-    xform.set_position([0.0, house_h, -(house_d + 5.0)].into());
+    for _ in 0..15 {
+        let x = rng.gen_range(-200.0, 200.0);
+        let z = rng.gen_range(20.0, 800.0);
+        let house_w = rng.gen_range(15.0, 30.0);
+        let house_d = rng.gen_range(15.0, 30.0);
+        let house_h = rng.gen_range(15.0, 30.0);
 
-    initialize_house(world, xform);
+        let mut xform = Transform::default();
+
+        xform.scale.x = house_w;
+        xform.scale.z = house_d;
+        xform.scale.y = house_h;
+        xform.set_position([x, house_h, -z].into());
+
+        initialize_house(world, xform);
+    }
 }
 
 fn initialize_tree(world: &mut World, root_xform: Transform, has_leaves: bool) {
@@ -207,15 +214,13 @@ fn initialize_forest(world: &mut World) {
     let mut rng = thread_rng();
     for _ in 0..40 {
         let mut xform = Transform::default();
-        let x_range = (-200.0, 200.0);
-        let z_range = (20.0, 800.0);
-        let scale_range = (1.0, 3.0);
 
-        let x = rng.gen_range(x_range.0, x_range.1);
-        let z = rng.gen_range(z_range.0, z_range.1);
+        let x = rng.gen_range(-200.0, 200.0);
+        let z = rng.gen_range(20.0, 800.0);
+        let scale = rng.gen_range(1.0, 3.0);
+
         xform.set_position([x, 0.0, -z].into());
-
-        xform.scale *= rng.gen_range(scale_range.0, scale_range.1);
+        xform.scale *= scale;
 
         initialize_tree(world, xform, true);
     }
