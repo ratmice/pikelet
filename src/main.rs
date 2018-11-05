@@ -5,6 +5,7 @@ extern crate derivative;
 extern crate log;
 extern crate gfx;
 extern crate glsl_layout;
+extern crate rand;
 
 mod pass;
 mod controls;
@@ -18,6 +19,7 @@ use amethyst::input::{is_close_requested, is_key_down, InputBundle};
 use amethyst::prelude::*;
 use amethyst::renderer::*;
 use amethyst::assets::{Loader, AssetStorage};
+use rand::prelude::*;
 
 use controls::FirstPersonControlBundle;
 use pass::sky::DrawSky;
@@ -149,7 +151,7 @@ fn initialize_house(world: &mut World) {
         .build();
 }
 
-fn initialize_tree(world: &mut World) {
+fn initialize_tree(world: &mut World, root_xform: Transform, has_leaves: bool) {
     let (trunk_mesh, trunk_mtl, leaves_mesh, leaves_mtl) = {
         let meshes = world.read_resource::<MeshLibrary>();
         let materials = world.read_resource::<MaterialLibrary>();
@@ -159,11 +161,9 @@ fn initialize_tree(world: &mut World) {
     };
 
     let root = {
-        let mut xform = Transform::default();
-        xform.set_position([-40.0, 0.0, -20.0].into());
         world.create_entity()
             .with(GlobalTransform::default())
-            .with(xform)
+            .with(root_xform)
             .build()
     };
 
@@ -182,18 +182,38 @@ fn initialize_tree(world: &mut World) {
         .with(trunk_mtl)
         .build();
 
-    let mut leaves_xform = Transform::default();
-    leaves_xform.scale.x = 10.0;
-    leaves_xform.scale.y = 10.0;
-    leaves_xform.scale.z = 10.0;
-    leaves_xform.set_position([0.0, trunk_height * 2.0, 0.0].into());
-    world.create_entity()
-        .with(Parent { entity: root })
-        .with(GlobalTransform::default())
-        .with(leaves_xform)
-        .with(leaves_mesh)
-        .with(leaves_mtl)
-        .build();
+    if has_leaves {
+        let mut leaves_xform = Transform::default();
+        leaves_xform.scale.x = 10.0;
+        leaves_xform.scale.y = 10.0;
+        leaves_xform.scale.z = 10.0;
+        leaves_xform.set_position([0.0, trunk_height * 2.0, 0.0].into());
+        world.create_entity()
+            .with(Parent { entity: root })
+            .with(GlobalTransform::default())
+            .with(leaves_xform)
+            .with(leaves_mesh)
+            .with(leaves_mtl)
+            .build();
+    }
+}
+
+fn initialize_forest(world: &mut World) {
+    let mut rng = thread_rng();
+    for _ in 0..40 {
+        let mut xform = Transform::default();
+        let x_range = (-200.0, 200.0);
+        let z_range = (20.0, 800.0);
+        let scale_range = (1.0, 3.0);
+
+        let x = rng.gen_range(x_range.0, x_range.1);
+        let z = rng.gen_range(z_range.0, z_range.1);
+        xform.set_position([x, 0.0, -z].into());
+
+        xform.scale *= rng.gen_range(scale_range.0, scale_range.1);
+
+        initialize_tree(world, xform, true);
+    }
 }
 
 fn initialize_lights(world: &mut World) {
@@ -245,7 +265,7 @@ impl<'a, 'b> SimpleState<'a, 'b> for BaseState {
         initialize_lights(world);
         initialize_ground(world);
         initialize_house(world);
-        initialize_tree(world);
+        initialize_forest(world);
     }
 
     fn handle_event(

@@ -9,3 +9,4 @@ derivative = "1.0"
 log = "0.4"
 gfx = { version = "0.17", features = ["serialize"] }
 glsl-layout = { version = "0.1.1", features = ["cgmath", "gfx"] }
+rand = "0.5"
