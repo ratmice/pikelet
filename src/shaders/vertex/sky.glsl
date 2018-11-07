@@ -20,12 +20,12 @@ out VertexData {
 
 void main() {
     mat4 view_without_translation = view;
-    view_without_translation[3][0] = 0.0f;
-    view_without_translation[3][1] = 0.0f;
-    view_without_translation[3][2] = 0.0f;
+    view_without_translation[3].xyz = vec3(0.0f, 0.0f, 0.0f);
     vec4 vertex_position = model * vec4(position, 1.0);
+
     vertex.position = vertex_position.xyz;
     vertex.normal = mat3(model) * normal;
     vertex.tex_coord = tex_coord;
-    gl_Position = proj * view_without_translation * vertex_position;
+
+    gl_Position = (proj * view_without_translation * vertex_position).xyww;
 }

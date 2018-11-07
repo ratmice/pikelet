@@ -14,7 +14,7 @@ use amethyst::{
             DepthMode, Effect, NewEffect,
         },
         set_vertex_args, ActiveCamera, Attributes, Camera, Encoder, Factory, Mesh, Normal,
-        PosNormTex, Position, Query, Shape, TexCoord, VertexFormat,
+        PosNormTex, Position, Query, Shape, TexCoord, VertexFormat, Rgba,
     },
 };
 use gfx::pso::buffer::ElemStride;
@@ -23,6 +23,21 @@ use std::marker::PhantomData;
 
 static VERT_SRC: &[u8] = include_bytes!("../shaders/vertex/sky.glsl");
 static FRAG_SRC: &[u8] = include_bytes!("../shaders/fragment/sky.glsl");
+
+#[derive(Clone, Debug)]
+pub struct SkyColors {
+    pub zenith: Rgba,
+    pub nadir: Rgba,
+}
+
+impl Default for SkyColors {
+    fn default() -> SkyColors {
+        SkyColors {
+            zenith: Rgba(0.75, 1.0, 1.0, 1.0),
+            nadir: Rgba(0.4, 0.6, 0.65, 1.0),
+        }
+    }
+}
 
 fn set_attribute_buffers(
     effect: &mut Effect,
@@ -85,6 +100,7 @@ where
         Option<Read<'a, ActiveCamera>>,
         ReadStorage<'a, Camera>,
         ReadStorage<'a, GlobalTransform>,
+        Read<'a, SkyColors>
     );
 }
 
@@ -93,12 +109,13 @@ where
     V: Query<(Position, Normal, TexCoord)>,
 {
     fn compile(&mut self, mut effect: NewEffect) -> Result<Effect> {
-        let verts = Shape::Cube.generate_vertices::<Vec<PosNormTex>>(Some((-1., -1., -1.)));
+        let verts = Shape::Cube.generate_vertices::<Vec<PosNormTex>>(None);
         self.mesh = Some(Mesh::build(verts).build(&mut effect.factory)?);
 
-        debug!("Building debug lines pass");
+        debug!("Building sky pass");
         effect
             .simple(VERT_SRC, FRAG_SRC)
+            .without_back_face_culling()
             .with_raw_constant_buffer(
                 "VertexArgs",
                 std::mem::size_of::<<VertexArgs as Uniform>::Std140>(),
@@ -108,8 +125,9 @@ where
                 PosNormTex::ATTRIBUTES, PosNormTex::size() as ElemStride, 0
             )
             .with_raw_global("camera_position")
-            //.with_primitive_type(Primitive::PointList)
-            .with_output("color", Some(DepthMode::LessEqualTest))
+            .with_raw_global("zenith_color")
+            .with_raw_global("nadir_color")
+            .with_output("color", Some(DepthMode::LessEqualWrite))
             .build()
     }
 
@@ -118,7 +136,7 @@ where
         encoder: &mut Encoder,
         effect: &mut Effect,
         mut _factory: Factory,
-        (active, camera, global): <Self as PassData<'a>>::Data,
+        (active, camera, global, colors): <Self as PassData<'a>>::Data,
     ) {
         trace!("Drawing origin grid pass");
 
@@ -127,7 +145,7 @@ where
         let mesh = self
             .mesh
             .as_ref()
-            .expect("Failed to get origin mesh reference.");
+            .expect("Sky effect is not compiled!");
 
         set_vertex_args(effect, encoder, camera, &GlobalTransform(Matrix4::one()));
 
@@ -136,6 +154,8 @@ where
             return;
         }
 
+        effect.update_global("zenith_color", Into::<[f32;3]>::into(colors.zenith));
+        effect.update_global("nadir_color", Into::<[f32;3]>::into(colors.nadir));
         effect.draw(mesh.slice(), encoder);
         effect.clear();
     }

@@ -329,9 +329,9 @@ fn main() -> amethyst::Result<()> {
         let pipe = Pipeline::build().with_stage(
             Stage::with_backbuffer()
                 .clear_target(CLEAR_COLOR, 1.0)
-                .with_pass(DrawSky::<PosNormTex>::new())
                 .with_pass(DrawGridLines::<PosColorNorm>::new())
-                .with_pass(DrawShaded::<PosNormTex>::new()),
+                .with_pass(DrawShaded::<PosNormTex>::new())
+                .with_pass(DrawSky::<PosNormTex>::new()),
         );
 
         RenderBundle::new(pipe, Some(display_config))
