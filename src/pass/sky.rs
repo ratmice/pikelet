@@ -13,13 +13,12 @@ use amethyst::{
             pass::{Pass, PassData},
             DepthMode, Effect, NewEffect,
         },
-        set_vertex_args, ActiveCamera, Attributes, Camera, Encoder, Factory, Mesh, Normal,
-        PosNormTex, Position, Query, Shape, TexCoord, VertexFormat, Rgba,
+        set_vertex_args, ActiveCamera, Camera, Encoder, Factory, Mesh,
+        PosTex, Shape, VertexFormat, Rgba,
     },
 };
 use gfx::pso::buffer::ElemStride;
 use glsl_layout::{mat4, Uniform};
-use std::marker::PhantomData;
 
 static VERT_SRC: &[u8] = include_bytes!("../shaders/vertex/sky.glsl");
 static FRAG_SRC: &[u8] = include_bytes!("../shaders/fragment/sky.glsl");
@@ -39,26 +38,6 @@ impl Default for SkyColors {
     }
 }
 
-fn set_attribute_buffers(
-    effect: &mut Effect,
-    mesh: &Mesh,
-    attributes: &[Attributes<'static>],
-) -> bool {
-    for attr in attributes.iter() {
-        match mesh.buffer(attr) {
-            Some(vbuf) => effect.data.vertex_bufs.push(vbuf.clone()),
-            None => {
-                error!(
-                    "Required vertex attribute buffer with format {:?} missing in mesh",
-                    attr
-                );
-                return false;
-            },
-        }
-    }
-    true
-}
-
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, Uniform)]
 pub(crate) struct VertexArgs {
@@ -67,35 +46,22 @@ pub(crate) struct VertexArgs {
     model: mat4,
 }
 
-/// Draw a simple origin grid to aid in view orientation
-///
-/// # Type Parameters:
-///
-/// * `V`: `VertexFormat`
-#[derive(Derivative, Clone, Debug)]
-#[derivative(Default(bound = "V: Query<(Position, Normal, TexCoord)>"))]
-pub struct DrawSky<V> {
-    _marker: PhantomData<V>,
+/// Draw the skybox
+#[derive(Default, Clone, Debug)]
+pub struct DrawSky {
     mesh: Option<Mesh>,
 }
 
-impl<V> DrawSky<V>
-where
-    V: Query<(Position, Normal, TexCoord)>,
-{
+impl DrawSky {
     /// Create instance of `DrawSky` pass
     pub fn new() -> Self {
         DrawSky {
             mesh: None,
-            ..DrawSky::default()
         }
     }
 }
 
-impl<'a, V> PassData<'a> for DrawSky<V>
-where
-    V: Query<(Position, Normal, TexCoord)>,
-{
+impl<'a> PassData<'a> for DrawSky {
     type Data = (
         Option<Read<'a, ActiveCamera>>,
         ReadStorage<'a, Camera>,
@@ -104,12 +70,9 @@ where
     );
 }
 
-impl<V> Pass for DrawSky<V>
-where
-    V: Query<(Position, Normal, TexCoord)>,
-{
+impl Pass for DrawSky {
     fn compile(&mut self, mut effect: NewEffect) -> Result<Effect> {
-        let verts = Shape::Cube.generate_vertices::<Vec<PosNormTex>>(None);
+        let verts = Shape::Cube.generate_vertices::<Vec<PosTex>>(None);
         self.mesh = Some(Mesh::build(verts).build(&mut effect.factory)?);
 
         debug!("Building sky pass");
@@ -122,7 +85,7 @@ where
                 1
             )
             .with_raw_vertex_buffer(
-                PosNormTex::ATTRIBUTES, PosNormTex::size() as ElemStride, 0
+                PosTex::ATTRIBUTES, PosTex::size() as ElemStride, 0
             )
             .with_raw_global("camera_position")
             .with_raw_global("zenith_color")
@@ -138,7 +101,7 @@ where
         mut _factory: Factory,
         (active, camera, global, colors): <Self as PassData<'a>>::Data,
     ) {
-        trace!("Drawing origin grid pass");
+        trace!("Applying sky pass");
 
         let camera = get_camera(active, &camera, &global);
 
@@ -149,9 +112,8 @@ where
 
         set_vertex_args(effect, encoder, camera, &GlobalTransform(Matrix4::one()));
 
-        if !set_attribute_buffers(effect, &mesh, &[V::QUERIED_ATTRIBUTES]) {
-            effect.clear();
-            return;
+        if let Some(vbuf) = mesh.buffer(PosTex::ATTRIBUTES) {
+            effect.data.vertex_bufs.push(vbuf.clone());
         }
 
         effect.update_global("zenith_color", Into::<[f32;3]>::into(colors.zenith));

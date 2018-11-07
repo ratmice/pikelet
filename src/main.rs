@@ -24,7 +24,7 @@ use rand::prelude::*;
 
 use controls::FirstPersonControlBundle;
 use pass::sky::DrawSky;
-use tools::pass::grid::DrawGridLines;
+//use tools::pass::grid::DrawGridLines;
 
 struct BaseState;
 
@@ -329,9 +329,9 @@ fn main() -> amethyst::Result<()> {
         let pipe = Pipeline::build().with_stage(
             Stage::with_backbuffer()
                 .clear_target(CLEAR_COLOR, 1.0)
-                .with_pass(DrawGridLines::<PosColorNorm>::new())
+                //.with_pass(DrawGridLines::<PosColorNorm>::new())
                 .with_pass(DrawShaded::<PosNormTex>::new())
-                .with_pass(DrawSky::<PosNormTex>::new()),
+                .with_pass(DrawSky::new()),
         );
 
         RenderBundle::new(pipe, Some(display_config))

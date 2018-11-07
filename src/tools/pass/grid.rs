@@ -97,19 +97,6 @@ pub struct DrawGridLines<V> {
     mesh: Option<Mesh>,
 }
 
-impl<V> DrawGridLines<V>
-where
-    V: Query<(Position, Color, Normal)>,
-{
-    /// Create instance of `DrawGridLines` pass
-    pub fn new() -> Self {
-        DrawGridLines {
-            mesh: None,
-            ..DrawGridLines::default()
-        }
-    }
-}
-
 impl<'a, V> PassData<'a> for DrawGridLines<V>
 where
     V: Query<(Position, Color, Normal)>,
@@ -241,7 +228,7 @@ where
         let mesh = self
             .mesh
             .as_ref()
-            .expect("Failed to get origin mesh reference.");
+            .expect("Grid effect was not compiled!");
 
         if !set_attribute_buffers(effect, &mesh, &[V::QUERIED_ATTRIBUTES]) {
             effect.clear();
