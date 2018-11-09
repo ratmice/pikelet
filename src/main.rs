@@ -14,18 +14,17 @@ mod pass;
 mod controls;
 mod tools;
 
-use amethyst::controls::FlyControlTag;
 use amethyst::core::cgmath::Deg;
 use amethyst::core::transform::{GlobalTransform, Transform, TransformBundle};
 use amethyst::core::Parent;
-use amethyst::input::{is_close_requested, is_key_down, InputBundle};
+use amethyst::input::{is_close_requested, is_key_down};
 use amethyst::prelude::*;
 use amethyst::renderer::*;
 use amethyst::assets::{Loader, AssetStorage};
 use amethyst::utils::fps_counter::{FPSCounterBundle, FPSCounter};
 use rand::prelude::*;
 
-use controls::FirstPersonControlBundle;
+use controls::{FirstPersonControlBundle, FirstPersonControlTag};
 use pass::sky::DrawSky;
 //use tools::pass::grid::DrawGridLines;
 
@@ -251,7 +250,7 @@ fn initialize_camera(world: &mut World) {
     cam_xform.set_position([0.0, 0.0, 40.0].into());
     world
         .create_entity()
-        .with(FlyControlTag)
+        .with(FirstPersonControlTag)
         .with(Camera::from(Projection::perspective(width / height, FOV)))
         .with(GlobalTransform::default())
         .with(cam_xform)
@@ -307,21 +306,13 @@ fn main() -> amethyst::Result<()> {
 
     let app_root = amethyst::utils::application_root_dir();
 
-    let input_bundle = {
-        let path = format!("{}/resources/input.ron", app_root);
-        InputBundle::<String, String>::new().with_bindings_from_file(path)?
-    };
-
-    let first_person_control_bundle = FirstPersonControlBundle::<String, String>::new(
-        Some("move_x".to_owned()),
-        Some("move_z".to_owned()),
-    )
-    .with_sensitivity(0.15, 0.15)
-    .with_speed(13.8) // average walking speed of a human at 13.8 dm / sec
-    .with_eye_height(10.0);
+    let first_person_control_bundle = FirstPersonControlBundle::new()
+        .with_sensitivity(0.15, 0.15)
+        .with_speed(13.8) // average walking speed of a human at 13.8 dm / sec
+        .with_eye_height(10.0);
 
     let transform_bundle =
-        TransformBundle::new().with_dep(&["first_person_movement", "free_rotation"]);
+        TransformBundle::new().with_dep(&["first_person_movement"]);
 
     let render_bundle = {
         let display_config = {
@@ -344,7 +335,6 @@ fn main() -> amethyst::Result<()> {
 
     let game_data = GameDataBuilder::default()
         .with_bundle(fps_counter_bundle)?
-        .with_bundle(input_bundle)?
         .with_bundle(first_person_control_bundle)?
         .with_bundle(transform_bundle)?
         .with_bundle(render_bundle)?;
