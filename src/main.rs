@@ -34,10 +34,17 @@ const CLEAR_COLOR: Rgba = Rgba(0.2, 0.2, 0.2, 1.0);
 const GROUND_COLOR: [f32;4] = [0.47, 0.53, 0.49, 1.0];
 const FOV: Deg<f32> = Deg(60.0);
 
+enum Tree {
+    Deciduous {
+        has_leaves: bool,
+    },
+    Coniferous,
+}
 
 struct MeshLibrary {
     cube: MeshHandle,
     sphere: MeshHandle,
+    cone: MeshHandle,
 //    plane_sm: MeshHandle,
 //    plane_md: MeshHandle,
     plane_lg: MeshHandle,
@@ -55,6 +62,11 @@ impl MeshLibrary {
 
         let sphere = {
             let verts = Shape::IcoSphere(None).generate::<Vec<PosNormTex>>(None);
+            loader.load_from_data(verts, (), meshes)
+        };
+
+        let cone = {
+            let verts = Shape::Cone(8).generate::<Vec<PosNormTex>>(None);
             loader.load_from_data(verts, (), meshes)
         };
 
@@ -78,6 +90,7 @@ impl MeshLibrary {
         MeshLibrary {
             cube,
             sphere,
+            cone,
 //            plane_sm,
 //            plane_md,
             plane_lg,
@@ -166,13 +179,16 @@ fn initialize_village(world: &mut World) {
     }
 }
 
-fn initialize_tree(world: &mut World, root_xform: Transform, has_leaves: bool) {
-    let (trunk_mesh, trunk_mtl, leaves_mesh, leaves_mtl) = {
+fn initialize_tree(world: &mut World, root_xform: Transform, tree_type: Tree, trunk_diameter: f32) {
+    let (trunk_mesh, trunk_mtl, leaves_mtl) = {
         let meshes = world.read_resource::<MeshLibrary>();
         let materials = world.read_resource::<MaterialLibrary>();
 
-        (meshes.cube.clone(), materials.dark_grey.clone(),
-         meshes.sphere.clone(), materials.green_a.clone())
+        let trunk_mesh = meshes.cube.clone();
+        let trunk_mtl = materials.dark_grey.clone();
+        let leaves_mtl = materials.green_a.clone();
+
+        (trunk_mesh, trunk_mtl, leaves_mtl)
     };
 
     let root = {
@@ -182,7 +198,6 @@ fn initialize_tree(world: &mut World, root_xform: Transform, has_leaves: bool) {
             .build()
     };
 
-    let trunk_diameter = 0.5;
     let trunk_height = 10.0;
     let mut trunk_xform = Transform::default();
     trunk_xform.scale.x = trunk_diameter;
@@ -197,10 +212,21 @@ fn initialize_tree(world: &mut World, root_xform: Transform, has_leaves: bool) {
         .with(trunk_mtl)
         .build();
 
+    let mut leaves_xform = Transform::default();
+    leaves_xform.scale *= (random::<f32>() * 5.0) + 10.0;
+    leaves_xform.set_position([0.0, trunk_height * 2.0, 0.0].into());
+
+    let (leaves_mesh, has_leaves) = match tree_type {
+        Tree::Deciduous { has_leaves } => {
+            (world.read_resource::<MeshLibrary>().sphere.clone(), has_leaves)
+        },
+        Tree::Coniferous => {
+            leaves_xform.pitch_global(Deg(-90.0));
+            (world.read_resource::<MeshLibrary>().cone.clone(), true)
+        },
+    };
+
     if has_leaves {
-        let mut leaves_xform = Transform::default();
-        leaves_xform.scale *= (random::<f32>() * 5.0) + 10.0;
-        leaves_xform.set_position([0.0, trunk_height * 2.0, 0.0].into());
         world.create_entity()
             .with(Parent { entity: root })
             .with(GlobalTransform::default())
@@ -222,7 +248,15 @@ fn initialize_forest(world: &mut World) {
         xform.set_position([x, 0.0, -z].into());
         xform.scale *= scale;
 
-        initialize_tree(world, xform, true);
+        let trunk_diameter = rng.gen_range(0.5, 1.5);
+
+        let tree_type = if rng.gen() {
+            Tree::Deciduous { has_leaves: true }
+        } else {
+            Tree::Coniferous
+        };
+
+        initialize_tree(world, xform, tree_type, trunk_diameter);
     }
 }
 
