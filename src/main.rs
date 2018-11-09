@@ -6,6 +6,9 @@ extern crate log;
 extern crate gfx;
 extern crate glsl_layout;
 extern crate rand;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 
 mod pass;
 mod controls;
