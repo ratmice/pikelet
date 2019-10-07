@@ -1,14 +1,15 @@
 [package]
 name = "voyager"
-version = "0.2.0"
-authors = []
+version = "0.3.0"
+authors = ["Brendan", "Chip"]
+edition = "2018"
 
 [dependencies]
-amethyst = "0.9"
-derivative = "1.0"
 log = "0.4"
-gfx = { version = "0.17", features = ["serialize"] }
-glsl-layout = { version = "0.1.1", features = ["cgmath", "gfx"] }
-rand = "0.5"
-serde = "1.0"
-serde_derive = "1.0"
+env_logger = "0.7"
+rand = "0.7"
+wgpu = { git="git://github.com/gfx-rs/wgpu-rs.git" }
+nalgebra = "0.18"
+ncollide3d = "0.20"
+winit = "0.20.0-alpha3"
+pyro = "0.2"
