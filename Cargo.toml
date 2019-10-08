@@ -3,6 +3,7 @@ name = "voyager"
 version = "0.3.0"
 authors = ["Brendan", "Chip"]
 edition = "2018"
+publish = false
 
 [dependencies]
 log = "0.4"
