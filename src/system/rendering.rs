@@ -1,9 +1,7 @@
-
-use crate::{VoyagerResult, VoyagerError};
+use crate::{VoyagerError, VoyagerResult};
 
 use log;
 use std::cell::RefCell;
-
 
 pub struct Pass<'enc> {
     frame: wgpu::SwapChainOutput<'enc>,
@@ -22,32 +20,22 @@ impl Renderer {
         let fs = include_bytes!("../../data/triangle.frag.spv");
 
         log::trace!("Creating vertex shader module for default pipeline");
-        let vs_module = device.create_shader_module(
-            &wgpu::read_spirv(
-                std::io::Cursor::new(&vs[..])
-            )?
-        );
+        let vs_module =
+            device.create_shader_module(&wgpu::read_spirv(std::io::Cursor::new(&vs[..]))?);
 
         log::trace!("Creating fragment shader module for default pipeline");
-        let fs_module = device.create_shader_module(
-            &wgpu::read_spirv(
-                std::io::Cursor::new(&fs[..])
-            )?
-        );
+        let fs_module =
+            device.create_shader_module(&wgpu::read_spirv(std::io::Cursor::new(&fs[..]))?);
 
-        let bind_group_layout = device.create_bind_group_layout(
-            &wgpu::BindGroupLayoutDescriptor {
-                bindings: &[],
-            });
-        let bind_group = device.create_bind_group(
-            &wgpu::BindGroupDescriptor {
-                layout: &bind_group_layout,
-                bindings: &[],
-            });
-        let pipeline_layout = device.create_pipeline_layout(
-            &wgpu::PipelineLayoutDescriptor {
-                bind_group_layouts: &[&bind_group_layout],
-            });
+        let bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { bindings: &[] });
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            bindings: &[],
+        });
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            bind_group_layouts: &[&bind_group_layout],
+        });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             layout: &pipeline_layout,
@@ -81,10 +69,7 @@ impl Renderer {
             alpha_to_coverage_enabled: false,
         });
 
-        let encoder = device.create_command_encoder(
-            &wgpu::CommandEncoderDescriptor {
-                todo: 0,
-            });
+        let encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
 
         Ok(Renderer {
             bind_group,

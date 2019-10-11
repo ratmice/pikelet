@@ -4,20 +4,19 @@
 
 mod system;
 
-use std::env;
-use std::io::{Error as IoError};
 use std::cell::RefCell;
+use std::env;
+use std::io::Error as IoError;
 
-use log;
 use env_logger;
+use log;
 
-use winit::event;
-use winit::event_loop::EventLoop;
-use winit::window::Window;
 use winit::error::OsError;
+use winit::event::{self, ElementState, VirtualKeyCode};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::Window;
 
 use system::rendering;
-
 
 #[derive(Clone, Debug)]
 #[allow(unused)]
@@ -41,7 +40,6 @@ impl From<IoError> for VoyagerError {
 pub type VoyagerResult<T> = Result<T, VoyagerError>;
 
 const VOYAGER_LOG: &str = "VOYAGER_LOG";
-
 
 struct AppContext {
     event_loop: EventLoop<()>,
@@ -71,11 +69,11 @@ impl AppContext {
                 Some(adapter) => adapter,
                 None => {
                     return Err(VoyagerError::Runtime("No available adapter.".to_string()));
-                },
+                }
             }
         };
         log::trace!("Requesting wgpu device and queue");
-        let (device, mut queue) = {
+        let (device, queue) = {
             let desc = wgpu::DeviceDescriptor {
                 extensions: wgpu::Extensions {
                     anisotropic_filtering: false,
@@ -86,7 +84,7 @@ impl AppContext {
         };
         log::trace!("Creating swap chain");
         let size = window.inner_size().to_physical(window.hidpi_factor());
-        let mut swap_chain = device.create_swap_chain(
+        let swap_chain = device.create_swap_chain(
             &surface,
             &wgpu::SwapChainDescriptor {
                 usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
@@ -94,7 +92,7 @@ impl AppContext {
                 width: size.width.round() as u32,
                 height: size.height.round() as u32,
                 present_mode: wgpu::PresentMode::Vsync,
-            }
+            },
         );
 
         Ok(AppContext {
@@ -108,16 +106,17 @@ impl AppContext {
         })
     }
 
+    #[allow(unused)]
     pub fn window_size(&self) -> (u32, u32) {
-        self.window.inner_size()
+        self.window
+            .inner_size()
             .to_physical(self.window.hidpi_factor())
             .into()
     }
 }
 
-
 fn main() -> VoyagerResult<()> {
-    if let None = env::var_os(VOYAGER_LOG) {
+    if env::var_os(VOYAGER_LOG).is_none() {
         std::env::set_var(VOYAGER_LOG, "warn,voyager=debug");
     }
     env_logger::init_from_env(VOYAGER_LOG);
@@ -127,6 +126,47 @@ fn main() -> VoyagerResult<()> {
 
     log::debug!("Initializing renderer.");
     let renderer = rendering::Renderer::initialize(&mut app.device)?;
+
+    // TODO initialize any other systems (audio, scripts, ...)
+
+    log::debug!("Entering main loop.");
+    app.event_loop.run(|event, _, control_flow| {
+        *control_flow = ControlFlow::Poll;
+        match event {
+            event::Event::WindowEvent { event, .. } => match event {
+                event::WindowEvent::CloseRequested => {
+                    *control_flow = ControlFlow::Exit;
+                }
+                event::WindowEvent::KeyboardInput { input, .. } => match input {
+                    event::KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(keycode),
+                        modifiers,
+                        ..
+                    } => match keycode {
+                        VirtualKeyCode::Escape => *control_flow = ControlFlow::Exit,
+                        VirtualKeyCode::W => {
+                            if modifiers.alt {
+                                *control_flow = ControlFlow::Exit;
+                            }
+                        }
+                        _ => (),
+                    },
+                    _ => (),
+                },
+                _ => (),
+            },
+            event::Event::DeviceEvent { event, .. } => match event {
+                event::DeviceEvent::MouseMotion {
+                    delta: (delta_x, delta_y),
+                } => {
+                    log::trace!("Mouse delta: {}, {}", delta_x, delta_y);
+                }
+                _ => (),
+            },
+            _ => (),
+        }
+    });
 
     log::info!("Voyager shutdown.");
     Ok(())
