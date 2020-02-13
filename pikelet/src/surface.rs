@@ -28,7 +28,13 @@ pub enum Term<S> {
     /// Record eliminations (field access).
     RecordElim(Box<Term<S>>, Range<usize>, S),
     /// Function types.
-    FunctionType(Box<Term<S>>, Box<Term<S>>),
+    FunctionType(
+        RangeFrom<usize>,
+        Vec<(Vec<(Range<usize>, S)>, Term<S>)>,
+        Box<Term<S>>,
+    ),
+    /// Arrow function types.
+    FunctionArrowType(Box<Term<S>>, Box<Term<S>>),
     /// Function terms (lambda abstractions).
     FunctionTerm(RangeFrom<usize>, Vec<(Range<usize>, S)>, Box<Term<S>>),
     /// Function eliminations (function application).
@@ -60,7 +66,8 @@ impl<T> Term<T> {
             | Term::Error(range) => range.clone(),
             Term::Ann(term, r#type) => term.range().start..r#type.range().end,
             Term::RecordElim(term, name_range, _) => term.range().start..name_range.end,
-            Term::FunctionType(param_type, body_type) => {
+            Term::FunctionType(range, _, body_type) => range.start..body_type.range().end,
+            Term::FunctionArrowType(param_type, body_type) => {
                 param_type.range().start..body_type.range().end
             }
             Term::FunctionTerm(range, _, body) => range.start..body.range().end,

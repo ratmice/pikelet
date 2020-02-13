@@ -6,11 +6,11 @@ use crate::surface;
 pub struct State<'me> {
     // TODO: global names
     // TODO: used names
-    names: &'me mut Locals<String>,
+    names: &'me mut Locals<Option<String>>,
 }
 
 impl<'me> State<'me> {
-    pub fn new(names: &'me mut Locals<String>) -> State<'me> {
+    pub fn new(names: &'me mut Locals<Option<String>>) -> State<'me> {
         State { names }
     }
 }
@@ -23,7 +23,10 @@ pub fn delaborate_term(state: &mut State<'_>, term: &Term) -> surface::Term<Stri
             surface::Term::Lift(0..0, universe0, *level)
         }
         Term::Global(name) => surface::Term::Name(0..0, name.to_owned()),
-        Term::Local(index) => surface::Term::Name(0..0, state.names.get(*index).cloned().unwrap()), // FIXME: unwrap
+        Term::Local(index) => {
+            // FIXME: unwraps
+            surface::Term::Name(0..0, state.names.get(*index).cloned().unwrap().unwrap())
+        }
         Term::Constant(constant) => delaborate_constant(constant),
         Term::Sequence(entry_terms) => {
             let core_entry_terms = entry_terms
@@ -42,7 +45,7 @@ pub fn delaborate_term(state: &mut State<'_>, term: &Term) -> surface::Term<Stri
                 .iter()
                 .map(|(entry_name, entry_type)| {
                     let entry_type = delaborate_term(state, entry_type);
-                    state.names.push(entry_name.clone());
+                    state.names.push(Some(entry_name.clone()));
                     (0..0, entry_name.clone(), entry_type)
                 })
                 .collect();
@@ -63,19 +66,32 @@ pub fn delaborate_term(state: &mut State<'_>, term: &Term) -> surface::Term<Stri
         Term::RecordElim(head, name) => {
             surface::Term::RecordElim(Box::new(delaborate_term(state, head)), 0..0, name.clone())
         }
-        Term::FunctionType(param_type, body_type) => surface::Term::FunctionType(
-            Box::new(delaborate_term(state, param_type)),
-            Box::new(delaborate_term(state, body_type)),
-        ),
+        Term::FunctionType(param_name_hint, param_type, body_type) => {
+            // FIXME: properly group parameters and deal with name binding!
+            let param_type_groups = vec![(
+                vec![(
+                    0..0,
+                    param_name_hint.clone().unwrap_or_else(|| "TODO".to_owned()),
+                )],
+                delaborate_term(state, param_type),
+            )];
+            state.names.push(param_name_hint.clone());
+
+            surface::Term::FunctionType(
+                0..,
+                param_type_groups,
+                Box::new(delaborate_term(state, body_type)),
+            )
+        }
         Term::FunctionTerm(param_name_hint, body) => {
             let mut current_body = body;
 
             let mut param_names = vec![(0..0, param_name_hint.clone())]; // FIXME: Name avoidance
-            state.names.push(param_name_hint.clone());
+            state.names.push(Some(param_name_hint.clone()));
 
             while let Term::FunctionTerm(param_name_hint, body) = current_body.as_ref() {
                 param_names.push((0..0, param_name_hint.clone())); // FIXME: Name avoidance
-                state.names.push(param_name_hint.clone());
+                state.names.push(Some(param_name_hint.clone()));
                 current_body = body;
             }
 

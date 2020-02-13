@@ -52,7 +52,7 @@ impl<'me> State<'me> {
     }
 
     /// Push a local parameter.
-    fn push_param(&mut self, r#type: Arc<Value>) -> Arc<Value> {
+    fn push_local_param(&mut self, r#type: Arc<Value>) -> Arc<Value> {
         let value = Arc::new(Value::local(self.next_level(), r#type.clone()));
         self.push_local(value.clone(), r#type);
         value
@@ -241,9 +241,9 @@ pub fn check_term(state: &mut State<'_>, term: &Term, expected_type: &Arc<Value>
                 });
             }
         }
-        (Term::FunctionTerm(_, body), Value::FunctionType(param_type, body_type)) => {
-            state.push_param(param_type.clone());
-            check_term(state, body, body_type);
+        (Term::FunctionTerm(_, body), Value::FunctionType(_, param_type, body_type)) => {
+            let param = state.push_local_param(param_type.clone());
+            check_term(state, body, &state.eval_closure_elim(body_type, param));
             state.pop_local();
         }
         (Term::FunctionTerm(_, _), _) => {
@@ -340,7 +340,7 @@ pub fn synth_term(state: &mut State<'_>, term: &Term) -> Arc<Value> {
                     }
                 };
                 let entry_type = state.eval_term(entry_type);
-                state.push_param(entry_type);
+                state.push_local_param(entry_type);
             }
 
             state.pop_many_locals(seen_names.len());
@@ -376,8 +376,18 @@ pub fn synth_term(state: &mut State<'_>, term: &Term) -> Arc<Value> {
             });
             Arc::new(Value::Error)
         }
-        Term::FunctionType(param_type, body_type) => {
-            match (check_type(state, param_type), check_type(state, body_type)) {
+        Term::FunctionType(_, param_type, body_type) => {
+            let param_level = check_type(state, param_type);
+            let param_type = match param_level {
+                None => Arc::new(Value::Error),
+                Some(_) => state.eval_term(param_type),
+            };
+
+            state.push_local_param(param_type);
+            let body_level = check_type(state, body_type);
+            state.pop_local();
+
+            match (param_level, body_level) {
                 (Some(param_level), Some(body_level)) => {
                     Arc::new(Value::Universe(std::cmp::max(param_level, body_level)))
                 }
@@ -393,9 +403,10 @@ pub fn synth_term(state: &mut State<'_>, term: &Term) -> Arc<Value> {
         Term::FunctionElim(head, argument) => {
             let head_type = synth_term(state, head);
             match head_type.as_ref() {
-                Value::FunctionType(param_type, body_type) => {
+                Value::FunctionType(_, param_type, body_type) => {
                     check_term(state, argument, &param_type);
-                    body_type.clone()
+                    let argument_value = state.eval_term(argument);
+                    state.eval_closure_elim(body_type, argument_value)
                 }
                 Value::Error => Arc::new(Value::Error),
                 _ => {

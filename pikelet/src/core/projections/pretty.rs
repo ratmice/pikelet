@@ -116,7 +116,7 @@ where
             .append(pretty_term_prec(alloc, head, Prec::Atomic))
             .append(".")
             .append(alloc.text(name)),
-        Term::FunctionType(param_type, body_type) => pretty_paren(
+        Term::FunctionType(_, param_type, body_type) => pretty_paren(
             alloc,
             prec > Prec::Arrow,
             (alloc.nil())

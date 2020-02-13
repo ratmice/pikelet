@@ -84,11 +84,15 @@ pub fn eval_term(
             let head = eval_term(globals, universe_offset, values, head);
             eval_record_elim(globals, &head, name)
         }
-        Term::FunctionType(param_type, body_type) => {
+        Term::FunctionType(param_name_hint, param_type, body_type) => {
             let param_type = eval_term(globals, universe_offset, values, param_type);
-            let body_type = eval_term(globals, universe_offset, values, body_type);
+            let body_type = Closure::new(universe_offset, values.clone(), body_type.clone());
 
-            Arc::new(Value::FunctionType(param_type, body_type))
+            Arc::new(Value::FunctionType(
+                param_name_hint.clone(),
+                param_type,
+                body_type,
+            ))
         }
         Term::FunctionTerm(param_name, body) => Arc::new(Value::FunctionTerm(
             param_name.clone(),
@@ -160,13 +164,14 @@ pub fn eval_fun_elim(globals: &Globals, head_value: &Value, argument: Arc<Value>
         Value::FunctionTerm(_, body_closure) => eval_closure_elim(globals, body_closure, argument),
         Value::Elim(head, elims, r#type) => {
             let (param_type, body_type) = match r#type.as_ref() {
-                Value::FunctionType(param_type, body_type) => (param_type, body_type),
+                Value::FunctionType(_, param_type, body_type) => (param_type, body_type),
                 _ => return Arc::new(Value::Error),
             };
 
             let mut elims = elims.clone(); // TODO: Avoid clone?
+            let body_type = eval_closure_elim(globals, body_type, argument.clone());
             elims.push(Elim::Function(argument, param_type.clone()));
-            Arc::new(Value::Elim(head.clone(), elims, body_type.clone()))
+            Arc::new(Value::Elim(head.clone(), elims, body_type))
         }
         _ => Arc::new(Value::Error),
     }
@@ -243,11 +248,13 @@ pub fn read_back_nf(
         }
         (Value::RecordTypeEmpty, Value::RecordTypeEmpty) => Term::RecordType(Vec::new()),
         (
-            Value::FunctionTerm(param_name_hint, body_closure),
-            Value::FunctionType(param_type, body_type),
+            Value::FunctionTerm(param_name_hint, _),
+            Value::FunctionType(_, param_type, body_type),
         ) => {
-            let body = instantiate_closure(globals, local_size, param_type.clone(), body_closure);
-            let body = read_back_nf(globals, LocalSize(local_size.0 + 1), &body, body_type);
+            let local = Arc::new(Value::local(local_size.next_level(), param_type.clone()));
+            let body = eval_fun_elim(globals, value, local.clone());
+            let body_type = eval_closure_elim(globals, body_type, local);
+            let body = read_back_nf(globals, LocalSize(local_size.0 + 1), &body, &body_type);
 
             Term::FunctionTerm(param_name_hint.clone(), Arc::new(body))
         }
@@ -256,7 +263,7 @@ pub fn read_back_nf(
         | (Value::RecordTypeExtend(_, _, _), _)
         | (Value::RecordTypeEmpty, _)
         | (Value::RecordTerm(_), _)
-        | (Value::FunctionType(_, _), _)
+        | (Value::FunctionType(_, _, _), _)
         | (Value::FunctionTerm(_, _), _) => Term::Error, // TODO: Report error
         (Value::Error, _) => Term::Error,
     }
@@ -288,10 +295,17 @@ pub fn read_back_type(globals: &Globals, local_size: LocalSize, r#type: &Value) 
             Term::RecordType(type_entries)
         }
         Value::RecordTypeEmpty => Term::RecordType(Vec::new()),
-        Value::FunctionType(param_type, body_type) => Term::FunctionType(
-            Arc::new(read_back_type(globals, local_size, param_type)),
-            Arc::new(read_back_type(globals, local_size, body_type)),
-        ),
+        Value::FunctionType(param_name_hint, param_type, body_type) => {
+            let local = Arc::new(Value::local(local_size.next_level(), param_type.clone()));
+            let param_type = Arc::new(read_back_type(globals, local_size, param_type));
+            let body_type = Arc::new(read_back_type(
+                globals,
+                local_size.increment(),
+                &*eval_closure_elim(globals, body_type, local),
+            ));
+
+            Term::FunctionType(param_name_hint.clone(), param_type, body_type)
+        }
         Value::Constant(_)
         | Value::Sequence(_)
         | Value::RecordTerm(_)
@@ -350,29 +364,37 @@ fn compare_types(
         (
             Value::RecordTypeExtend(entry_name0, entry_type0, rest_type0),
             Value::RecordTypeExtend(entry_name1, entry_type1, rest_type1),
-        ) => {
-            entry_name0 == entry_name1
-                && compare_types(globals, local_size, entry_type0, entry_type1, compare)
-                && {
-                    let level = local_size.next_level();
-                    let local = Arc::new(Value::local(level, entry_type0.clone()));
+        ) if entry_name0 == entry_name1 => {
+            compare_types(globals, local_size, entry_type0, entry_type1, compare) && {
+                let level = local_size.next_level();
+                let local = Arc::new(Value::local(level, entry_type0.clone()));
 
-                    compare_types(
-                        globals,
-                        local_size.increment(),
-                        &*eval_closure_elim(globals, rest_type0, local.clone()),
-                        &*eval_closure_elim(globals, rest_type1, local),
-                        compare,
-                    )
-                }
+                compare_types(
+                    globals,
+                    local_size.increment(),
+                    &*eval_closure_elim(globals, rest_type0, local.clone()),
+                    &*eval_closure_elim(globals, rest_type1, local),
+                    compare,
+                )
+            }
         }
         (Value::RecordTypeEmpty, Value::RecordTypeEmpty) => true,
         (
-            Value::FunctionType(param_type0, body_type0),
-            Value::FunctionType(param_type1, body_type1),
+            Value::FunctionType(_, param_type0, body_type0),
+            Value::FunctionType(_, param_type1, body_type1),
         ) => {
-            compare_types(globals, local_size, param_type1, param_type0, compare)
-                && compare_types(globals, local_size, body_type0, body_type1, compare)
+            compare_types(globals, local_size, param_type1, param_type0, compare) && {
+                let level = local_size.next_level();
+                let local = Arc::new(Value::local(level, param_type0.clone()));
+
+                compare_types(
+                    globals,
+                    local_size,
+                    &*eval_closure_elim(globals, body_type0, local.clone()),
+                    &*eval_closure_elim(globals, body_type1, local),
+                    compare,
+                )
+            }
         }
         // Errors are always treated as subtypes, regardless of what they are compared with.
         (Value::Error, _) | (_, Value::Error) => true,
