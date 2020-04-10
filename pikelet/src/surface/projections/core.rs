@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::core;
-use crate::surface::{Literal, Term};
+use crate::surface::{Literal, MetaData, Term};
 
 pub mod reporting;
 
@@ -448,6 +448,9 @@ pub fn synth_term<S: AsRef<str>>(
                 parse_string(state, term.range(), data),
                 Arc::new(core::Value::global("String", 0, core::Value::universe(0))),
             ),
+        },
+        Term::Meta(meta, term) => match meta {
+            MetaData::DocComment(_, _) => synth_term(state, term)
         },
         Term::Sequence(_, _) => {
             state.report(Message::AmbiguousTerm {

@@ -2,7 +2,7 @@
 
 use pretty::{DocAllocator, DocBuilder};
 
-use crate::surface::{Literal, Term};
+use crate::surface::{Literal, MetaData, Term};
 
 /// The precedence of a term.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -31,6 +31,9 @@ where
 {
     match term {
         Term::Name(_, name) => alloc.text(name.as_ref()),
+        Term::Meta(MetaData::DocComment(_, data), term) => {
+            alloc.text(data.as_ref()).append(pretty_term_prec(alloc, term, Prec::Term))
+        }
         Term::Ann(term, r#type) => pretty_paren(
             alloc,
             prec > Prec::Term,

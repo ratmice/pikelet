@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::surface::{Term, Literal};
+use crate::surface::{Literal, MetaData, Term};
 use crate::surface::lexer::{LexerError, Token};
 
 grammar<'input>;
@@ -30,12 +30,43 @@ extern {
         NumLiteral => Token::NumLiteral(<&'input  str>),
         Id => Token::Name(<&'input str>),
         Shift => Token::Shift(<&'input str>),
+        DocComment => Token::DocComment(<&'input str>),
     }
 }
 
+// Doesn't get used yet.
+DocComments<S>: Vec<S> = {
+  <doc_comments: DocComments<S>*> <doc_comment: DocComment?> => {
+     match doc_comment {
+       None => doc_comments,
+       Some(doc_comment) => {
+	     let mut doc_comments = doc_comments;
+	     doc_comments.push(doc_comment)
+       },
+     }
+  }
+}
+
 pub Term: Term<&'input str> = {
-    ExprTerm,
-    <term: ExprTerm> ":" <ty: Term> => Term::Ann(Box::new(term), Box::new(ty)),
+    <start: @L> <doc_comment: DocComment?> <end: @R> <term: ExprTerm> => {
+	match doc_comment {
+	      None => term,
+	      Some(data) => {
+	        let comment_meta = MetaData::DocComment(start..end, data);
+	        Term::Meta(comment_meta, Box::new(term))
+	      }
+       }
+    },
+    <start: @L> <doc_comment: DocComment?> <end: @R> <term: ExprTerm> ":" <ty: Term> => {
+       let typed_term = Term::Ann(Box::new(term), Box::new(ty));
+       match doc_comment {
+         None => typed_term,
+         Some(data) => {
+		let comment_term = MetaData::DocComment(start..end, data);
+		Term::Meta(comment_term, Box::new(typed_term))
+	 }
+      }
+   },
 };
 
 ExprTerm: Term<&'input str> = {

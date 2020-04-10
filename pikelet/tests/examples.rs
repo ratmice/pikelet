@@ -65,6 +65,14 @@ fn comments() {
 }
 
 #[test]
+fn doc_comments() {
+    run_test(
+        "examples/doc-comments.pi",
+        include_str!("../../examples/doc-comments.pi"),
+    );
+}
+
+#[test]
 fn cube() {
     run_test("examples/cube.pi", include_str!("../../examples/cube.pi"));
 }

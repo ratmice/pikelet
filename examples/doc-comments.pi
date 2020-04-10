@@ -1,0 +1,4 @@
+||| Doc comment for an empty record. 
+-- The answer is not yet ||| Can we magically add another line?
+record {
+} : Record {}

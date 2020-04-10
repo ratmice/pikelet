@@ -17,6 +17,8 @@ mod grammar {
 pub enum Term<S> {
     /// Names.
     Name(Range<usize>, S),
+    /// A term with Meta
+    Meta(MetaData<S>, Box<Term<S>>),
     /// Annotated terms.
     Ann(Box<Term<S>>, Box<Term<S>>),
     /// Literals.
@@ -61,6 +63,7 @@ impl<T> Term<T> {
             | Term::RecordTerm(range, _)
             | Term::Lift(range, _, _)
             | Term::Error(range) => range.clone(),
+            Term::Meta(MetaData::DocComment(range, _), _) => range.clone(),
             Term::Ann(term, r#type) => term.range().start..r#type.range().end,
             Term::RecordElim(term, name_range, _) => term.range().start..name_range.end,
             Term::FunctionType(param_type, body_type) => {
@@ -84,4 +87,11 @@ pub enum Literal<S> {
     String(S),
     /// Numeric literals.
     Number(S),
+}
+
+/// MetaData.
+#[derive(Debug, Clone)]
+pub enum MetaData<S> {
+   /// Doc Comment.
+   DocComment(Range<usize>, S),
 }

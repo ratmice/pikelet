@@ -36,6 +36,8 @@ pub enum Token<'a> {
     Dot,
     #[token = "="]
     Equal,
+    #[regex(r"\|\|\|(.*)\n", |lexer| lexer.slice())]
+    DocComment(&'a str),
     // Hmm, not sure why this doesn't work.
     // #[regex = r#"'(.|\\"|\\')*'"#]
     #[regex(r#"('[^'\\]|\\t|\\u|\\n|\\"|\\')*'"#, |lexer| lexer.slice())]
@@ -73,6 +75,7 @@ impl<'a> fmt::Display for Token<'a> {
             Token::Equal => write!(f, "="),
             Token::Dot => write!(f, "."),
             Token::CharLiteral(s) => write!(f, "{}", s),
+            Token::DocComment(s) => write!(f, "{}", s),
             Token::StrLiteral(s) => write!(f, "{}", s),
             Token::NumLiteral(s) => write!(f, "{}", s),
             Token::Name(s) => write!(f, "{}", s),
